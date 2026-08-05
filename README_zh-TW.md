@@ -14,7 +14,7 @@
   <a href="#功能特色">功能特色</a> &bull;
   <a href="#系統架構">系統架構</a> &bull;
   <a href="#元件說明">元件說明</a> &bull;
-  <a href="#功能截圖">功能截圖</a> &bull;
+  <a href="#操作介面">操作介面</a> &bull;
   <a href="#安裝說明">安裝說明</a> &bull;
   <a href="#設定指南">設定指南</a> &bull;
   <a href="#安全機制">安全機制</a> &bull;
@@ -232,55 +232,33 @@ flowchart TD
 
 ---
 
-## 功能截圖
+## 操作介面
+
+本節以文字說明每個操作介面的行為，而不是以截圖呈現 — 螢幕擷取畫面並未納入版本庫。前四項是網頁介面中的面板，後兩項是瀏覽器終端。
 
 ### 網頁介面 — 對話，並綁定工作目錄
 
 session 會在持久磁碟區上的 `pi-cwd-YYYYMMDD` 目錄中開啟。模型選擇器、技能、外掛與檔案瀏覽器都能從這一個畫面抵達。
 
-<p align="center">
-  <img src="docs/screenshots/01-home.png" alt="pi-web home" width="720"/>
-</p>
-
 ### 模型 — 在介面中設定供應商，持久化到磁碟區
 
-供應商金鑰在這裡輸入，而不是以環境變數注入。pi-web 會抓取上游型錄，並把選擇結果寫入 PVC 上的 `models.json`，因此可以撐過 Pod 重啟。
-
-<p align="center">
-  <img src="docs/screenshots/02-models.png" alt="Models page" width="720"/>
-</p>
+供應商金鑰是在 Models 頁面輸入，而不是以環境變數注入。pi-web 會抓取上游型錄，並把選擇結果寫入 PVC 上的 `models.json`，因此可以撐過 Pod 重啟。
 
 ### 技能 — 代理實際看到的登錄
 
 `/data/pi-agent/skills` 底下每一份 `SKILL.md` 都會被解析並注入系統提示詞。格式有誤的技能會被排除並附上診斷訊息，其餘的照常載入。
 
-<p align="center">
-  <img src="docs/screenshots/03-skills.png" alt="Skills panel" width="720"/>
-</p>
-
-### 外掛 — 從終端安裝的套件會出現在這裡
+### 外掛 — 從終端安裝的套件會出現在網頁介面
 
 在瀏覽器終端執行 `pi install <github-url>` 會把套件登記到 `settings.json`；網頁介面讀的是同一個檔案。這就是終端與介面之間「同一事實來源」的契約。
 
-<p align="center">
-  <img src="docs/screenshots/04-plugins.png" alt="Plugins panel" width="720"/>
-</p>
-
 ### 瀏覽器終端 — `pi` 就在 `PATH` 上，與介面共用同一個磁碟區
 
-橫幅會標示資料目錄與釘死的版本號。這正是早期版本完全缺席的能力：當時在容器內執行 `pi` 只會得到 command-not-found。
-
-<p align="center">
-  <img src="docs/screenshots/05-terminal.png" alt="ttyd terminal" width="720"/>
-</p>
+終端開啟時會顯示一段橫幅，標示資料目錄與釘死的版本號。這正是早期版本完全缺席的能力：當時在容器內執行 `pi` 只會得到 command-not-found。
 
 ### 瀏覽器終端 — `pi config` TUI
 
-直接從瀏覽器啟用或停用套件資源，作用對象就是網頁介面所服務的那個執行個體。
-
-<p align="center">
-  <img src="docs/screenshots/06-terminal-tui.png" alt="pi config TUI" width="720"/>
-</p>
+這個 TUI 可直接從瀏覽器啟用或停用套件資源，作用對象就是網頁介面所服務的那個執行個體。
 
 ---
 

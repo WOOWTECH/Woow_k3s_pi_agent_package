@@ -14,7 +14,7 @@
   <a href="#features">Features</a> &bull;
   <a href="#architecture">Architecture</a> &bull;
   <a href="#components">Components</a> &bull;
-  <a href="#screenshots">Screenshots</a> &bull;
+  <a href="#surfaces">Surfaces</a> &bull;
   <a href="#installation">Installation</a> &bull;
   <a href="#configuration">Configuration</a> &bull;
   <a href="#security">Security</a> &bull;
@@ -232,55 +232,33 @@ Rendered with `ttyd.existingSecret` and `cloudflare.existingCredentialsSecret` s
 
 ---
 
-## Screenshots
+## Surfaces
+
+Screen captures are not committed to the repository, so this section describes each surface rather than showing it. The first four entries are panels of the web UI; the last two are the browser terminal.
 
 ### Web UI — chat with the working directory bound
 
 The session opens in a `pi-cwd-YYYYMMDD` directory on the persistent volume. The model selector, skills, plugins and file explorer are all reachable from this one screen.
 
-<p align="center">
-  <img src="docs/screenshots/01-home.png" alt="pi-web home" width="720"/>
-</p>
-
 ### Models — providers configured in the UI, persisted to the volume
 
-Provider keys are entered here, not injected as environment variables. pi-web fetches the upstream catalogue and writes the selection to `models.json` on the PVC, so it survives a pod restart.
-
-<p align="center">
-  <img src="docs/screenshots/02-models.png" alt="Models page" width="720"/>
-</p>
+Provider keys are entered in the Models page, not injected as environment variables. pi-web fetches the upstream catalogue and writes the selection to `models.json` on the PVC, so it survives a pod restart.
 
 ### Skills — the registry the agent sees
 
 Every `SKILL.md` under `/data/pi-agent/skills` is parsed and injected into the system prompt. Malformed skills are excluded with a diagnostic while the rest keep loading.
 
-<p align="center">
-  <img src="docs/screenshots/03-skills.png" alt="Skills panel" width="720"/>
-</p>
-
-### Plugins — packages installed from the terminal appear here
+### Plugins — packages installed from the terminal appear in the web UI
 
 `pi install <github-url>` in the browser terminal registers a package in `settings.json`; the web UI reads the same file. This is the terminal/UI same-source-of-truth contract.
 
-<p align="center">
-  <img src="docs/screenshots/04-plugins.png" alt="Plugins panel" width="720"/>
-</p>
-
 ### Browser terminal — `pi` on `PATH`, same volume as the UI
 
-The banner names the data directory and the pinned versions. This is the capability that earlier builds lacked entirely: `pi` was command-not-found inside the container.
-
-<p align="center">
-  <img src="docs/screenshots/05-terminal.png" alt="ttyd terminal" width="720"/>
-</p>
+The terminal opens on a banner naming the data directory and the pinned versions. This is the capability that earlier builds lacked entirely: `pi` was command-not-found inside the container.
 
 ### Browser terminal — the `pi config` TUI
 
-Enabling and disabling package resources from the browser, against the same instance the web UI serves.
-
-<p align="center">
-  <img src="docs/screenshots/06-terminal-tui.png" alt="pi config TUI" width="720"/>
-</p>
+The TUI enables and disables package resources from the browser, against the same instance the web UI serves.
 
 ---
 
