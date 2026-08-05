@@ -1,0 +1,86 @@
+name: chart
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "charts/**"
+      - "values-woow.yaml"
+      - ".github/workflows/chart.yml"
+  pull_request:
+    paths:
+      - "charts/**"
+      - "values-woow.yaml"
+      - ".github/workflows/chart.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chart-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.3
+
+      - name: helm lint
+        run: helm lint charts/pi-agent -f values-woow.yaml
+
+      - name: helm template (existing-secret mode)
+        run: |
+          mkdir -p deploy/rendered
+          helm template pi-agent charts/pi-agent \
+            --namespace pi-agent-woow \
+            -f values-woow.yaml \
+            --set ttyd.existingSecret=pi-agent-ttyd \
+            --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds \
+            > deploy/rendered/pi-agent-woow.yaml
+
+      - name: Guard against committed credentials
+        run: |
+          set -e
+          file=deploy/rendered/pi-agent-woow.yaml
+          leak=0
+          if grep -nE 'TTYD_PASSWORD: ' "$file"; then leak=1; fi
+          if grep -nE 'credentials\.json: \{' "$file"; then leak=1; fi
+          if grep -nE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----' "$file"; then leak=1; fi
+          if [ "$leak" -ne 0 ]; then
+            echo "::error::rendered manifest contains what looks like a credential; refusing to commit"
+            exit 1
+          fi
+          echo "no credential markers found in $file"
+
+      - name: Upload rendered manifest as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-agent-woow-rendered
+          path: deploy/rendered/pi-agent-woow.yaml
+
+      - name: Commit rendered manifest back to main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deploy/rendered/pi-agent-woow.yaml
+          if git diff --cached --quiet; then
+            echo "no changes to rendered manifest; skipping commit"
+            exit 0
+          fi
+          git commit -m "chore(chart): re-render deploy/rendered/pi-agent-woow.yaml
+
+Auto-generated from charts/pi-agent + values-woow.yaml with
+ttyd.existingSecret=pi-agent-ttyd and
+cloudflare.existingCredentialsSecret=pi-agent-cf-creds.
+
+Source: ${{ github.sha }}"
+          git push

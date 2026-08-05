@@ -1,0 +1,502 @@
+---
+# Source: pi-agent/templates/configmap-cloudflared.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pi-agent-cloudflared
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+data:
+  # Locally-managed tunnel: the hostname -> service map lives here, in the
+  # chart, instead of in the Cloudflare dashboard. That is what makes a second
+  # team a values file rather than a support ticket.
+  #
+  # This lives in its own file so the Deployment can checksum it. A
+  # checksum/config annotation that includes the template it is written in is a
+  # nested self-reference and Helm refuses to render it.
+  config.yaml: |
+    tunnel: 88f7b0ed-b4f5-48b3-9fa0-acdd8a5a37af
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:20241
+    no-autoupdate: true
+    ingress:
+      - hostname: pi-agent-woow.woowtech.io
+        service: http://pi-agent.pi-agent-woow.svc.cluster.local:30142
+        originRequest:
+          connectTimeout: 30s
+          # Belt and braces with the nginx sidecar's own Host rewrite: pi-web
+          # rejects any non-loopback Host. nginx is still required (it is the
+          # only thing stripping Origin), but if someone ever simplifies the
+          # sidecar away, this keeps the Host half of the guard satisfied.
+          httpHostHeader: localhost
+      - hostname: pi-agent-woow-tty.woowtech.io
+        # ttyd upgrades to a WebSocket; cloudflared proxies that natively.
+        service: http://pi-agent-tty.pi-agent-woow.svc.cluster.local:7681
+        originRequest:
+          connectTimeout: 30s
+          noHappyEyeballs: true
+      - service: http_status:404
+---
+# Source: pi-agent/templates/configmap-nginx.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pi-agent-nginx
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+data:
+  nginx.conf: |
+    # nginx:1.27-alpine's entrypoint already runs with `daemon off` — do not repeat it.
+    pid /tmp/nginx.pid;
+    worker_processes 1;
+    error_log /dev/stderr info;
+
+    events {
+        worker_connections 512;
+    }
+
+    http {
+        access_log /dev/stdout;
+        # Keep every scratch path in /tmp so the container does not need a
+        # writable /var/cache.
+        client_body_temp_path /tmp/nginx-client-body;
+        proxy_temp_path       /tmp/nginx-proxy;
+        fastcgi_temp_path     /tmp/nginx-fastcgi;
+        uwsgi_temp_path       /tmp/nginx-uwsgi;
+        scgi_temp_path        /tmp/nginx-scgi;
+
+        default_type application/octet-stream;
+        include /etc/nginx/mime.types;
+
+        server_tokens off;
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+
+        # Chat responses stream over SSE. Buffering here truncates long
+        # generations at the proxy and the UI just stops mid-sentence.
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+        proxy_request_buffering off;
+
+        client_max_body_size 100M;
+
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            ''      close;
+        }
+
+        server {
+            listen 30142 default_server;
+
+            location / {
+                proxy_pass http://127.0.0.1:30141;
+                proxy_http_version 1.1;
+
+                # pi-web's isApiRequestAllowed() rejects any Host that is not a
+                # loopback name or raw IP, and any Origin that doesn't match it.
+                # Traffic here arrives with the public hostname, so without
+                # this rewrite every auth-gated route (models, skills, plugins,
+                # sessions...) answers 403 "Untrusted API request" and the UI
+                # looks loaded but does nothing.
+                proxy_set_header Host localhost;
+                proxy_set_header Origin "";
+
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+            }
+        }
+    }
+---
+# Source: pi-agent/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pi-agent-data
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+  annotations:
+    # Keep user sessions, skills and provider config even if the release is
+    # uninstalled — deleting a chart should not be how you lose a month of work.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: nfs-data
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Source: pi-agent/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pi-agent
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+spec:
+  type: ClusterIP
+  selector:
+    app: pi-agent
+  ports:
+    # Only the nginx port is published. pi-web's own port stays pod-internal so
+    # every request goes through the Host/Origin rewrite.
+    - name: http
+      port: 30142
+      targetPort: 30142
+---
+# Source: pi-agent/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pi-agent-tty
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+spec:
+  type: ClusterIP
+  selector:
+    app: pi-agent
+  ports:
+    - name: ttyd
+      port: 7681
+      targetPort: 7681
+---
+# Source: pi-agent/templates/cloudflared.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi-agent-cloudflared
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+    app: pi-agent-cloudflared
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pi-agent-cloudflared
+  template:
+    metadata:
+      labels:
+        app: pi-agent-cloudflared
+      annotations:
+        checksum/config: 91982a2d82d7a0035769d255502391c26b49a59c3179e2f6661a01c854bbacd1
+    spec:
+      # Spread the replicas: two tunnel pods on the same node buys nothing when
+      # that node's container runtime is what fails.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: pi-agent-cloudflared
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.7.3
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - --metrics
+            - 0.0.0.0:20241
+            - run
+          ports:
+            - name: metrics
+              containerPort: 20241
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 20241
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 20241
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: pi-agent-cloudflared
+        - name: creds
+          secret:
+            secretName: pi-agent-cf-creds
+---
+# Source: pi-agent/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi-agent
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+spec:
+  replicas: 1
+  # pi-web keeps all state in files on one RWO volume — sessions, worktrees,
+  # models.json, skills. Two replicas would double-write every one of them, so
+  # horizontal scale is not "not tuned yet", it is incorrect. Recreate (not
+  # RollingUpdate) because the new pod cannot attach the volume until the old
+  # one lets go.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pi-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pi-agent
+        app.kubernetes.io/instance: pi-agent
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: pi-agent
+        helm.sh/chart: pi-agent-0.1.0
+        app: pi-agent
+      annotations:
+        # Roll the pod when the proxy config changes; otherwise an edited
+        # ConfigMap sits there unapplied until something else triggers a restart.
+        checksum/nginx: 9ded8bb4faec547fa7203ab82a5780245dc72a33b61cc6ea5d948e982c489870
+    spec:
+      # This pod is, by design, an arbitrary-code-execution engine. It makes no
+      # Kubernetes API calls, so a mounted ServiceAccount token would be pure
+      # attack surface — anyone who gets the agent to run `curl` could use it.
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 0
+        runAsGroup: 0
+        runAsUser: 0
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: pi-web
+          image: ghcr.io/woowtech/woow-k3s-pi-agent:latest
+          imagePullPolicy: Always
+          command: ["/usr/local/bin/pi-web-start.sh"]
+          env:
+            - name: PI_AGENT_DATA_DIR
+              value: /data/pi-agent
+            # Bound on all interfaces so the kubelet can reach the probe
+            # endpoint at the pod IP. Nothing outside the pod is routed here:
+            # the Service publishes only the nginx port.
+            - name: PI_WEB_HOSTNAME
+              value: "0.0.0.0"
+            - name: PI_WEB_PORT
+              value: "30141"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: TZ
+              value: "Asia/Taipei"
+            - name: VIDEO_PIPELINE_ENABLED
+              value: "true"
+            - name: RESET_VIDEO_TOOLS
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 30141
+          # A cold volume plus an NFS-backed first boot can take minutes. The
+          # startup probe buys that time without having to loosen liveness once
+          # the process is actually up — the alternative (a long
+          # initialDelaySeconds on liveness) leaves a wedged event loop
+          # undetected for just as long, every restart, forever.
+          startupProbe:
+            httpGet:
+              path: /api/home
+              port: 30141
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/home
+              port: 30141
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/home
+              port: 30141
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            limits:
+              cpu: "2"
+              memory: 4Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data/pi-agent
+
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-front
+              containerPort: 30142
+          readinessProbe:
+            httpGet:
+              path: /api/home
+              port: 30142
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 20m
+              memory: 32Mi
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+        - name: ttyd
+          image: ghcr.io/woowtech/woow-k3s-pi-agent:latest
+          imagePullPolicy: Always
+          command: ["/usr/local/bin/ttyd-start.sh"]
+          env:
+            - name: PI_AGENT_DATA_DIR
+              value: /data/pi-agent
+            - name: TTYD_PORT
+              value: "7681"
+            - name: TTYD_USERNAME
+              value: "admin"
+            - name: TTYD_MAX_CLIENTS
+              value: "8"
+            - name: TZ
+              value: "Asia/Taipei"
+            - name: TTYD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pi-agent-ttyd
+                  key: TTYD_PASSWORD
+          ports:
+            - name: ttyd
+              containerPort: 7681
+          readinessProbe:
+            tcpSocket:
+              port: 7681
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7681
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            # Same volume as pi-web. This is the whole point: a change made in
+            # the TUI here is a change to the instance the web UI serves.
+            - name: data
+              mountPath: /data/pi-agent
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pi-agent-data
+        - name: nginx-conf
+          configMap:
+            name: pi-agent-nginx
+---
+# Source: pi-agent/templates/tests/smoke.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pi-agent-smoke
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: smoke
+      image: curlimages/curl:8.11.1
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "==> pi-web through nginx"
+          curl -fsS -o /dev/null -w 'GET /api/home -> %{http_code}\n' \
+            "http://pi-agent.pi-agent-woow.svc.cluster.local:30142/api/home"
+          echo "==> ttyd demands auth"
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "http://pi-agent-tty.pi-agent-woow.svc.cluster.local:7681/")
+          echo "GET / (no credentials) -> $code"
+          # An unauthenticated 200 here means the terminal is open to anyone who
+          # can reach the Service — fail loudly rather than pass a green test.
+          [ "$code" = "401" ] || { echo "FAIL: expected 401 from ttyd, got $code"; exit 1; }
+          echo "smoke OK"
