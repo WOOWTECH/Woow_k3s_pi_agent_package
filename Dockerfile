@@ -94,6 +94,27 @@ ARG PI_WEB_VERSION=0.8.4
 RUN npm install -g --omit=dev "@agegr/pi-web@${PI_WEB_VERSION}" \
     && rm -rf /tmp/npm-cache
 
+# Fix silent CJK path corruption in the shipped tool layer. Upstream folds
+# U+3000 and other Unicode spaces to ASCII on every read/write/edit and builds
+# the read fallback chain from the folded path, so writes land at the wrong
+# name while reporting success, and two files differing only by space type
+# cross-read. See patches/fix-unicode-space-paths.mjs for the full rationale.
+#
+# The assertion matters as much as the patch: if a pi-web bump moves or rewrites
+# these files, this step fails the build instead of shipping an image that
+# quietly lost the fix.
+COPY patches/ /opt/patches/
+RUN set -euo pipefail; \
+    mapfile -d '' FILES < <(find /usr/lib/node_modules/@agegr/pi-web \
+      -path '*@earendil-works/*/dist/*/tools/path-utils.js' -print0); \
+    echo "[patch] found ${#FILES[@]} path-utils.js copies"; \
+    if [ "${#FILES[@]}" -lt 2 ]; then \
+      echo "[patch] FAIL: expected at least 2 copies, found ${#FILES[@]}" >&2; \
+      echo "[patch] upstream layout changed — re-verify before shipping" >&2; \
+      exit 1; \
+    fi; \
+    node /opt/patches/fix-unicode-space-paths.mjs "${FILES[@]}"
+
 COPY rootfs/ /
 
 RUN chmod +x /usr/local/bin/pi \
