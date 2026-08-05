@@ -1,4 +1,72 @@
 ---
+# Source: pi-agent/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pi-agent
+  namespace: pi-agent-woow
+  labels:
+    app.kubernetes.io/name: pi-agent
+    app.kubernetes.io/instance: pi-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: pi-agent
+    helm.sh/chart: pi-agent-0.1.0
+spec:
+  podSelector:
+    matchLabels:
+      app: pi-agent
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the tunnel may reach the app. Without this, any pod in this
+    # multi-tenant cluster can hit the pod IP directly on pi-web's own port and
+    # read /api/models-config — which returns the provider API key in plaintext,
+    # unauthenticated. pi-web's Host guard permits raw IPs, so the nginx sidecar
+    # is not a barrier to that path; this policy is.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: pi-agent-cloudflared
+      ports:
+        - port: 30142
+        - port: 7681
+    # kubelet health probes originate from the node, not from a pod. Some CNIs
+    # subject them to NetworkPolicy, and a blocked probe means the container is
+    # killed on a liveness failure — so the node network is explicitly allowed.
+    - from:
+        - ipBlock:
+            cidr: 192.168.0.0/16
+  egress:
+    # DNS must be allowed explicitly: kube-dns lives inside the service CIDR
+    # that the next rule excludes.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # The agent's job requires the open internet — git remotes, provider APIs,
+    # MCP endpoints, the Playwright CDN — so egress is allowed broadly and the
+    # CLUSTER is carved out instead. Verified reachable before this policy:
+    # the Kubernetes API at 10.43.0.1:443, kube-system metrics-server and
+    # traefik, and sibling namespaces. Nothing the agent legitimately does needs
+    # any of them.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.42.0.0/16
+              - 10.43.0.0/16
+              - 192.168.0.0/16
+              - 169.254.169.254/32
+---
 # Source: pi-agent/templates/configmap-cloudflared.yaml
 apiVersion: v1
 kind: ConfigMap
