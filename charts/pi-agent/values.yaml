@@ -117,17 +117,32 @@ cloudflare:
       cpu: 500m
       memory: 256Mi
 
-# Deny-by-default egress is tempting but the agent's whole job is to reach
-# arbitrary provider APIs and git remotes, so this stays off unless a team
-# wants to curate an allowlist.
+# Default ON since the readiness review. This used to be off, reasoned as "the
+# agent's whole job is to reach arbitrary provider APIs and git remotes" — true
+# of the internet, but never a reason to leave the Kubernetes API server and
+# every sibling namespace reachable from a pod that runs arbitrary model-authored
+# code as root. Egress to the internet stays open; the cluster is carved out.
 networkPolicy:
-  enabled: false
+  enabled: true
+  # Allowed to reach the pod, so kubelet health probes are not blocked. Probes
+  # come from the node, and some CNIs subject them to NetworkPolicy — a blocked
+  # liveness probe kills the container.
+  nodeCIDRs:
+    - 192.168.0.0/16
+  # Carved out of the pod's egress: pod CIDR, service CIDR, the node/LAN range,
+  # and the link-local metadata address. Adjust for a cluster with different
+  # CIDRs — `kubectl cluster-info dump | grep -m1 cluster-cidr` will tell you.
+  blockedCIDRs:
+    - 10.42.0.0/16
+    - 10.43.0.0/16
+    - 192.168.0.0/16
+    - 169.254.169.254/32
 
 podSecurityContext:
   # pi-web, the agent's worktrees and the venv are all written as root today;
-  # the add-on image has the same assumption. Changing this needs a matching
-  # chown pass over existing PVCs, so it is a deliberate follow-up, not a
-  # default flip.
+  # the add-on image has the same assumption. Running as non-root needs a
+  # matching chown pass over existing PVCs, so it is a tracked follow-up rather
+  # than a default flip — see README "Known gaps".
   runAsUser: 0
   runAsGroup: 0
   fsGroup: 0

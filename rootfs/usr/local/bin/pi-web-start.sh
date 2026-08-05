@@ -17,6 +17,18 @@ log() { printf '[pi-web] %s\n' "$*"; }
 
 mkdir -p "${DATA_DIR}/sessions" "${DATA_DIR}/home" "${DATA_DIR}/skills" "${DATA_DIR}/rclone"
 
+# --- Credential file modes ----------------------------------------------------
+# models.json holds the provider API key in plaintext and pi-web creates it 0644
+# on a volume that is also mounted into the root ttyd terminal. Tightened on
+# every boot because pi-web rewrites the file whenever the Models page is saved.
+#
+# This is defence in depth ONLY. It does not fix the two real problems, which
+# are upstream: GET /api/models-config returns the key unredacted and
+# unauthenticated, and the agent's own read tool can open the file. See README.
+for f in models.json models-store.json auth.json rclone/rclone.conf; do
+  [ -f "${DATA_DIR}/${f}" ] && chmod 600 "${DATA_DIR}/${f}" || true
+done
+
 # --- Skills path bridge -------------------------------------------------------
 # pi-web reads skills from ${PI_CODING_AGENT_DIR}/skills, but the `skills` CLI
 # (and `pi install`) writes to the agent's own home at $HOME/.pi/agent/skills.
