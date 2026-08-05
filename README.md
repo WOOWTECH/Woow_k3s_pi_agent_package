@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/09-ttyd-tui.png" alt="Woow k3s Pi Agent" width="120"/>
+  <img src="docs/logo.svg" alt="Woow k3s Pi Agent" width="120"/>
 </p>
 
 <h1 align="center">Woow k3s Pi Agent Package</h1>
@@ -80,42 +80,42 @@ Three surfaces share one pod and one volume: a chat UI, a browser terminal runni
                     Internet
                        │
                        ▼
-        ┌────────────────────────────┐
-        │   Cloudflare Access           │  email allow-list, 24h session
-        │   pi-agent-woow.woowtech.io   │
-        │   pi-agent-woow-tty…          │
-        └──────────────┬───────────────┘
+        ┌─────────────────────────────┐
+        │ Cloudflare Access           │  email allow-list, 24h session
+        │ pi-agent-woow.woowtech.io   │
+        │ pi-agent-woow-tty…          │
+        └──────────────┬──────────────┘
                        │  QUIC (tunnel 88f7b0ed…)
                        ▼
-   ┌───────────────────────────────────────────────┐
-   │ namespace: pi-agent-woow                       │
-   │                                                │
-   │  ┌────────────────────┐                        │
+   ┌─────────────────────────────────────────────────┐
+   │ namespace: pi-agent-woow                        │
+   │                                                 │
+   │  ┌────────────────────┐                         │
    │  │ cloudflared × 2    │  locally-managed config │
    │  │ podAntiAffinity    │  routing in the chart   │
-   │  └─────────┬──────────┘                        │
+   │  └─────────┬──────────┘                         │
    │            │  NetworkPolicy: only these pods    │
    │            ▼                                    │
    │  ┌───────────────────────────────────────────┐  │
-   │  │ pod: pi-agent  (replicas 1, Recreate)    │  │
-   │  │                                          │  │
-   │  │  ┌────────┐   ┌─────────┐   ┌─────────┐ │  │
-   │  │  │ nginx  │──►│ pi-web  │   │  ttyd   │ │  │
-   │  │  │ :30142 │   │ :30141  │   │  :7681  │ │  │
-   │  │  └────────┘   └────┬────┘   └────┬────┘ │  │
-   │  │   Host/Origin      │             │      │  │
-   │  │   rewrite          ▼             ▼      │  │
-   │  │              ┌──────────────────────┐   │  │
-   │  │              │  /data/pi-agent      │   │  │
-   │  │              │  (PVC 20Gi, RWO)     │   │  │
-   │  │              │  sessions/ skills/   │   │  │
-   │  │              │  models.json  venv/  │   │  │
-   │  │              │  playwright-cache/   │   │  │
-   │  │              └──────────────────────┘   │  │
+   │  │ pod: pi-agent  (replicas 1, Recreate)     │  │
+   │  │                                           │  │
+   │  │  ┌────────┐   ┌─────────┐   ┌─────────┐   │  │
+   │  │  │ nginx  │──►│ pi-web  │   │  ttyd   │   │  │
+   │  │  │ :30142 │   │ :30141  │   │  :7681  │   │  │
+   │  │  └────────┘   └────┬────┘   └────┬────┘   │  │
+   │  │   Host/Origin      │             │        │  │
+   │  │   rewrite          ▼             ▼        │  │
+   │  │              ┌──────────────────────┐     │  │
+   │  │              │  /data/pi-agent      │     │  │
+   │  │              │  (PVC 20Gi, RWO)     │     │  │
+   │  │              │  sessions/ skills/   │     │  │
+   │  │              │  models.json  venv/  │     │  │
+   │  │              │  playwright-cache/   │     │  │
+   │  │              └──────────────────────┘     │  │
    │  └───────────────────────────────────────────┘  │
    │            │  egress: internet allowed,         │
    │            ▼  cluster CIDRs blocked             │
-   └───────────────────────────────────────────────┘
+   └─────────────────────────────────────────────────┘
               OpenRouter · GitHub · MCP endpoints
 ```
 
@@ -271,7 +271,7 @@ Every `SKILL.md` under `/data/pi-agent/skills` is parsed and injected into the s
 The banner names the data directory and the pinned versions. This is the capability that earlier builds lacked entirely: `pi` was command-not-found inside the container.
 
 <p align="center">
-  <img src="docs/screenshots/08-ttyd.png" alt="ttyd terminal" width="720"/>
+  <img src="docs/screenshots/05-terminal.png" alt="ttyd terminal" width="720"/>
 </p>
 
 ### Browser terminal — the `pi config` TUI
@@ -279,7 +279,7 @@ The banner names the data directory and the pinned versions. This is the capabil
 Enabling and disabling package resources from the browser, against the same instance the web UI serves.
 
 <p align="center">
-  <img src="docs/screenshots/09-ttyd-tui.png" alt="pi config TUI" width="720"/>
+  <img src="docs/screenshots/06-terminal-tui.png" alt="pi config TUI" width="720"/>
 </p>
 
 ---

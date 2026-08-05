@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/09-ttyd-tui.png" alt="Woow k3s Pi Agent" width="120"/>
+  <img src="docs/logo.svg" alt="Woow k3s Pi Agent" width="120"/>
 </p>
 
 <h1 align="center">Woow k3s Pi Agent 套件</h1>
@@ -80,42 +80,42 @@
                     Internet
                        │
                        ▼
-        ┌────────────────────────────┐
-        │   Cloudflare Access           │  email allow-list, 24h session
-        │   pi-agent-woow.woowtech.io   │
-        │   pi-agent-woow-tty…          │
-        └──────────────┬───────────────┘
+        ┌─────────────────────────────┐
+        │ Cloudflare Access           │  email allow-list, 24h session
+        │ pi-agent-woow.woowtech.io   │
+        │ pi-agent-woow-tty…          │
+        └──────────────┬──────────────┘
                        │  QUIC (tunnel 88f7b0ed…)
                        ▼
-   ┌───────────────────────────────────────────────┐
-   │ namespace: pi-agent-woow                       │
-   │                                                │
-   │  ┌────────────────────┐                        │
+   ┌─────────────────────────────────────────────────┐
+   │ namespace: pi-agent-woow                        │
+   │                                                 │
+   │  ┌────────────────────┐                         │
    │  │ cloudflared × 2    │  locally-managed config │
    │  │ podAntiAffinity    │  routing in the chart   │
-   │  └─────────┬──────────┘                        │
+   │  └─────────┬──────────┘                         │
    │            │  NetworkPolicy: only these pods    │
    │            ▼                                    │
    │  ┌───────────────────────────────────────────┐  │
-   │  │ pod: pi-agent  (replicas 1, Recreate)    │  │
-   │  │                                          │  │
-   │  │  ┌────────┐   ┌─────────┐   ┌─────────┐ │  │
-   │  │  │ nginx  │──►│ pi-web  │   │  ttyd   │ │  │
-   │  │  │ :30142 │   │ :30141  │   │  :7681  │ │  │
-   │  │  └────────┘   └────┬────┘   └────┬────┘ │  │
-   │  │   Host/Origin      │             │      │  │
-   │  │   rewrite          ▼             ▼      │  │
-   │  │              ┌──────────────────────┐   │  │
-   │  │              │  /data/pi-agent      │   │  │
-   │  │              │  (PVC 20Gi, RWO)     │   │  │
-   │  │              │  sessions/ skills/   │   │  │
-   │  │              │  models.json  venv/  │   │  │
-   │  │              │  playwright-cache/   │   │  │
-   │  │              └──────────────────────┘   │  │
+   │  │ pod: pi-agent  (replicas 1, Recreate)     │  │
+   │  │                                           │  │
+   │  │  ┌────────┐   ┌─────────┐   ┌─────────┐   │  │
+   │  │  │ nginx  │──►│ pi-web  │   │  ttyd   │   │  │
+   │  │  │ :30142 │   │ :30141  │   │  :7681  │   │  │
+   │  │  └────────┘   └────┬────┘   └────┬────┘   │  │
+   │  │   Host/Origin      │             │        │  │
+   │  │   rewrite          ▼             ▼        │  │
+   │  │              ┌──────────────────────┐     │  │
+   │  │              │  /data/pi-agent      │     │  │
+   │  │              │  (PVC 20Gi, RWO)     │     │  │
+   │  │              │  sessions/ skills/   │     │  │
+   │  │              │  models.json  venv/  │     │  │
+   │  │              │  playwright-cache/   │     │  │
+   │  │              └──────────────────────┘     │  │
    │  └───────────────────────────────────────────┘  │
    │            │  egress: internet allowed,         │
    │            ▼  cluster CIDRs blocked             │
-   └───────────────────────────────────────────────┘
+   └─────────────────────────────────────────────────┘
               OpenRouter · GitHub · MCP endpoints
 ```
 
@@ -271,7 +271,7 @@ session 會在持久磁碟區上的 `pi-cwd-YYYYMMDD` 目錄中開啟。模型�
 橫幅會標示資料目錄與釘死的版本號。這正是早期版本完全缺席的能力：當時在容器內執行 `pi` 只會得到 command-not-found。
 
 <p align="center">
-  <img src="docs/screenshots/08-ttyd.png" alt="ttyd terminal" width="720"/>
+  <img src="docs/screenshots/05-terminal.png" alt="ttyd terminal" width="720"/>
 </p>
 
 ### 瀏覽器終端 — `pi config` TUI
@@ -279,7 +279,7 @@ session 會在持久磁碟區上的 `pi-cwd-YYYYMMDD` 目錄中開啟。模型�
 直接從瀏覽器啟用或停用套件資源，作用對象就是網頁介面所服務的那個執行個體。
 
 <p align="center">
-  <img src="docs/screenshots/09-ttyd-tui.png" alt="pi config TUI" width="720"/>
+  <img src="docs/screenshots/06-terminal-tui.png" alt="pi config TUI" width="720"/>
 </p>
 
 ---
