@@ -34,9 +34,17 @@ spec:
     # kubelet health probes originate from the node, not from a pod. Some CNIs
     # subject them to NetworkPolicy, and a blocked probe means the container is
     # killed on a liveness failure — so the node network is explicitly allowed.
+    #
+    # Scoped to the three probed ports rather than left open: an unrestricted
+    # node rule admits the whole LAN to pi-web's own port, where
+    # /api/models-config answers with the provider key and no authentication.
     - from:
         - ipBlock:
             cidr: 192.168.0.0/16
+      ports:
+        - port: 30141
+        - port: 30142
+        - port: 7681
   egress:
     # DNS must be allowed explicitly: kube-dns lives inside the service CIDR
     # that the next rule excludes.
