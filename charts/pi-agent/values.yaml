@@ -1,0 +1,137 @@
+# Default values for the pi-agent chart.
+# Every knob here is documented; a per-team install should only need to override
+# `cloudflare.*`, `ttyd.password`, and possibly `persistence.size`.
+
+image:
+  repository: ghcr.io/woowtech/woow-k3s-pi-agent
+  tag: ""            # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Timezone applied to the container (Node reads TZ from env, so this also fixes
+# session timestamps, not just `date`).
+timezone: Asia/Taipei
+
+# pino log level for pi-web: error | warn | info | debug
+logLevel: info
+
+piWeb:
+  # Port pi-web binds. It is reached only through the nginx sidecar, because
+  # pi-web's isApiRequestAllowed() guard rejects any Host header that is not a
+  # loopback name, and nginx is what rewrites it.
+  port: 30141
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+nginx:
+  image: nginx:1.27-alpine
+  port: 30142
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+ttyd:
+  enabled: true
+  port: 7681
+  username: admin
+  # REQUIRED unless existingSecret is set. Leave both empty and the chart
+  # refuses to render, rather than shipping a shell with a default password.
+  password: ""
+  # Name of a pre-existing Secret holding key TTYD_PASSWORD. Preferred for the
+  # real deployment: it keeps the credential out of every rendered manifest,
+  # CI log and Helm release object.
+  existingSecret: ""
+  maxClients: 8
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# The video pipeline (ffmpeg / Playwright-Chromium / edge-tts / rclone).
+# Enabled: the first boot on a fresh volume downloads ~720MB in the background.
+# pi-web serves normally throughout — the bootstrap is not on the startup path.
+videoPipeline:
+  enabled: true
+  # One-shot maintenance: set true, upgrade, wait for the reinstall, set back to
+  # false. Leaving it true re-downloads ~720MB on every restart.
+  reset: false
+
+persistence:
+  enabled: true
+  # nfs-data is node-portable, which matters: this pod gets rescheduled across
+  # nodes and a node-local volume would strand its state.
+  storageClassName: nfs-data
+  accessMode: ReadWriteOnce
+  size: 20Gi
+  existingClaim: ""
+
+# Extra environment for the pi-web container. Provider API keys are NOT set
+# here by design — they are entered in pi-web's own Models page and persisted
+# to the PVC, which is what upstream moved to. Use this for proxies, mirrors,
+# or a LiteLLM base URL override.
+extraEnv: []
+#  - name: HTTPS_PROXY
+#    value: http://proxy:3128
+
+cloudflare:
+  enabled: true
+  # Pinned, not :latest. The previous deploy used :latest with
+  # imagePullPolicy IfNotPresent, which means the tunnel daemon silently
+  # upgrades itself the first time the pod lands on a node without the layer
+  # cached — a moving part you find out about during an outage.
+  image: cloudflare/cloudflared:2026.7.3
+  # Tunnel UUID (locally-managed tunnel). Routing lives in this chart, not in
+  # the Cloudflare dashboard, so a new team is one `helm install` away.
+  tunnelId: ""
+  # Contents of the tunnel credentials JSON. Supply via --set-file or an
+  # existing secret; never commit it.
+  credentialsJson: ""
+  existingCredentialsSecret: ""
+  hostnames:
+    web: ""          # e.g. pi-agent-woow.woowtech.io
+    terminal: ""     # e.g. pi-agent-woow-tty.woowtech.io
+  # Two replicas: a single cloudflared pod is a single point of failure for
+  # BOTH public hostnames, and the previous deploy pinned it to control-plane
+  # nodes — one of which has been NotReady for days. Both replicas register to
+  # the same tunnel; Cloudflare load-balances across the connections.
+  replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Deny-by-default egress is tempting but the agent's whole job is to reach
+# arbitrary provider APIs and git remotes, so this stays off unless a team
+# wants to curate an allowlist.
+networkPolicy:
+  enabled: false
+
+podSecurityContext:
+  # pi-web, the agent's worktrees and the venv are all written as root today;
+  # the add-on image has the same assumption. Changing this needs a matching
+  # chown pass over existing PVCs, so it is a deliberate follow-up, not a
+  # default flip.
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

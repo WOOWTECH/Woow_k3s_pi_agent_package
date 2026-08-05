@@ -1,0 +1,43 @@
+# WoowTech internal instance — namespace pi-agent-woow.
+#
+# Secrets are NOT in this file. Supply them at install time:
+#   --set ttyd.password=...
+#   --set-file cloudflare.credentialsJson=./tunnel-credentials.json
+# or point at pre-created Secrets with ttyd.existingSecret /
+# cloudflare.existingCredentialsSecret.
+#
+# Provider API keys are not here either, by design: they are entered in
+# pi-web's Models page and stored on the volume.
+
+image:
+  repository: ghcr.io/woowtech/woow-k3s-pi-agent
+  tag: latest
+  pullPolicy: Always
+
+timezone: Asia/Taipei
+logLevel: info
+
+videoPipeline:
+  enabled: true
+
+persistence:
+  storageClassName: nfs-data
+  size: 20Gi
+
+ttyd:
+  enabled: true
+  username: admin
+  maxClients: 8
+
+cloudflare:
+  enabled: true
+  tunnelId: "88f7b0ed-b4f5-48b3-9fa0-acdd8a5a37af"
+  hostnames:
+    web: pi-agent-woow.woowtech.io
+    terminal: pi-agent-woow-tty.woowtech.io
+  replicas: 2
+
+# Both hostnames sit behind Cloudflare Access applications with an email
+# allow-list policy. The office-IP bypass policy used on other WoowTech sites is
+# deliberately NOT attached here — a root shell should have no unauthenticated
+# path, even from the office.
