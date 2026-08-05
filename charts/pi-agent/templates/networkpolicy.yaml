@@ -1,0 +1,67 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "pi-agent.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "pi-agent.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the tunnel may reach the app. Without this, any pod in this
+    # multi-tenant cluster can hit the pod IP directly on pi-web's own port and
+    # read /api/models-config — which returns the provider API key in plaintext,
+    # unauthenticated. pi-web's Host guard permits raw IPs, so the nginx sidecar
+    # is not a barrier to that path; this policy is.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {{ include "pi-agent.fullname" . }}-cloudflared
+      ports:
+        - port: {{ .Values.nginx.port }}
+        - port: {{ .Values.ttyd.port }}
+    # kubelet health probes originate from the node, not from a pod. Some CNIs
+    # subject them to NetworkPolicy, and a blocked probe means the container is
+    # killed on a liveness failure — so the node network is explicitly allowed.
+    {{- with .Values.networkPolicy.nodeCIDRs }}
+    - from:
+        {{- range . }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+    {{- end }}
+  egress:
+    # DNS must be allowed explicitly: kube-dns lives inside the service CIDR
+    # that the next rule excludes.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # The agent's job requires the open internet — git remotes, provider APIs,
+    # MCP endpoints, the Playwright CDN — so egress is allowed broadly and the
+    # CLUSTER is carved out instead. Verified reachable before this policy:
+    # the Kubernetes API at 10.43.0.1:443, kube-system metrics-server and
+    # traefik, and sibling namespaces. Nothing the agent legitimately does needs
+    # any of them.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- range .Values.networkPolicy.blockedCIDRs }}
+              - {{ . }}
+              {{- end }}
+{{- end }}
