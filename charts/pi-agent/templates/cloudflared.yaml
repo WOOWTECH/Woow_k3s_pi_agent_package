@@ -1,0 +1,90 @@
+{{- if .Values.cloudflare.enabled }}
+{{- if not .Values.cloudflare.existingCredentialsSecret }}
+{{- if not .Values.cloudflare.credentialsJson }}
+{{- fail "set either cloudflare.credentialsJson (--set-file) or cloudflare.existingCredentialsSecret" }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "pi-agent.fullname" . }}-cf-creds
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  credentials.json: {{ .Values.cloudflare.credentialsJson | quote }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pi-agent.fullname" . }}-cloudflared
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+    app: {{ include "pi-agent.fullname" . }}-cloudflared
+spec:
+  replicas: {{ .Values.cloudflare.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "pi-agent.fullname" . }}-cloudflared
+  template:
+    metadata:
+      labels:
+        app: {{ include "pi-agent.fullname" . }}-cloudflared
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-cloudflared.yaml") . | sha256sum }}
+    spec:
+      # Spread the replicas: two tunnel pods on the same node buys nothing when
+      # that node's container runtime is what fails.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: {{ include "pi-agent.fullname" . }}-cloudflared
+      containers:
+        - name: cloudflared
+          image: {{ .Values.cloudflare.image }}
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - --metrics
+            - 0.0.0.0:20241
+            - run
+          ports:
+            - name: metrics
+              containerPort: 20241
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 20241
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 20241
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.cloudflare.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "pi-agent.fullname" . }}-cloudflared
+        - name: creds
+          secret:
+            secretName: {{ .Values.cloudflare.existingCredentialsSecret | default (printf "%s-cf-creds" (include "pi-agent.fullname" .)) }}
+{{- end }}

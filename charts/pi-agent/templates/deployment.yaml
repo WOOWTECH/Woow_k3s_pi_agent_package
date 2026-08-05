@@ -1,0 +1,185 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pi-agent.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # pi-web keeps all state in files on one RWO volume — sessions, worktrees,
+  # models.json, skills. Two replicas would double-write every one of them, so
+  # horizontal scale is not "not tuned yet", it is incorrect. Recreate (not
+  # RollingUpdate) because the new pod cannot attach the volume until the old
+  # one lets go.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pi-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pi-agent.labels" . | nindent 8 }}
+        {{- include "pi-agent.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Roll the pod when the proxy config changes; otherwise an edited
+        # ConfigMap sits there unapplied until something else triggers a restart.
+        checksum/nginx: {{ include (print $.Template.BasePath "/configmap-nginx.yaml") . | sha256sum }}
+    spec:
+      # This pod is, by design, an arbitrary-code-execution engine. It makes no
+      # Kubernetes API calls, so a mounted ServiceAccount token would be pure
+      # attack surface — anyone who gets the agent to run `curl` could use it.
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: pi-web
+          image: {{ include "pi-agent.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/pi-web-start.sh"]
+          env:
+            - name: PI_AGENT_DATA_DIR
+              value: /data/pi-agent
+            # Bound on all interfaces so the kubelet can reach the probe
+            # endpoint at the pod IP. Nothing outside the pod is routed here:
+            # the Service publishes only the nginx port.
+            - name: PI_WEB_HOSTNAME
+              value: "0.0.0.0"
+            - name: PI_WEB_PORT
+              value: {{ .Values.piWeb.port | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: TZ
+              value: {{ .Values.timezone | quote }}
+            - name: VIDEO_PIPELINE_ENABLED
+              value: {{ .Values.videoPipeline.enabled | quote }}
+            - name: RESET_VIDEO_TOOLS
+              value: {{ .Values.videoPipeline.reset | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.piWeb.port }}
+          # A cold volume plus an NFS-backed first boot can take minutes. The
+          # startup probe buys that time without having to loosen liveness once
+          # the process is actually up — the alternative (a long
+          # initialDelaySeconds on liveness) leaves a wedged event loop
+          # undetected for just as long, every restart, forever.
+          startupProbe:
+            httpGet:
+              path: /api/home
+              port: {{ .Values.piWeb.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/home
+              port: {{ .Values.piWeb.port }}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/home
+              port: {{ .Values.piWeb.port }}
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.piWeb.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/pi-agent
+
+        - name: nginx
+          image: {{ .Values.nginx.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-front
+              containerPort: {{ .Values.nginx.port }}
+          readinessProbe:
+            httpGet:
+              path: /api/home
+              port: {{ .Values.nginx.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.nginx.resources | nindent 12 }}
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+
+        {{- if .Values.ttyd.enabled }}
+        - name: ttyd
+          image: {{ include "pi-agent.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/ttyd-start.sh"]
+          env:
+            - name: PI_AGENT_DATA_DIR
+              value: /data/pi-agent
+            - name: TTYD_PORT
+              value: {{ .Values.ttyd.port | quote }}
+            - name: TTYD_USERNAME
+              value: {{ .Values.ttyd.username | quote }}
+            - name: TTYD_MAX_CLIENTS
+              value: {{ .Values.ttyd.maxClients | quote }}
+            - name: TZ
+              value: {{ .Values.timezone | quote }}
+            - name: TTYD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ttyd.existingSecret | default (printf "%s-ttyd" (include "pi-agent.fullname" .)) }}
+                  key: TTYD_PASSWORD
+          ports:
+            - name: ttyd
+              containerPort: {{ .Values.ttyd.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.ttyd.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.ttyd.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.ttyd.resources | nindent 12 }}
+          volumeMounts:
+            # Same volume as pi-web. This is the whole point: a change made in
+            # the TUI here is a change to the instance the web UI serves.
+            - name: data
+              mountPath: /data/pi-agent
+        {{- end }}
+
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "pi-agent.pvcName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: nginx-conf
+          configMap:
+            name: {{ include "pi-agent.fullname" . }}-nginx
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

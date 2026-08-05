@@ -1,0 +1,49 @@
+{{- if .Values.cloudflare.enabled }}
+{{- if not .Values.cloudflare.tunnelId }}
+{{- fail "cloudflare.tunnelId is required when cloudflare.enabled=true" }}
+{{- end }}
+{{- if not .Values.cloudflare.hostnames.web }}
+{{- fail "cloudflare.hostnames.web is required when cloudflare.enabled=true" }}
+{{- end }}
+{{- $svc := include "pi-agent.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pi-agent.fullname" . }}-cloudflared
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+data:
+  # Locally-managed tunnel: the hostname -> service map lives here, in the
+  # chart, instead of in the Cloudflare dashboard. That is what makes a second
+  # team a values file rather than a support ticket.
+  #
+  # This lives in its own file so the Deployment can checksum it. A
+  # checksum/config annotation that includes the template it is written in is a
+  # nested self-reference and Helm refuses to render it.
+  config.yaml: |
+    tunnel: {{ .Values.cloudflare.tunnelId }}
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:20241
+    no-autoupdate: true
+    ingress:
+      - hostname: {{ .Values.cloudflare.hostnames.web }}
+        service: http://{{ $svc }}.{{ $ns }}.svc.cluster.local:{{ .Values.nginx.port }}
+        originRequest:
+          connectTimeout: 30s
+          # Belt and braces with the nginx sidecar's own Host rewrite: pi-web
+          # rejects any non-loopback Host. nginx is still required (it is the
+          # only thing stripping Origin), but if someone ever simplifies the
+          # sidecar away, this keeps the Host half of the guard satisfied.
+          httpHostHeader: localhost
+      {{- if and .Values.ttyd.enabled .Values.cloudflare.hostnames.terminal }}
+      - hostname: {{ .Values.cloudflare.hostnames.terminal }}
+        # ttyd upgrades to a WebSocket; cloudflared proxies that natively.
+        service: http://{{ $svc }}-tty.{{ $ns }}.svc.cluster.local:{{ .Values.ttyd.port }}
+        originRequest:
+          connectTimeout: 30s
+          noHappyEyeballs: true
+      {{- end }}
+      - service: http_status:404
+{{- end }}
