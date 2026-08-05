@@ -76,11 +76,7 @@ jobs:
             echo "no changes to rendered manifest; skipping commit"
             exit 0
           fi
-          git commit -m "chore(chart): re-render deploy/rendered/pi-agent-woow.yaml
-
-Auto-generated from charts/pi-agent + values-woow.yaml with
-ttyd.existingSecret=pi-agent-ttyd and
-cloudflare.existingCredentialsSecret=pi-agent-cf-creds.
-
-Source: ${{ github.sha }}"
+          git commit \
+            -m "chore(chart): re-render deploy/rendered/pi-agent-woow.yaml" \
+            -m "Auto-generated from charts/pi-agent + values-woow.yaml with ttyd.existingSecret=pi-agent-ttyd and cloudflare.existingCredentialsSecret=pi-agent-cf-creds. Source: ${{ github.sha }}"
           git push
