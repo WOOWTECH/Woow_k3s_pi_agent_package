@@ -1,0 +1,18 @@
+apiVersion: v2
+name: pi-agent
+description: pi-web + pi coding agent + ttyd browser terminal, for k3s
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
+sources:
+  - https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
+  - https://github.com/WOOWTECH/Woow_ha_pi_agent_add_on
+maintainers:
+  - name: WOOWTECH
+    email: woowtech@designsmart.com.tw
+keywords:
+  - pi-agent
+  - pi-web
+  - ttyd
+  - coding-agent

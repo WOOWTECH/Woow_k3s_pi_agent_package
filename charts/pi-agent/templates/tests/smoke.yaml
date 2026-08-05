@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "pi-agent.fullname" . }}-smoke
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: smoke
+      image: curlimages/curl:8.11.1
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "==> pi-web through nginx"
+          curl -fsS -o /dev/null -w 'GET /api/home -> %{http_code}\n' \
+            "http://{{ include "pi-agent.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.nginx.port }}/api/home"
+          {{- if .Values.ttyd.enabled }}
+          echo "==> ttyd demands auth"
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "http://{{ include "pi-agent.fullname" . }}-tty.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.ttyd.port }}/")
+          echo "GET / (no credentials) -> $code"
+          # An unauthenticated 200 here means the terminal is open to anyone who
+          # can reach the Service — fail loudly rather than pass a green test.
+          [ "$code" = "401" ] || { echo "FAIL: expected 401 from ttyd, got $code"; exit 1; }
+          {{- end }}
+          echo "smoke OK"
