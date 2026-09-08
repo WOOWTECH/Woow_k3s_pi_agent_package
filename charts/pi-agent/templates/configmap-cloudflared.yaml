@@ -45,5 +45,18 @@ data:
           connectTimeout: 30s
           noHappyEyeballs: true
       {{- end }}
+      {{- with .Values.cloudflare.extraIngress }}
+      # Additional routes carried by this same tunnel. One cloudflared
+      # Deployment commonly fronts several pi-agent releases (the siblings set
+      # cloudflare.enabled=false and are routed from here), and the chart can
+      # only know about ITS OWN hostnames — so anything else has to be declared.
+      #
+      # This exists because it was already true and undeclared: the live
+      # ConfigMap carried 10 hostnames while the Helm-recorded one carried 2,
+      # the extra 8 having been appended by hand with kubectl. A plain
+      # `helm upgrade` would have silently dropped them and 404'd four public
+      # hostnames. Declaring them here makes the upgrade safe and repeatable.
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
       - service: http_status:404
 {{- end }}
