@@ -23,6 +23,18 @@ spec:
         - podSelector:
             matchLabels:
               app: {{ include "pi-agent.fullname" . }}-cloudflared
+        {{- range .Values.networkPolicy.extraCloudflaredApps }}
+        # A tunnel that is NOT this release's own. Several releases can share one
+        # cloudflared Deployment (one tunnel, many hostnames), in which case the
+        # selector above matches nothing and this is the rule that actually
+        # admits traffic. Discovered the hard way: the live policies for the
+        # sibling releases had this appended by hand with kubectl, so a plain
+        # `helm upgrade` would have silently reverted it and 502'd every public
+        # hostname those releases serve.
+        - podSelector:
+            matchLabels:
+              app: {{ . }}
+        {{- end }}
       ports:
         - port: {{ .Values.nginx.port }}
         - port: {{ .Values.ttyd.port }}

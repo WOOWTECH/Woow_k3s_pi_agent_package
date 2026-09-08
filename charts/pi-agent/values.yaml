@@ -106,6 +106,16 @@ cloudflare:
   # existing secret; never commit it.
   credentialsJson: ""
   existingCredentialsSecret: ""
+  # Extra ingress rules appended to this tunnel's routing table, verbatim.
+  # Use when one cloudflared fronts several releases: the siblings run with
+  # cloudflare.enabled=false and their hostnames are declared here.
+  #   extraIngress:
+  #     - hostname: pi-agent-woow-k3s-2.woowtech.io
+  #       service: http://pi-agent-2.pi-agent-woow.svc.cluster.local:30142
+  #       originRequest:
+  #         connectTimeout: 30s
+  #         httpHostHeader: localhost
+  extraIngress: []
   hostnames:
     web: ""          # e.g. pi-agent-woow.woowtech.io
     terminal: ""     # e.g. pi-agent-woow-tty.woowtech.io
@@ -129,6 +139,10 @@ cloudflare:
 # code as root. Egress to the internet stays open; the cluster is carved out.
 networkPolicy:
   enabled: true
+  # Additional cloudflared Deployments allowed to reach this release, by their
+  # `app` label. Needed when several releases share one tunnel: the per-release
+  # selector then matches nothing and this is the only rule admitting traffic.
+  extraCloudflaredApps: []
   # Allowed to reach the pod, so kubelet health probes are not blocked. Probes
   # come from the node, and some CNIs subject them to NetworkPolicy — a blocked
   # liveness probe kills the container.
