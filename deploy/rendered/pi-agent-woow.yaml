@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
 spec:
   podSelector:
     matchLabels:
@@ -86,7 +86,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
 data:
   nginx.conf: |
     # nginx:1.27-alpine's entrypoint already runs with `daemon off` — do not repeat it.
@@ -167,7 +167,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
   annotations:
     # Keep user sessions, skills and provider config even if the release is
     # uninstalled — deleting a chart should not be how you lose a month of work.
@@ -191,7 +191,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
 spec:
   type: ClusterIP
   selector:
@@ -214,7 +214,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
 spec:
   replicas: 1
   # pi-web keeps all state in files on one RWO volume — sessions, worktrees,
@@ -234,12 +234,12 @@ spec:
         app.kubernetes.io/instance: pi-agent
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/part-of: pi-agent
-        helm.sh/chart: pi-agent-0.2.0
+        helm.sh/chart: pi-agent-0.2.1
         app: pi-agent
       annotations:
         # Roll the pod when the proxy config changes; otherwise an edited
         # ConfigMap sits there unapplied until something else triggers a restart.
-        checksum/nginx: 9948347e9adac5aa9ee62b02ac8016af0eed3d38b8b4a991451c1b19e0474eb2
+        checksum/nginx: 66197532e5ffb52191542cd5b75bc46d7501a82a48640dc2446c3637af86e9ab
     spec:
       # This pod is, by design, an arbitrary-code-execution engine. It makes no
       # Kubernetes API calls, so a mounted ServiceAccount token would be pure
@@ -276,6 +276,48 @@ spec:
           ports:
             - name: http
               containerPort: 30141
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    log=/data/pi-agent/poststart.log
+                    exec >> "$log" 2>&1
+                    echo "=== postStart $(date -Iseconds) ==="
+                    # Every cwd guard in pi-web derives its allowed roots from
+                    # the cwd/projectRoot of EXISTING sessions (plus ~/pi-cwd-
+                    # <8 digits>, which never matches here because HOME=/root).
+                    # So a session whose directory has gone away is not merely
+                    # unopenable: /api/models 400s for it and the model picker
+                    # renders "No models" — the user cannot pick a model or
+                    # start a chat at all. Directories under /tmp evaporate on
+                    # every restart, which makes that a recurring failure, so
+                    # recreate the missing ones before anyone loads the page.
+                    node -e '
+                      const fs = require("fs"), path = require("path");
+                      const f = "/data/pi-agent/pi-web-session-index.json";
+                      let idx;
+                      try { idx = JSON.parse(fs.readFileSync(f, "utf8")); } catch { process.exit(0); }
+                      const entries = idx && idx.entries ? Object.values(idx.entries) : [];
+                      const seen = new Set();
+                      let made = 0;
+                      for (const e of entries) {
+                        for (const d of [e?.info?.cwd, e?.info?.projectRoot]) {
+                          // Only absolute, traversal-free paths pi-web itself recorded.
+                          if (typeof d !== "string" || !path.isAbsolute(d)) continue;
+                          if (d.split("/").includes("..")) continue;
+                          if (seen.has(d)) continue;
+                          seen.add(d);
+                          if (fs.existsSync(d)) continue;
+                          try { fs.mkdirSync(d, { recursive: true }); made++; console.log("restored cwd " + d); }
+                          catch (err) { console.log("could not restore " + d + ": " + err.message); }
+                        }
+                      }
+                      console.log("session cwd restore: " + made + " of " + seen.size + " recreated");
+                    ' || true
+                    exit 0
           # A cold volume plus an NFS-backed first boot can take minutes. The
           # startup probe buys that time without having to loosen liveness once
           # the process is actually up — the alternative (a long
@@ -359,7 +401,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.0
+    helm.sh/chart: pi-agent-0.2.1
   annotations:
     helm.sh/hook: test
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
