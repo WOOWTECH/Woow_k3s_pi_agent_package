@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
 spec:
   podSelector:
     matchLabels:
@@ -86,7 +86,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
 data:
   nginx.conf: |
     # nginx:1.27-alpine's entrypoint already runs with `daemon off` — do not repeat it.
@@ -167,7 +167,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
   annotations:
     # Keep user sessions, skills and provider config even if the release is
     # uninstalled — deleting a chart should not be how you lose a month of work.
@@ -191,7 +191,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
 spec:
   type: ClusterIP
   selector:
@@ -214,7 +214,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
 spec:
   replicas: 1
   # pi-web keeps all state in files on one RWO volume — sessions, worktrees,
@@ -234,12 +234,12 @@ spec:
         app.kubernetes.io/instance: pi-agent
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/part-of: pi-agent
-        helm.sh/chart: pi-agent-0.2.1
+        helm.sh/chart: pi-agent-0.2.4
         app: pi-agent
       annotations:
         # Roll the pod when the proxy config changes; otherwise an edited
         # ConfigMap sits there unapplied until something else triggers a restart.
-        checksum/nginx: 66197532e5ffb52191542cd5b75bc46d7501a82a48640dc2446c3637af86e9ab
+        checksum/nginx: fd2303d788b15b95ee95577cf024afb661f4d4674391abf91490a50c9cbf67e6
     spec:
       # This pod is, by design, an arbitrary-code-execution engine. It makes no
       # Kubernetes API calls, so a mounted ServiceAccount token would be pure
@@ -401,7 +401,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.2.1
+    helm.sh/chart: pi-agent-0.2.4
   annotations:
     helm.sh/hook: test
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
