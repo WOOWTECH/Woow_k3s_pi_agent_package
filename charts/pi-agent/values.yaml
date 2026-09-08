@@ -17,6 +17,17 @@
 # Requires the volume to already hold a registered host (~/.omnigent/config.yaml
 # with a server + host_id, and a valid token). This does NOT perform first-time
 # registration — that is an interactive login.
+# pi-web has no static allow-list of directories: on every cwd check it
+# rebuilds the set from the cwd/projectRoot of the sessions that exist right
+# now (see docs/). A session whose directory has been removed therefore breaks
+# more than that one session — /api/models 400s for it and the composer shows
+# "No models", so no model can be picked and no chat can be started. Paths
+# under /tmp disappear on every pod restart, so recreate the missing ones in
+# the postStart hook. Only absolute, traversal-free paths pi-web itself
+# recorded are recreated, and only as empty directories.
+sessionCwdRestore:
+  enabled: true
+
 omnigent:
   enabled: false
   # $HOME inside the container; the daemon's state lives under it.

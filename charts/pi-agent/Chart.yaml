@@ -2,7 +2,7 @@ apiVersion: v2
 name: pi-agent
 description: pi-web + pi coding agent + ttyd browser terminal, for k3s
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "0.2.0"
 home: https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
 sources:

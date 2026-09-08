@@ -64,10 +64,7 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.piWeb.port }}
-          {{- if .Values.omnigent.enabled }}
-          # Relaunch the Omnigent host daemon after a restart. setsid detaches it
-          # from the hook's own process group, which is reaped as soon as the
-          # hook returns; `|| true` keeps a failure from blocking startup.
+          {{- if or .Values.omnigent.enabled .Values.sessionCwdRestore.enabled }}
           lifecycle:
             postStart:
               exec:
@@ -75,6 +72,43 @@ spec:
                   - /bin/sh
                   - -c
                   - |
+                    log=/data/pi-agent/poststart.log
+                    exec >> "$log" 2>&1
+                    echo "=== postStart $(date -Iseconds) ==="
+                    {{- if .Values.sessionCwdRestore.enabled }}
+                    # Every cwd guard in pi-web derives its allowed roots from
+                    # the cwd/projectRoot of EXISTING sessions (plus ~/pi-cwd-
+                    # <8 digits>, which never matches here because HOME=/root).
+                    # So a session whose directory has gone away is not merely
+                    # unopenable: /api/models 400s for it and the model picker
+                    # renders "No models" — the user cannot pick a model or
+                    # start a chat at all. Directories under /tmp evaporate on
+                    # every restart, which makes that a recurring failure, so
+                    # recreate the missing ones before anyone loads the page.
+                    node -e '
+                      const fs = require("fs"), path = require("path");
+                      const f = "/data/pi-agent/pi-web-session-index.json";
+                      let idx;
+                      try { idx = JSON.parse(fs.readFileSync(f, "utf8")); } catch { process.exit(0); }
+                      const entries = idx && idx.entries ? Object.values(idx.entries) : [];
+                      const seen = new Set();
+                      let made = 0;
+                      for (const e of entries) {
+                        for (const d of [e?.info?.cwd, e?.info?.projectRoot]) {
+                          // Only absolute, traversal-free paths pi-web itself recorded.
+                          if (typeof d !== "string" || !path.isAbsolute(d)) continue;
+                          if (d.split("/").includes("..")) continue;
+                          if (seen.has(d)) continue;
+                          seen.add(d);
+                          if (fs.existsSync(d)) continue;
+                          try { fs.mkdirSync(d, { recursive: true }); made++; console.log("restored cwd " + d); }
+                          catch (err) { console.log("could not restore " + d + ": " + err.message); }
+                        }
+                      }
+                      console.log("session cwd restore: " + made + " of " + seen.size + " recreated");
+                    ' || true
+                    {{- end }}
+                    {{- if .Values.omnigent.enabled }}
                     export HOME={{ .Values.omnigent.home }}
                     export PATH="$HOME/.local/bin:$PATH"
                     cfg="$HOME/.omnigent/config.yaml"
@@ -82,8 +116,42 @@ spec:
                     srv=$(awk '/^server:/{print $2; exit}' "$cfg")
                     [ -n "$srv" ] || exit 0
                     command -v omni >/dev/null 2>&1 || exit 0
-                    setsid nohup omni host --server "$srv" --non-interactive \
+                    # A bare `omni host` only survives as long as it does not
+                    # crash: postStart fires once per container start, so a
+                    # daemon that dies inside a live pod stays dead until
+                    # someone restarts the pod. Supervise it instead.
+                    #
+                    # The loop lives in a file rather than in `sh -c "..."` on
+                    # purpose. An inline loop carries the string
+                    # "omni host --server" in its own argv, so the very
+                    # `pkill -f`/`omnigent stop` that is meant to stop the
+                    # daemon kills the supervisor with it and nothing comes
+                    # back. Verified: killing the daemon that way left nothing
+                    # running at all. The path is kept clear of "omni" for the
+                    # same reason — it is the supervisor's whole argv.
+                    sup=/data/pi-agent/bin/pi-host-supervisor.sh
+                    mkdir -p /data/pi-agent/bin
+                    cat > "$sup" <<'SUPERVISOR'
+                    #!/bin/sh
+                    # $1 = Omnigent server URL. Started by the pi-agent chart's
+                    # postStart hook; safe to run by hand for debugging.
+                    while true; do
+                      started=$(date +%s)
+                      "$HOME/.local/bin/omni" host --server "$1" --non-interactive
+                      ran=$(( $(date +%s) - started ))
+                      # A run that ends almost immediately means something is
+                      # wrong that retrying fast will not fix (revoked auth,
+                      # unreachable server). Back off so it cannot become a hot
+                      # loop that floods the log.
+                      if [ "$ran" -lt 30 ]; then sleep 60; else sleep 15; fi
+                    done
+                    SUPERVISOR
+                    chmod +x "$sup"
+                    # setsid detaches it from the hook's process group, which is
+                    # reaped the moment the hook returns.
+                    setsid nohup sh "$sup" "$srv" \
                       >> "$HOME/.omnigent/host-stdout.log" 2>&1 < /dev/null &
+                    {{- end }}
                     exit 0
           {{- end }}
           # A cold volume plus an NFS-backed first boot can take minutes. The
