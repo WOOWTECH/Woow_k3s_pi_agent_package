@@ -1,0 +1,122 @@
+# Nginx Proxy Manager — the authenticating reverse proxy in front of every
+# pi-agent release in this namespace.
+#
+# Traffic path after this lands:
+#   cloudflared (pi-tunnel) -> npm:80 -> pi-agent-N nginx sidecar:30142 -> pi-web:30141
+#
+# NPM does the authentication (one Access List per release). The per-release
+# nginx sidecar still does the Host/Origin rewrite that pi-web's trust guard
+# requires — NPM does not replace it, it sits in front of it.
+#
+# Deliberately NOT a Helm release: this is one shared piece of infrastructure
+# for the whole namespace, not a per-agent concern, and folding it into the
+# pi-agent chart would recreate exactly the coupling we just removed by
+# extracting cloudflared into its own release.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: npm-data
+  namespace: pi-agent-woow
+  labels: {app: npm}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 2Gi}}
+---
+# NPM keeps its Let's Encrypt state separate from its SQLite DB. Both must
+# survive a pod restart or every proxy host and Access List is lost.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: npm-letsencrypt
+  namespace: pi-agent-woow
+  labels: {app: npm}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: npm
+  namespace: pi-agent-woow
+  labels: {app: npm}
+spec:
+  replicas: 1
+  # Two PVCs, both RWO — a rolling update would deadlock on the volumes.
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: npm}}
+  template:
+    metadata:
+      labels: {app: npm}
+    spec:
+      # NPM makes no Kubernetes API calls; a mounted token would be pure
+      # attack surface on the one pod that holds every credential.
+      automountServiceAccountToken: false
+      containers:
+        - name: npm
+          image: docker.io/jc21/nginx-proxy-manager:2.13.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http,  containerPort: 80}
+            - {name: admin, containerPort: 81}
+            - {name: https, containerPort: 443}
+          env:
+            - {name: DISABLE_IPV6, value: "true"}
+          readinessProbe:
+            httpGet: {path: /, port: 81}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: {path: /, port: 81}
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits:   {cpu: "1",  memory: 1Gi}
+          volumeMounts:
+            - {name: data,        mountPath: /data}
+            - {name: letsencrypt, mountPath: /etc/letsencrypt}
+      volumes:
+        - {name: data,        persistentVolumeClaim: {claimName: npm-data}}
+        - {name: letsencrypt, persistentVolumeClaim: {claimName: npm-letsencrypt}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: npm
+  namespace: pi-agent-woow
+  labels: {app: npm}
+spec:
+  type: ClusterIP
+  selector: {app: npm}
+  ports:
+    - {name: http,  port: 80,  targetPort: 80}
+    - {name: admin, port: 81,  targetPort: 81}
+---
+# NPM is the only thing the tunnel talks to now, and it is the only thing
+# allowed to talk to the agents. Ingress is therefore restricted to the tunnel
+# pods plus the node network (kubelet probes).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: npm
+  namespace: pi-agent-woow
+  labels: {app: npm}
+spec:
+  podSelector: {matchLabels: {app: npm}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {app: pi-tunnel-cloudflared}}
+      ports:
+        - {port: 80}
+        - {port: 81}
+    - from:
+        - ipBlock: {cidr: 192.168.0.0/16}
+      ports:
+        - {port: 80}
+        - {port: 81}

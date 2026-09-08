@@ -2,6 +2,17 @@
 # Every knob here is documented; a per-team install should only need to override
 # `cloudflare.*`, `ttyd.password`, and possibly `persistence.size`.
 
+# The agent workload itself (pi-web + the nginx sidecar, its Service, PVC,
+# nginx ConfigMap and NetworkPolicy).
+#
+# Set false to render a TUNNEL-ONLY release: just cloudflared, its config and
+# its credentials. That lets one cloudflared Deployment be owned by a release
+# of its own instead of by whichever agent release happened to create it —
+# so upgrading an agent can no longer touch the tunnel that fronts every other
+# agent. See docs/ for the extraction procedure.
+agent:
+  enabled: true
+
 image:
   repository: ghcr.io/woowtech/woow-k3s-pi-agent
   # Pinned by the chart: empty means "use .Chart.AppVersion" (0.2.0 = pi-web
@@ -47,7 +58,7 @@ nginx:
       memory: 128Mi
 
 ttyd:
-  enabled: true
+  enabled: false
   port: 7681
   username: admin
   # REQUIRED unless existingSecret is set. Leave both empty and the chart

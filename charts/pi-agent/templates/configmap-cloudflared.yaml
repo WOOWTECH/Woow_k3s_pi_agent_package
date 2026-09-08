@@ -2,8 +2,8 @@
 {{- if not .Values.cloudflare.tunnelId }}
 {{- fail "cloudflare.tunnelId is required when cloudflare.enabled=true" }}
 {{- end }}
-{{- if not .Values.cloudflare.hostnames.web }}
-{{- fail "cloudflare.hostnames.web is required when cloudflare.enabled=true" }}
+{{- if and .Values.agent.enabled (not .Values.cloudflare.hostnames.web) }}
+{{- fail "cloudflare.hostnames.web is required when cloudflare.enabled=true and agent.enabled=true" }}
 {{- end }}
 {{- $svc := include "pi-agent.fullname" . -}}
 {{- $ns := .Release.Namespace -}}
@@ -28,6 +28,11 @@ data:
     metrics: 0.0.0.0:20241
     no-autoupdate: true
     ingress:
+      {{- if .Values.agent.enabled }}
+      # This release's own agent. A tunnel-only release (agent.enabled=false)
+      # has no Service of its own, so deriving the origin from the release name
+      # would point at something that does not exist and 502 the hostname —
+      # such a release declares every route in cloudflare.extraIngress instead.
       - hostname: {{ .Values.cloudflare.hostnames.web }}
         service: http://{{ $svc }}.{{ $ns }}.svc.cluster.local:{{ .Values.nginx.port }}
         originRequest:
@@ -37,7 +42,8 @@ data:
           # only thing stripping Origin), but if someone ever simplifies the
           # sidecar away, this keeps the Host half of the guard satisfied.
           httpHostHeader: localhost
-      {{- if and .Values.ttyd.enabled .Values.cloudflare.hostnames.terminal }}
+      {{- end }}
+      {{- if and .Values.agent.enabled .Values.ttyd.enabled .Values.cloudflare.hostnames.terminal }}
       - hostname: {{ .Values.cloudflare.hostnames.terminal }}
         # ttyd upgrades to a WebSocket; cloudflared proxies that natively.
         service: http://{{ $svc }}-tty.{{ $ns }}.svc.cluster.local:{{ .Values.ttyd.port }}

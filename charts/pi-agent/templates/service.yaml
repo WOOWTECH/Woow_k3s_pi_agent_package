@@ -1,3 +1,4 @@
+{{- if .Values.agent.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -32,4 +33,5 @@ spec:
     - name: ttyd
       port: {{ .Values.ttyd.port }}
       targetPort: {{ .Values.ttyd.port }}
+{{- end }}
 {{- end }}

@@ -25,12 +25,17 @@ persistence:
   size: 20Gi
 
 ttyd:
-  enabled: true
+  enabled: false
   username: admin
   maxClients: 8
 
+# The tunnel is NOT owned by this release any more. It lives in its own
+# release (`pi-tunnel`, agent.enabled=false) so that upgrading an agent can no
+# longer touch the tunnel that fronts every other agent — see
+# deploy/npm/README.md. Authentication is done by NPM, which the tunnel now
+# points at instead of at the agents directly.
 cloudflare:
-  enabled: true
+  enabled: false
   tunnelId: "88f7b0ed-b4f5-48b3-9fa0-acdd8a5a37af"
   hostnames:
     web: pi-agent-woow.woowtech.io
