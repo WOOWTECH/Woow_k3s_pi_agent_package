@@ -4,6 +4,11 @@
 
 image:
   repository: ghcr.io/woowtech/woow-k3s-pi-agent
+  # Pinned by the chart: empty means "use .Chart.AppVersion" (0.2.0 = pi-web
+  # 0.9.0). Upgrades are driven by bumping appVersion + `helm upgrade`, NOT by
+  # moving :latest — the five deployments must roll one at a time (each owns a
+  # RWO volume), so a floating tag that all of them auto-pull on restart is the
+  # wrong mechanism here.
   tag: ""            # defaults to .Chart.AppVersion
   pullPolicy: IfNotPresent
 

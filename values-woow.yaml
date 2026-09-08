@@ -11,8 +11,8 @@
 
 image:
   repository: ghcr.io/woowtech/woow-k3s-pi-agent
-  tag: latest
-  pullPolicy: Always
+  tag: "0.2.0"       # pinned; bump per release and `helm upgrade` one deployment at a time
+  pullPolicy: IfNotPresent   # immutable pinned tag — no need to re-pull on every start
 
 timezone: Asia/Taipei
 logLevel: info

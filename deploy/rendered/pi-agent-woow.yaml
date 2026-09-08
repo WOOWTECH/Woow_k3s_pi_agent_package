@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 spec:
   podSelector:
     matchLabels:
@@ -86,7 +86,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 data:
   # Locally-managed tunnel: the hostname -> service map lives here, in the
   # chart, instead of in the Cloudflare dashboard. That is what makes a second
@@ -129,7 +129,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 data:
   nginx.conf: |
     # nginx:1.27-alpine's entrypoint already runs with `daemon off` — do not repeat it.
@@ -210,7 +210,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
   annotations:
     # Keep user sessions, skills and provider config even if the release is
     # uninstalled — deleting a chart should not be how you lose a month of work.
@@ -234,7 +234,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 spec:
   type: ClusterIP
   selector:
@@ -257,7 +257,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 spec:
   type: ClusterIP
   selector:
@@ -278,7 +278,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
     app: pi-agent-cloudflared
 spec:
   replicas: 2
@@ -290,7 +290,7 @@ spec:
       labels:
         app: pi-agent-cloudflared
       annotations:
-        checksum/config: 91982a2d82d7a0035769d255502391c26b49a59c3179e2f6661a01c854bbacd1
+        checksum/config: 2acfcf11ea434e4ac5c529ed0e237e6ff1a7b2e86e37ed781440c8d1c0103dc3
     spec:
       # Spread the replicas: two tunnel pods on the same node buys nothing when
       # that node's container runtime is what fails.
@@ -361,7 +361,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
 spec:
   replicas: 1
   # pi-web keeps all state in files on one RWO volume — sessions, worktrees,
@@ -381,12 +381,12 @@ spec:
         app.kubernetes.io/instance: pi-agent
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/part-of: pi-agent
-        helm.sh/chart: pi-agent-0.1.0
+        helm.sh/chart: pi-agent-0.2.0
         app: pi-agent
       annotations:
         # Roll the pod when the proxy config changes; otherwise an edited
         # ConfigMap sits there unapplied until something else triggers a restart.
-        checksum/nginx: 9ded8bb4faec547fa7203ab82a5780245dc72a33b61cc6ea5d948e982c489870
+        checksum/nginx: 58d28c985286ad65b776c63edf5796aaa8219e8bd3edc11544b2e9147289b701
     spec:
       # This pod is, by design, an arbitrary-code-execution engine. It makes no
       # Kubernetes API calls, so a mounted ServiceAccount token would be pure
@@ -399,8 +399,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: pi-web
-          image: ghcr.io/woowtech/woow-k3s-pi-agent:latest
-          imagePullPolicy: Always
+          image: ghcr.io/woowtech/woow-k3s-pi-agent:0.2.0
+          imagePullPolicy: IfNotPresent
           command: ["/usr/local/bin/pi-web-start.sh"]
           env:
             - name: PI_AGENT_DATA_DIR
@@ -487,8 +487,8 @@ spec:
               subPath: nginx.conf
               readOnly: true
         - name: ttyd
-          image: ghcr.io/woowtech/woow-k3s-pi-agent:latest
-          imagePullPolicy: Always
+          image: ghcr.io/woowtech/woow-k3s-pi-agent:0.2.0
+          imagePullPolicy: IfNotPresent
           command: ["/usr/local/bin/ttyd-start.sh"]
           env:
             - name: PI_AGENT_DATA_DIR
@@ -551,7 +551,7 @@ metadata:
     app.kubernetes.io/instance: pi-agent
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: pi-agent
-    helm.sh/chart: pi-agent-0.1.0
+    helm.sh/chart: pi-agent-0.2.0
   annotations:
     helm.sh/hook: test
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
