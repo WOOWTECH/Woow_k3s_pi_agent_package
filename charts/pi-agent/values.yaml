@@ -33,6 +33,20 @@ omnigent:
   # $HOME inside the container; the daemon's state lives under it.
   home: /data/pi-agent/home
 
+  # Omnigent's "Configure Pi" model picker comes up empty on a host that signs
+  # Pi in with its own subscription login: upstream answers only from the
+  # managed provider `omni setup` writes, and returns [] otherwise. omnigent is
+  # `uv tool install`-ed into $HOME on the PVC, so no image layer can carry a
+  # fix; the postStart hook applies one on every start instead, which also
+  # survives `uv tool upgrade`. See files/omnigent-model-options-patch.py.
+  modelOptionsPatch:
+    enabled: true
+    # Patch ONLY this omnigent release. A different version is reported in the
+    # hook log and left untouched, so an upstream fix is never re-patched over
+    # and a moved code path never gets a blind edit. Bump this after checking
+    # the new release still needs it.
+    expectedVersion: "0.12.0"
+
 # The agent workload itself (pi-web + the nginx sidecar, its Service, PVC,
 # nginx ConfigMap and NetworkPolicy).
 #

@@ -1,0 +1,14 @@
+{{- if and .Values.agent.enabled .Values.omnigent.enabled .Values.omnigent.modelOptionsPatch.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pi-agent.fullname" . }}-omnigent-patch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+data:
+  # Kept as a real .py file in the chart (charts/pi-agent/files/) rather than
+  # inlined here, so it stays reviewable, diffable and testable on its own.
+  omnigent-model-options-patch.py: |
+{{ .Files.Get "files/omnigent-model-options-patch.py" | indent 4 }}
+{{- end }}

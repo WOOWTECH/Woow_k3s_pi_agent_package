@@ -27,6 +27,9 @@ spec:
         # Roll the pod when the proxy config changes; otherwise an edited
         # ConfigMap sits there unapplied until something else triggers a restart.
         checksum/nginx: {{ include (print $.Template.BasePath "/configmap-nginx.yaml") . | sha256sum }}
+        {{- if and .Values.omnigent.enabled .Values.omnigent.modelOptionsPatch.enabled }}
+        checksum/omnigent-patch: {{ include (print $.Template.BasePath "/configmap-omnigent-patch.yaml") . | sha256sum }}
+        {{- end }}
     spec:
       # This pod is, by design, an arbitrary-code-execution engine. It makes no
       # Kubernetes API calls, so a mounted ServiceAccount token would be pure
@@ -116,6 +119,14 @@ spec:
                     srv=$(awk '/^server:/{print $2; exit}' "$cfg")
                     [ -n "$srv" ] || exit 0
                     command -v omni >/dev/null 2>&1 || exit 0
+                    {{- if .Values.omnigent.modelOptionsPatch.enabled }}
+                    # Before the daemon starts, so the very first "Configure Pi"
+                    # dialog already has models to offer. The script never fails
+                    # the pod: every abnormal path logs and exits 0.
+                    python3 /opt/pi-agent/omnigent-patch/omnigent-model-options-patch.py \
+                      --tool-dir "$HOME/.local/share/uv/tools/omnigent" \
+                      --expected-version {{ .Values.omnigent.modelOptionsPatch.expectedVersion | quote }} || true
+                    {{- end }}
                     # A bare `omni host` only survives as long as it does not
                     # crash: postStart fires once per container start, so a
                     # daemon that dies inside a live pod stays dead until
@@ -135,8 +146,39 @@ spec:
                     #!/bin/sh
                     # $1 = Omnigent server URL. Started by the pi-agent chart's
                     # postStart hook; safe to run by hand for debugging.
+                    # `omni host` refuses to start when ~/.omnigent/daemons/
+                    # still names a live pid. That record is on the PVC, so it
+                    # outlives the pod — and after a restart its pid is very
+                    # likely to have been handed to something else. This loop is
+                    # a prime candidate: it is long-lived and starts early, so it
+                    # lands on exactly the low pids the previous daemon held.
+                    # That is not hypothetical: it put pi1 in a permanent
+                    # "A host daemon is already running (pid=45)" restart loop,
+                    # with pid 45 being this very script. Drop any record whose
+                    # pid is not actually running omni before each attempt.
+                    stale_daemon_records() {
+                      for rec in "$HOME/.omnigent/daemons/"*.json; do
+                        [ -f "$rec" ] || continue
+                        pid=$(sed -n 's/.*"pid"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$rec")
+                        [ -n "$pid" ] || continue
+                        # argv, NUL-separated, flattened. The daemon shows up as
+                        # `.../omni host ...`; this script's own argv carries
+                        # "omnigent.woowtech.io" and "pi-host-supervisor", which
+                        # contain neither "omni host" nor "omnigent host", so it
+                        # can never mistake itself for the daemon.
+                        if [ -r "/proc/$pid/cmdline" ] \
+                             && tr '\0' ' ' < "/proc/$pid/cmdline" \
+                                  | grep -qE 'omni host|omnigent host'; then
+                          continue
+                        fi
+                        echo "supervisor: dropping stale daemon record $(basename "$rec") (pid $pid is not omni)"
+                        rm -f "$rec"
+                      done
+                    }
+
                     while true; do
                       started=$(date +%s)
+                      stale_daemon_records
                       "$HOME/.local/bin/omni" host --server "$1" --non-interactive
                       ran=$(( $(date +%s) - started ))
                       # A run that ends almost immediately means something is
@@ -185,6 +227,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data/pi-agent
+            {{- if and .Values.omnigent.enabled .Values.omnigent.modelOptionsPatch.enabled }}
+            - name: omnigent-patch
+              mountPath: /opt/pi-agent/omnigent-patch
+              readOnly: true
+            {{- end }}
 
         - name: nginx
           image: {{ .Values.nginx.image }}
@@ -262,6 +309,11 @@ spec:
         - name: nginx-conf
           configMap:
             name: {{ include "pi-agent.fullname" . }}-nginx
+        {{- if and .Values.omnigent.enabled .Values.omnigent.modelOptionsPatch.enabled }}
+        - name: omnigent-patch
+          configMap:
+            name: {{ include "pi-agent.fullname" . }}-omnigent-patch
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
