@@ -64,6 +64,28 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.piWeb.port }}
+          {{- if .Values.omnigent.enabled }}
+          # Relaunch the Omnigent host daemon after a restart. setsid detaches it
+          # from the hook's own process group, which is reaped as soon as the
+          # hook returns; `|| true` keeps a failure from blocking startup.
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    export HOME={{ .Values.omnigent.home }}
+                    export PATH="$HOME/.local/bin:$PATH"
+                    cfg="$HOME/.omnigent/config.yaml"
+                    [ -r "$cfg" ] || exit 0
+                    srv=$(awk '/^server:/{print $2; exit}' "$cfg")
+                    [ -n "$srv" ] || exit 0
+                    command -v omni >/dev/null 2>&1 || exit 0
+                    setsid nohup omni host --server "$srv" --non-interactive \
+                      >> "$HOME/.omnigent/host-stdout.log" 2>&1 < /dev/null &
+                    exit 0
+          {{- end }}
           # A cold volume plus an NFS-backed first boot can take minutes. The
           # startup probe buys that time without having to loosen liveness once
           # the process is actually up — the alternative (a long

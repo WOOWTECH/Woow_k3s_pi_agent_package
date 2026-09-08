@@ -2,6 +2,26 @@
 # Every knob here is documented; a per-team install should only need to override
 # `cloudflare.*`, `ttyd.password`, and possibly `persistence.size`.
 
+# Omnigent host daemon.
+#
+# The `omni` CLI, its config and its refresh token all live on the data volume
+# (~/.omnigent + ~/.local), so they survive a pod restart — but the daemon
+# process does not. Every rollout therefore silently dropped these hosts off
+# Omnigent until someone noticed and restarted them by hand.
+#
+# With this enabled a postStart hook relaunches the daemon whenever the pod
+# comes up. It is deliberately best-effort: the hook never fails the container,
+# because an Omnigent outage or an expired refresh token must not stop pi-web
+# from serving.
+#
+# Requires the volume to already hold a registered host (~/.omnigent/config.yaml
+# with a server + host_id, and a valid token). This does NOT perform first-time
+# registration — that is an interactive login.
+omnigent:
+  enabled: false
+  # $HOME inside the container; the daemon's state lives under it.
+  home: /data/pi-agent/home
+
 # The agent workload itself (pi-web + the nginx sidecar, its Service, PVC,
 # nginx ConfigMap and NetworkPolicy).
 #

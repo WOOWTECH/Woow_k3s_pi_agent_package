@@ -76,3 +76,31 @@ admits only the tunnel pods plus the node network for kubelet probes.
   before NPM is ever reached. Deliberate — two layers on that one host.
 - NPM's own state lives on two RWO PVCs (`npm-data`, `npm-letsencrypt`). Losing
   them loses every proxy host and Access List.
+
+## Omnigent host daemon
+
+pi1, pi4 and pi5 register with Omnigent as hosts. The `omni` CLI, its config
+(`~/.omnigent/config.yaml`) and its refresh token all live on the data volume,
+so they survive a pod restart — **the daemon process does not**. Every rollout
+therefore silently dropped those hosts off Omnigent, which is exactly what
+happened during the 0.9.0 upgrade.
+
+`omnigent.enabled=true` adds a postStart hook that relaunches the daemon
+whenever the pod comes up. `setsid` matters: without it the daemon shares the
+hook's process group and is reaped the moment the hook returns — the same
+reason starting it by hand through `kubectl exec` does not stick. The hook is
+best-effort and always exits 0, because an Omnigent outage must never stop
+pi-web from serving.
+
+It does NOT perform first-time registration; that needs an interactive login.
+The volume must already hold a registered host.
+
+Servers in use are not uniform: pi1 and pi5 point at `omnigent.woowtech.io`,
+pi4 at `woowtech-omnigent.woowtech.io` (and pi4 additionally holds a stale
+registration against the former, left offline). pi2 and pi3 are not Omnigent
+hosts at all.
+
+Check with:
+
+    kubectl -n pi-agent-woow exec deploy/pi-agent -c pi-web -- sh -c \
+      'export PATH=/data/pi-agent/home/.local/bin:$PATH HOME=/data/pi-agent/home; omni host status'
