@@ -342,11 +342,12 @@ helm upgrade --install pi-agent ./charts/pi-agent \
   --set persistence.size=20Gi
 ```
 
-或者不 clone，直接從 GitHub 安裝：
+或者不 clone，用 GitHub tarball 安裝。chart 放在 `charts/` 底下，所以必須先解開壓縮檔 — Helm 無法直接安裝 tarball 子目錄裡的 chart，而這個 chart 也還沒有 OCI／`helm repo` 發佈管道：
 
 ```bash
+curl -sSL https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz | tar xz
 helm upgrade --install pi-agent \
-  https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz \
+  ./Woow_k3s_pi_agent_package-main/charts/pi-agent \
   --namespace pi-agent-<team> \
   --set persistence.storageClassName=longhorn
 ```

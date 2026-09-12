@@ -343,11 +343,15 @@ helm upgrade --install pi-agent ./charts/pi-agent \
   --set persistence.size=20Gi
 ```
 
-Or straight from GitHub, without cloning:
+Or from the GitHub tarball, without a clone. The chart lives under `charts/`, so
+the archive has to be unpacked first — Helm cannot install a chart from a
+subdirectory of a tarball, and there is no OCI/`helm repo` publication of this
+chart:
 
 ```bash
+curl -sSL https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz | tar xz
 helm upgrade --install pi-agent \
-  https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz \
+  ./Woow_k3s_pi_agent_package-main/charts/pi-agent \
   --namespace pi-agent-<team> \
   --set persistence.storageClassName=longhorn
 ```
