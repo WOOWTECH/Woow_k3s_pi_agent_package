@@ -6,10 +6,12 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "pi-agent.labels" . | nindent 4 }}
+  {{- if .Values.keepOnUninstall }}
   annotations:
     # Keep user sessions, skills and provider config even if the release is
     # uninstalled — deleting a chart should not be how you lose a month of work.
     helm.sh/resource-policy: keep
+  {{- end }}
 spec:
   accessModes:
     - {{ .Values.persistence.accessMode }}

@@ -193,15 +193,27 @@ All state is files on one RWO volume — sessions, worktrees, `models.json`, the
 
 ### `charts/pi-agent` — the Helm chart
 
-> One chart, one values file per team. Renders 8 objects.
+> One chart, one values file per release. An agent release renders 5 objects by default; a tunnel-only release renders 3.
 
-- `deployment.yaml` — three containers, `automountServiceAccountToken: false`, startup/readiness/liveness probes
+- `deployment.yaml` — pi-web + the nginx sidecar (and ttyd if re-enabled), `automountServiceAccountToken: false`, startup/readiness/liveness probes
 - `configmap-nginx.yaml` — the Host/Origin rewrite and SSE settings
+- `configmap-omnigent-patch.yaml` — the Omnigent model-picker patch, mounted for the postStart hook
 - `configmap-cloudflared.yaml` + `cloudflared.yaml` — locally-managed tunnel, 2 replicas, pod anti-affinity
-- `networkpolicy.yaml` — ingress from the tunnel only; egress carves out the cluster
-- `pvc.yaml` — 20Gi RWO with `helm.sh/resource-policy: keep`
+- `networkpolicy.yaml` — ingress from the tunnel (or whatever proxy fronts it) only; egress carves out the cluster
+- `pvc.yaml` — RWO, `longhorn` by default, kept on uninstall
 - `secret.yaml` — ttyd credential, or `existingSecret`
-- `tests/smoke.yaml` — `helm test` asserting pi-web answers 200 and ttyd answers 401
+- `tests/smoke.yaml` — `helm test`: pi-web answers 200 through nginx (and ttyd answers 401 when enabled). Read-only, retried, and not rendered for a tunnel-only release
+- `NOTES.txt` — what to run next, and whether this release keeps its data
+
+Two switches decide what a release *is*:
+
+| Value | Renders |
+|---|---|
+| `agent.enabled=true`, `cloudflare.enabled=false` (defaults) | the agent alone — public access comes from a separate tunnel release |
+| `agent.enabled=false`, `cloudflare.enabled=true` | a tunnel-only release: cloudflared, its config and its credentials |
+| both `true` | one release owning both, the original single-team topology |
+
+`keepOnUninstall` (default `true`) puts `helm.sh/resource-policy: keep` on the data PVC and on every Secret the chart creates, so `helm uninstall` cannot be how a month of sessions — or the only copy of a locally-managed tunnel's credential — is lost. The chart never renders a Namespace: Helm keeps its release record there, so `--create-namespace` owns it.
 
 ### `patches/fix-unicode-space-paths.mjs` — the CJK path fix
 
@@ -224,11 +236,34 @@ Reading `台灣　報告.txt` missed the real file; writes landed at a different
 | `usr/local/bin/ttyd-start.sh` | ttyd sidecar; refuses to start without `TTYD_PASSWORD` |
 | `usr/local/bin/pi-shell.sh` | The shell ttyd forks per browser session |
 
-### `deploy/rendered/` — CI-rendered manifests
+### `charts/pi-agent/values/woow-k3s/` — the live instance values
 
-> The chart is the single source of truth; CI renders it and commits the result.
+> One file per live release, so the cluster can be rebuilt from this repo instead of from `helm get values`.
 
-Rendered with `ttyd.existingSecret` and `cloudflare.existingCredentialsSecret` so no credential ever reaches the rendered file, the CI log, or git history. A grep step fails the build if secret material appears.
+| File | Release | What is special about it |
+|---|---|---|
+| `pi-agent.yaml` | `pi-agent` | 51Gi volume (grown by hand, never shrink it), `NODE_OPTIONS=--max-old-space-size=12288`, Omnigent on. No `fullnameOverride`: its release name already equals the chart name |
+| `pi-agent-2.yaml`, `pi-agent-3.yaml` | `pi-agent-2/-3` | 20Gi, 12288MB heap, Omnigent off |
+| `pi-agent-4.yaml`, `pi-agent-5.yaml` | `pi-agent-4/-5` | 20Gi, 6144MB heap, Omnigent on |
+| `pi-tunnel.yaml` | `pi-tunnel` | the tunnel-only release: `agent.enabled=false` and the full seven-hostname routing table, including the two hostnames that belong to other things (opendesign, NPM's admin UI) |
+
+**No credentials are in these files, by design.** `pi-tunnel` holds its tunnel credential inline in the live release, so an upgrade has to re-supply it:
+
+```bash
+umask 077
+helm --kube-context woow-k3s get values pi-tunnel -n pi-agent-woow -o json \
+  | jq -r .cloudflare.credentialsJson > /secure/tunnel-credentials.json
+```
+
+`scripts/check-drift.sh` renders every one of these against the live release and reports both the object diff and the pod-template diff — the second is the one that answers "would an upgrade restart anything":
+
+```bash
+CONTEXT=woow-k3s NAMESPACE=pi-agent-woow scripts/check-drift.sh
+```
+
+### `deploy/npm/` — Nginx Proxy Manager, deliberately not in the chart
+
+NPM supplies the Basic Auth in front of four of the five agents and is applied with `kubectl apply -f deploy/npm/npm.yaml`. That is an owner decision, not an omission: folding it into a chart release would put the gate for every agent behind the same `helm upgrade` that touches one of them. The chart's `networkPolicy.extraCloudflaredApps: [npm]` is what admits its traffic.
 
 ---
 
@@ -278,49 +313,135 @@ The TUI enables and disables package resources from the browser, against the sam
 # Creates a locally-managed tunnel and writes credentials.json
 cloudflared tunnel create pi-agent-<team>
 
-# Point both hostnames at it
+# Point the hostname at it
 cloudflared tunnel route dns pi-agent-<team> pi-agent-<team>.example.com
-cloudflared tunnel route dns pi-agent-<team> pi-agent-<team>-tty.example.com
 ```
 
-Note the tunnel UUID — it goes into `cloudflare.tunnelId`.
+Note the tunnel UUID — it goes into `cloudflare.tunnelId`. Keep `credentials.json`
+outside the repo: it cannot be downloaded from Cloudflare again.
 
-### Step 2: Create the namespace and secrets
+### Step 2: Create the namespace and the tunnel Secret
 
 ```bash
 kubectl create namespace pi-agent-<team>
 
-# The browser terminal is a root shell. Generate, do not choose.
-kubectl -n pi-agent-<team> create secret generic pi-agent-ttyd \
-  --from-literal=TTYD_PASSWORD="$(openssl rand -base64 18)"
-
+# Preferred over passing the credential as a Helm value: it then never lands in
+# a release revision. See examples/secrets.example.yaml for every key.
 kubectl -n pi-agent-<team> create secret generic pi-agent-cf-creds \
   --from-file=credentials.json=./tunnel-credentials.json
+kubectl -n pi-agent-<team> annotate secret pi-agent-cf-creds helm.sh/resource-policy=keep
 ```
 
-### Step 3: Install the chart
+### Step 3: Install the agent
+
+From a clone:
 
 ```bash
 helm upgrade --install pi-agent ./charts/pi-agent \
   --namespace pi-agent-<team> \
-  -f values-woow.yaml \
-  --set cloudflare.tunnelId=<tunnel-uuid> \
-  --set cloudflare.hostnames.web=pi-agent-<team>.example.com \
-  --set cloudflare.hostnames.terminal=pi-agent-<team>-tty.example.com \
-  --set ttyd.existingSecret=pi-agent-ttyd \
-  --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds
+  --set persistence.storageClassName=longhorn \
+  --set persistence.size=20Gi
+```
 
-helm test pi-agent -n pi-agent-<team>
+Or straight from GitHub, without cloning:
+
+```bash
+helm upgrade --install pi-agent \
+  https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz \
+  --namespace pi-agent-<team> \
+  --set persistence.storageClassName=longhorn
+```
+
+To reproduce one of the WoowTech releases instead, pass its instance values:
+
+```bash
+helm upgrade --install pi-agent-4 ./charts/pi-agent -n pi-agent-woow \
+  -f charts/pi-agent/values/woow-k3s/pi-agent-4.yaml
 ```
 
 The first boot downloads roughly 720 MB of Python venv and Chromium in the background. The chat UI is usable throughout; only the video pipeline waits.
 
-### Step 4: Gate both hostnames with Cloudflare Access
+### Step 4: Install the tunnel as its own release
+
+The tunnel is deliberately **not** part of an agent release: one cloudflared fronts
+every agent, and an agent upgrade must not be able to touch it.
+
+```bash
+helm upgrade --install pi-tunnel ./charts/pi-agent \
+  --namespace pi-agent-<team> \
+  --set agent.enabled=false \
+  --set fullnameOverride=pi-tunnel \
+  --set cloudflare.enabled=true \
+  --set cloudflare.tunnelId=<tunnel-uuid> \
+  --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds \
+  --set-json 'cloudflare.extraIngress=[{"hostname":"pi-agent-<team>.example.com","service":"http://pi-agent.pi-agent-<team>.svc.cluster.local:30142","originRequest":{"connectTimeout":"30s","httpHostHeader":"localhost"}}]'
+```
+
+Then tell the agent which tunnel is allowed to reach it — the per-release
+selector matches nothing once the tunnel lives elsewhere:
+
+```bash
+helm upgrade pi-agent ./charts/pi-agent -n pi-agent-<team> --reuse-values \
+  --set 'networkPolicy.extraCloudflaredApps[0]=pi-tunnel-cloudflared'
+```
+
+### Step 5: Verify
+
+```bash
+kubectl -n pi-agent-<team> rollout status deploy/pi-agent --timeout=10m
+helm test pi-agent -n pi-agent-<team> --logs
+```
+
+The smoke test is read-only: it asks pi-web for `/api/home` through the nginx
+sidecar and expects 200. It retries for up to 150s, because k3s's NetworkPolicy
+implementation needs a few seconds to admit a freshly created Pod.
+
+> `helm test` needs `networkPolicy.allowHelmTest=true` (the chart default) while
+> `networkPolicy.enabled=true`. It is **off** in `values/woow-k3s/*.yaml` — see
+> "Known gaps".
+
+### Step 6: Gate every hostname with Cloudflare Access
 
 1. Open **Cloudflare Zero Trust > Access > Applications**
 2. Add a **Self-hosted** application for each hostname
 3. Attach an **allow** policy with an email allow-list or your IdP group
-4. Do **not** attach an IP-bypass policy to the terminal hostname — it is a root shell
+4. Do **not** attach an IP-bypass policy — the agent is a root shell with no authentication of its own
+
+### Uninstall — the data stays
+
+```bash
+helm uninstall pi-agent -n pi-agent-<team>
+```
+
+The Deployment, Service, ConfigMaps and NetworkPolicy go. The PVC and every
+Secret the chart created stay, because `keepOnUninstall` is `true`; a later
+`helm install` with the same names adopts them. Deleting the data is a separate,
+deliberate act:
+
+```bash
+kubectl -n pi-agent-<team> delete pvc pi-agent-data   # irreversible
+```
+
+### Taking over a release, or moving one
+
+All six woow-k3s releases are already Helm-managed, so a takeover is just
+`helm upgrade` with the right values — and it should restart nothing. Prove that
+before running it:
+
+```bash
+CONTEXT=woow-k3s NAMESPACE=pi-agent-woow scripts/check-drift.sh   # exit 0 = no drift
+```
+
+If a release were ever adopted from `kubectl`-managed objects, add
+`--take-ownership` to the upgrade. Two things roll a pod even when nothing
+functional changed, so check for them first:
+
+- **the chart version.** `helm.sh/chart` is a pod-template label here, and the
+  nginx/cloudflared ConfigMaps carry it too, so their `checksum/*` annotations
+  move with it. A release on an older chart version *will* restart when it is
+  brought up to the current one.
+- **`persistence.size`.** It can only grow. A values file with a smaller number
+  than the live PVC fails the upgrade.
 
 ---
 
@@ -358,7 +479,12 @@ Discovery is live. The `description` is what drives triggering; a description co
 | `networkPolicy.blockedCIDRs` | pod, service, node, metadata | Adjust to your cluster's CIDRs |
 | `videoPipeline.enabled` | `true` | ~720 MB first-boot download, backgrounded |
 | `videoPipeline.reset` | `false` | One-shot: clears venv and Chromium, then set back |
-| `persistence.storageClassName` | `nfs-data` | Must be node-portable |
+| `persistence.storageClassName` | `longhorn` | Must be node-portable. `nfs-data` does not exist on woow-k3s and left the PVC Pending |
+| `persistence.size` | `20Gi` | Can only grow — a smaller value than the live PVC fails the upgrade |
+| `keepOnUninstall` | `true` | Keeps the PVC and chart-created Secrets when the release is uninstalled |
+| `agent.enabled` | `true` | `false` renders a tunnel-only release |
+| `cloudflare.enabled` | `false` | The tunnel belongs in its own release |
+| `networkPolicy.allowHelmTest` | `true` | Lets the smoke Pod through the policy; off in the live instance values |
 | `ttyd.existingSecret` | `""` | Preferred over `ttyd.password` — keeps the credential out of rendered manifests |
 | `cloudflare.replicas` | `2` | A single tunnel pod is an SPOF for both hostnames |
 | `podSecurityContext.runAsUser` | `0` | See Security — running non-root needs a chown pass over existing volumes |
@@ -371,8 +497,8 @@ Discovery is live. The `description` is what drives triggering; a description co
 
 | Control | Status |
 |---|---|
-| Cloudflare Access on both hostnames | Enforced, email allow-list, no IP bypass on the terminal |
-| ttyd basic auth | Enforced; the container refuses to start with an empty password |
+| Access gating in front of every hostname | **Not uniform on woow-k3s.** Only `pi-agent-woow-k3s-3` sits behind Cloudflare Access; the other four are gated by NPM Basic Auth only, and `pi-agent-npm` (NPM's own admin UI) answers 200 with nothing in front. Verified by request, 2026-09 |
+| ttyd basic auth | The container refuses to start with an empty password — but ttyd is disabled since 0.2.0 and not deployed |
 | NetworkPolicy ingress | Only the tunnel pods reach the app; direct pod-IP access is blocked |
 | NetworkPolicy egress | Internet allowed; Kubernetes API, service CIDR, pod CIDR and node network blocked |
 | ServiceAccount token | Not mounted (`automountServiceAccountToken: false`) |
@@ -423,11 +549,28 @@ Full report: [`docs/READINESS.md`](docs/READINESS.md).
 - **300 s request ceiling.** Long conversions terminate without a final answer.
 - **No plugin hot-reload in an open chat.** Extension source edits require a pod restart.
 - **Session storage grows unbounded.** No retention job, no pagination on `/api/sessions`.
+- **`helm.sh/chart` is a pod-template label.** Any chart version bump therefore rolls every release, so the version is held at 0.2.4 until the owner wants a rollout. Taking the label out of the pod template is the real fix, and is itself a one-time roll.
+- **`helm test` cannot pass on the live releases yet.** `networkPolicy.allowHelmTest` is `false` in `values/woow-k3s/*.yaml`, because turning it on adds an ingress rule to a policy that is serving traffic. It restarts nothing; it just has to be a deliberate change.
+- **`pi-tunnel` carries its credential as a Helm value**, so it sits in every release revision. `cloudflare.existingCredentialsSecret` is the end state, but switching stops the chart rendering `pi-tunnel-cf-creds` and is an owner decision.
+- **Five agent releases still carry a `ttyd.password` in their live values** for a terminal that has been disabled since 0.2.0. It renders nothing; it should be dropped from the release values at the next upgrade. The committed instance values already omit it.
+- **NPM is applied with `kubectl`, not Helm** — by decision. It is the auth gate for four of the five agents, and `deploy/npm/npm.yaml` still opens its admin UI (port 81) to `192.168.0.0/16` and publishes it at `pi-agent-npm.woowtech.io` with no Cloudflare Access in front.
+- **The NetworkPolicy is wider than it needs to be.** `nodeCIDRs` is a whole `/16` when the nodes are `192.168.10.21-24`, and the ingress rule still opens ttyd's port 7681 when ttyd is disabled. Both are live-object changes and were left out of this pass.
 - **The 20Gi PVC is advisory** on an NFS subdir provisioner, not enforced.
 
 ---
 
 ## Changelog
+
+### chart 0.2.4 — Helm migration pass (2026-09)
+
+- `charts/pi-agent/values/woow-k3s/`: the six live releases' values, secrets excluded, so the cluster is reproducible from this repo
+- `keepOnUninstall` (default on): the data PVC **and** chart-created Secrets survive `helm uninstall`
+- Default StorageClass `nfs-data` → `longhorn`; `nfs-data` does not exist on woow-k3s, so the old default could only ever leave the PVC Pending
+- `cloudflare.enabled` now defaults to `false`, which makes a plain `helm template charts/pi-agent` render instead of failing on a missing `tunnelId`
+- `helm test`: retried instead of one-shot, not rendered for a tunnel-only release, and admitted through the NetworkPolicy by the opt-in `networkPolicy.allowHelmTest`
+- `scripts/check-drift.sh`, `templates/NOTES.txt`, `.helmignore`, `examples/secrets.example.yaml`, a chart `icon`
+- CI: helm 3.19.5, lint and render of every values combination, `kubeconform -strict`, guards that the required-value and `keepOnUninstall` behaviour is real, a committed-secret scan, and no more bot pushes to `main`
+- Removed `values-woow.yaml` and `deploy/rendered/`: both described a tunnel and a StorageClass that no live release has used since 0.2.0
 
 ### v0.1.0 (2026-08)
 

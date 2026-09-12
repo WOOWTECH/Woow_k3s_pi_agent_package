@@ -1,0 +1,53 @@
+# Live instance values for release pi-agent in namespace pi-agent-woow on the
+# woow-k3s cluster. Recovered from `helm get values pi-agent` so the release can be
+# rebuilt from this repo. NO SECRETS HERE (see "Instance values" in the README).
+
+# This release predates fullnameOverride: its release name already equals the
+# chart name, so pi-agent.fullname resolves to "pi-agent" on its own. Adding
+# fullnameOverride here would be a no-op; removing the name would rename every
+# object.
+
+image:
+  repository: ghcr.io/woowtech/woow-k3s-pi-agent
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+timezone: Asia/Taipei
+logLevel: info
+
+videoPipeline:
+  enabled: true
+
+# 51Gi: grown by hand on the live volume and then written back into the release
+# values. Never lower it — a Longhorn shrink is rejected and the upgrade fails.
+persistence:
+  storageClassName: longhorn
+  size: 51Gi
+
+extraEnv:
+  - name: NODE_OPTIONS
+    value: --max-old-space-size=12288
+
+omnigent:
+  enabled: true
+  home: /data/pi-agent/home
+
+# The tunnel is a release of its own (pi-tunnel); an agent must not own it.
+cloudflare:
+  enabled: false
+
+ttyd:
+  enabled: false
+  username: admin
+  maxClients: 8
+
+networkPolicy:
+  enabled: true
+  # OFF on the live releases on purpose: switching it on adds an ingress rule to
+  # a NetworkPolicy that is serving traffic right now. It restarts nothing, but
+  # it is a deliberate change, not a side effect of adopting these values. Turn
+  # it on when you next want `helm test <release>` to be able to pass here.
+  allowHelmTest: false
+  # NPM, not this release's own cloudflared, is what reaches the agent.
+  extraCloudflaredApps:
+    - npm
