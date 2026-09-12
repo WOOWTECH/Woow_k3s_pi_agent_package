@@ -1,5 +1,23 @@
 node_modules/
 *.tgz
-tunnel-credentials.json
-*.secret.yaml
 .DS_Store
+
+# Credentials must never be committed. Every pattern is anchored to the repo
+# root with a leading "/" on purpose: an unanchored "secret*.yaml" also matches
+# charts/pi-agent/templates/secret.yaml and would quietly keep the chart's own
+# Secret template out of git — the failure mode is a chart that renders fine
+# locally and is missing a template once cloned.
+/tunnel-credentials.json
+/*.secret.yaml
+/*-secrets.yaml
+/*secrets.values.yaml
+/*.local.yaml
+/credentials.json
+.env
+.env.*
+*.env
+
+# Belt and braces: never ignore a chart template or the placeholder example.
+!/charts/pi-agent/templates/secret.yaml
+!/charts/pi-agent/templates/cloudflared.yaml
+!/examples/secrets.example.yaml

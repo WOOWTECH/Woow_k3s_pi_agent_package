@@ -1,10 +1,17 @@
 apiVersion: v2
 name: pi-agent
-description: pi-web + pi coding agent + ttyd browser terminal, for k3s
+description: pi-web + pi coding agent workstation for k3s, with an optional Cloudflare Tunnel
 type: application
+# HELD at 0.2.4 on purpose. pi-agent.labels — which includes helm.sh/chart — is
+# applied to the Deployment POD TEMPLATE, and the nginx/cloudflared ConfigMaps
+# carry it too, so their checksum annotations move with it. Any version bump is
+# therefore a pod-template change that rolls every live release. Bump it
+# together with the owner's next intentional rollout; taking helm.sh/chart out
+# of the pod template first is the real fix (see README "Known gaps").
 version: 0.2.4
 appVersion: "0.2.0"
 home: https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
+icon: https://raw.githubusercontent.com/WOOWTECH/Woow_k3s_pi_agent_package/main/docs/logo.svg
 sources:
   - https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
   - https://github.com/WOOWTECH/Woow_ha_pi_agent_add_on

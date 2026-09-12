@@ -1,0 +1,53 @@
+pi-agent {{ .Chart.AppVersion }} (chart {{ .Chart.Version }}) — release {{ .Release.Name }} in {{ .Release.Namespace }}
+
+{{ if .Values.agent.enabled -}}
+Agent release. Wait for it to come up (a cold volume can take minutes — the
+startup probe allows 300s):
+
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "pi-agent.fullname" . }} --timeout=10m
+
+Verify:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+{{- if and .Values.networkPolicy.enabled (not .Values.networkPolicy.allowHelmTest) }}
+
+  NOTE: networkPolicy.enabled=true with networkPolicy.allowHelmTest=false, so
+  the smoke Pod cannot reach the Service and `helm test` will time out. Set
+  networkPolicy.allowHelmTest=true to let it through.
+{{- end }}
+
+Reach it in-cluster (nothing else is published — pi-web's own port stays
+pod-internal so every request goes through the Host/Origin rewrite):
+  http://{{ include "pi-agent.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.nginx.port }}
+{{- if not .Values.cloudflare.enabled }}
+
+cloudflare.enabled=false: this release carries no tunnel. Public access comes
+from a separate tunnel-only release (agent.enabled=false) whose
+cloudflare.extraIngress routes a hostname here — and, if a proxy such as NPM
+sits in between, from networkPolicy.extraCloudflaredApps naming it.
+{{- end }}
+{{- else }}
+Tunnel-only release: cloudflared plus its config and credentials, no agent.
+
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "pi-agent.fullname" . }}-cloudflared --timeout=5m
+
+Routes carried by tunnel {{ .Values.cloudflare.tunnelId }}:
+{{- range .Values.cloudflare.extraIngress }}
+  {{ .hostname }} -> {{ .service }}
+{{- end }}
+
+This release renders no test Pod: it has no Service of its own to curl.
+{{- end }}
+
+{{ if .Values.keepOnUninstall -}}
+keepOnUninstall=true: `helm uninstall {{ .Release.Name }}` leaves the data PVC
+and every Secret this chart created in place. Deleting them is a separate,
+deliberate `kubectl delete`.
+{{- else -}}
+keepOnUninstall=false: an uninstall WILL delete the data PVC and the Secrets
+this chart created. That is not the setting for anything you care about.
+{{- end }}
+
+Provider API keys are not chart values by design: enter them in pi-web's Models
+page. They land on the volume — and GET /api/models-config still answers with
+them unauthenticated, so whatever fronts this release is the only thing keeping
+them private.

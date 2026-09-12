@@ -119,7 +119,7 @@ Scratch paths are pinned into `/tmp` (`client_body_temp_path`, `proxy_temp_path`
 
 ## Data layout on the volume
 
-One `ReadWriteOnce` claim, 20Gi by default, `storageClassName: nfs-data`, annotated `helm.sh/resource-policy: keep` so `helm uninstall` does not take a month of sessions with it. It is mounted at `/data/pi-agent` in both `pi-web` and `ttyd`.
+One `ReadWriteOnce` claim, 20Gi by default, `storageClassName: longhorn` (`nfs-data` does not exist on woow-k3s), annotated `helm.sh/resource-policy: keep` while `keepOnUninstall` is true so `helm uninstall` does not take a month of sessions with it. It is mounted at `/data/pi-agent` in both `pi-web` and `ttyd`.
 
 `pi-agent-env.sh` is what makes the volume authoritative: it exports `PI_CODING_AGENT_DIR=/data/pi-agent` and `HOME=/data/pi-agent/home`. Unset, both would default under the container's ephemeral root filesystem and every session, skill and credential would vanish on restart. The same file is sourced by `pi-web-start.sh`, `pi-shell.sh`, the `pi` wrapper and `/etc/profile.d`, so an interactive `kubectl exec ... -- bash -l` lands in the environment the server runs in — divergence there is how "works in the UI, not in the terminal" bugs are made.
 
@@ -285,12 +285,12 @@ flowchart TD
     G --> H["assertion 2: pi resolves on PATH and pi --version exits 0"]
     H --> I["push to ghcr.io/woowtech/woow-k3s-pi-agent<br/>tags: branch, semver, sha-short, latest on default branch"]
 
-    J["push touching charts/** or values-woow.yaml"] --> K["chart.yml"]
+    J["push touching charts/**"] --> K["chart.yml"]
     K --> L["helm lint"]
     L --> M["helm template with existingSecret refs"]
     M --> N["grep guard: TTYD_PASSWORD, credentials.json, PRIVATE KEY"]
     N -->|match| O["fail the build"]
-    N -->|clean| P["commit deploy/rendered/pi-agent-woow.yaml back to main"]
+    N -->|clean| P["kubeconform -strict + guard checks"]
 ```
 
 The image is a single-stage `debian:bookworm-slim` build. There is no s6-overlay and no bashio: on Kubernetes the kubelet is the supervisor and one process per container is the whole point, and configuration arrives as env from the chart rather than from a Supervisor `options.json`. `tini` is the entrypoint purely for PID 1 reaping — ttyd forks a shell per browser session, and without an init that reaps, every closed tab leaves a zombie.
@@ -317,7 +317,7 @@ Without it, a pi-web bump that moves or renames those files makes `find` match n
 
 ### Chart CI
 
-`chart.yml` lints the chart, renders it with `ttyd.existingSecret` and `cloudflare.existingCredentialsSecret` set so no credential can appear in the output, then greps the rendered manifest for `TTYD_PASSWORD: `, an inline `credentials.json: {`, and PEM private-key headers. A match fails the job before anything is committed. Only after that guard passes does the workflow commit `deploy/rendered/pi-agent-woow.yaml` back to `main`, which keeps the chart the single source of truth while still giving reviewers a diffable rendered manifest.
+`chart.yml` lints the chart against its defaults, against every file in `charts/pi-agent/values/woow-k3s/` and with ttyd re-enabled; renders each of those plus a tunnel-only, an agent-with-tunnel and a minimal combination; validates all of it with `kubeconform -strict`; and asserts that the required-value guards actually fail, that `keepOnUninstall` really annotates the PVC and Secrets, and that no committed file carries credential material. Credentials in CI are dummies. The workflow is read-only — the old version committed a rendered manifest back to `main`, but that manifest was built from the retired `values-woow.yaml` and matched no live release, so it and the bot's push rights are gone. `scripts/check-drift.sh` is the replacement: it compares the chart against the live releases on demand.
 
 Two details worth knowing when reading a published image. `BUILD_DATE` is declared as an `ARG` and surfaced in `org.opencontainers.image.created`, but `build.yml` passes only `BUILD_VERSION` and `BUILD_REF` — so that label carries its default, `unknown`. And `provenance: false` is set on the build step, so images do not carry a SLSA attestation; `org.opencontainers.image.revision` from `BUILD_REF` is the link back to the source commit.
 
