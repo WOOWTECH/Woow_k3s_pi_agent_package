@@ -17,6 +17,25 @@ image:
 timezone: Asia/Taipei
 logLevel: info
 
+# Bumped 2026-09-15: all five woow agents were CPU/memory constrained
+# (pi-agent's pi-web container was sitting near its 4Gi limit). Requests ==
+# limits so the pod gets Guaranteed QoS instead of being throttled/evicted
+# under load. max-old-space-size is raised to match — Node's heap would
+# otherwise still cap out around the old container limit even with more RAM
+# available, leaving ~2Gi of headroom below the 16Gi limit for non-heap/RSS.
+piWeb:
+  resources:
+    requests:
+      cpu: "12"
+      memory: 16Gi
+    limits:
+      cpu: "12"
+      memory: 16Gi
+
+extraEnv:
+  - name: NODE_OPTIONS
+    value: --max-old-space-size=14336
+
 videoPipeline:
   enabled: true
 
