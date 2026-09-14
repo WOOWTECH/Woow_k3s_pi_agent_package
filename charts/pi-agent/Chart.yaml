@@ -8,8 +8,8 @@ type: application
 # therefore a pod-template change that rolls every live release. Bump it
 # together with the owner's next intentional rollout; taking helm.sh/chart out
 # of the pod template first is the real fix (see README "Known gaps").
-version: 0.2.4
-appVersion: "0.2.0"
+version: 0.2.5
+appVersion: "0.2.1"
 home: https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
 icon: https://raw.githubusercontent.com/WOOWTECH/Woow_k3s_pi_agent_package/main/docs/logo.svg
 sources:
