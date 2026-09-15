@@ -6,7 +6,7 @@ fullnameOverride: pi-agent-3
 
 image:
   repository: ghcr.io/woowtech/woow-k3s-pi-agent
-  tag: "0.2.0"
+  tag: "0.2.1"
   pullPolicy: IfNotPresent
 
 timezone: Asia/Taipei
@@ -19,9 +19,25 @@ persistence:
   storageClassName: longhorn
   size: 20Gi
 
+# Bumped 2026-09-15: pi-web was CPU/memory constrained under load (one
+# instance was sitting near the chart's default 4Gi limit). Requests ==
+# limits so the container gets a fixed reservation instead of being
+# throttled under load. max-old-space-size is raised to match — Node's
+# heap would otherwise still cap out around the old container limit even
+# with more RAM available, leaving ~2Gi of headroom below 16Gi for
+# non-heap/RSS.
+piWeb:
+  resources:
+    requests:
+      cpu: "12"
+      memory: 16Gi
+    limits:
+      cpu: "12"
+      memory: 16Gi
+
 extraEnv:
   - name: NODE_OPTIONS
-    value: --max-old-space-size=12288
+    value: --max-old-space-size=14336
 
 # The tunnel is a release of its own (pi-tunnel); an agent must not own it.
 # The live release values still carry a stale cloudflare.tunnelId/hostnames

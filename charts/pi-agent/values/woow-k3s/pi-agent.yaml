@@ -24,9 +24,28 @@ persistence:
   storageClassName: longhorn
   size: 51Gi
 
+# Bumped 2026-09-15: this is the busiest of the five agents (fronts
+# pi-agent-woow-k3s.woowtech.io directly) and was sitting near the chart's
+# default 4Gi limit. Requests == limits so the container gets a fixed
+# reservation instead of being throttled under load.
+#
+# NOTE even at 16Gi / 14Gi heap ceiling this container was OOMKilled once
+# (2026-09-15 00:28 UTC, exitCode 137) — see memory pi-agent-woow-oom-flaky.
+# This is the busiest instance by far (many concurrent sessions); whether
+# that needs an even higher ceiling or is a leak worth chasing is still
+# open, not resolved by this bump.
+piWeb:
+  resources:
+    requests:
+      cpu: "12"
+      memory: 16Gi
+    limits:
+      cpu: "12"
+      memory: 16Gi
+
 extraEnv:
   - name: NODE_OPTIONS
-    value: --max-old-space-size=12288
+    value: --max-old-space-size=14336
 
 omnigent:
   enabled: true
