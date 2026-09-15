@@ -1,6 +1,19 @@
 # Default values for the pi-agent chart.
 # Every knob here is documented; a per-team install should only need to override
-# `cloudflare.*`, `ttyd.password`, and possibly `persistence.size`.
+# `persistence.*` and, for a tunnel-only release, `cloudflare.*`.
+#
+# The live woow-k3s releases are reproduced by the files in
+# values/woow-k3s/ — one per release, secrets excluded.
+
+# `helm uninstall` must never be how data is lost. With this on, the data PVC
+# and every Secret this chart creates carry helm.sh/resource-policy: keep, so an
+# uninstall leaves them behind and a reinstall adopts them again. The volume
+# holds every session, skill and provider credential; the cf-creds Secret holds
+# the only copy of a locally-managed tunnel's credential, which cannot be
+# re-downloaded from Cloudflare once it is gone.
+#
+# Set false only for a throwaway test install you intend to leave no trace of.
+keepOnUninstall: true
 
 # Omnigent host daemon.
 #
@@ -133,9 +146,18 @@ videoPipeline:
 
 persistence:
   enabled: true
-  # nfs-data is node-portable, which matters: this pod gets rescheduled across
-  # nodes and a node-local volume would strand its state.
-  storageClassName: nfs-data
+  # Must be node-portable: this pod gets rescheduled across nodes and a
+  # node-local volume (local-path) would strand its state on a node that may
+  # never come back.
+  #
+  # longhorn, not nfs-data: nfs-data does NOT exist on woow-k3s (the cluster
+  # offers local-path, longhorn, longhorn-build, longhorn-delete and
+  # longhorn-static), so the old default left the PVC Pending forever and every
+  # live release had to override it. longhorn is replicated, node-portable and
+  # its reclaimPolicy is Retain, which is what a volume holding a month of
+  # sessions wants. Two StorageClasses on woow-k3s are marked default
+  # (local-path and longhorn), so leaving this empty is ambiguous — name it.
+  storageClassName: longhorn
   accessMode: ReadWriteOnce
   size: 20Gi
   existingClaim: ""
@@ -149,7 +171,14 @@ extraEnv: []
 #    value: http://proxy:3128
 
 cloudflare:
-  enabled: true
+  # OFF by default. The tunnel is not part of an agent any more: it runs as its
+  # own tunnel-only release (agent.enabled=false) so that upgrading one agent
+  # can no longer touch the tunnel every other agent is reached through.
+  #
+  # It also has to be off for the chart to have a working default: with it on,
+  # tunnelId, the credentials and hostnames.web are all required and empty, so
+  # a plain `helm template charts/pi-agent` failed outright.
+  enabled: false
   # Pinned, not :latest. The previous deploy used :latest with
   # imagePullPolicy IfNotPresent, which means the tunnel daemon silently
   # upgrades itself the first time the pod lands on a node without the layer
@@ -195,6 +224,17 @@ cloudflare:
 # code as root. Egress to the internet stays open; the cluster is carved out.
 networkPolicy:
   enabled: true
+  # Let the `helm test` Pod reach the Service. The test Pod's IP is in the pod
+  # CIDR, which none of the rules below admit, so with this off `helm test`
+  # cannot pass while networkPolicy.enabled=true — it times out.
+  #
+  # The rule is as narrow as the test itself: it matches only a Pod carrying
+  # BOTH this release's instance label and the chart's helm-test component
+  # label, i.e. the hook Pod in templates/tests/. It is OFF in the live
+  # woow-k3s instance values, because turning it on adds an ingress rule to a
+  # NetworkPolicy that is live today — a change to make deliberately, not as a
+  # side effect of a takeover. See README "Known gaps".
+  allowHelmTest: true
   # Additional cloudflared Deployments allowed to reach this release, by their
   # `app` label. Needed when several releases share one tunnel: the per-release
   # selector then matches nothing and this is the only rule admitting traffic.

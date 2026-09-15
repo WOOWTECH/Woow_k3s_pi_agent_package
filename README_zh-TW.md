@@ -193,15 +193,27 @@ flowchart TD
 
 ### `charts/pi-agent` — Helm chart
 
-> 一份 chart，每個團隊一份 values 檔。共渲染出 8 個物件。
+> 一份 chart，每個 release 一份 values 檔。agent release 預設渲染 5 個物件；只跑 tunnel 的 release 渲染 3 個。
 
-- `deployment.yaml` — 三個容器、`automountServiceAccountToken: false`、startup/readiness/liveness 探針
+- `deployment.yaml` — pi-web 加 nginx sidecar（若重新啟用還有 ttyd）、`automountServiceAccountToken: false`、startup/readiness/liveness 探針
 - `configmap-nginx.yaml` — Host/Origin 改寫與 SSE 設定
+- `configmap-omnigent-patch.yaml` — Omnigent 模型選單修補，掛給 postStart hook 使用
 - `configmap-cloudflared.yaml` + `cloudflared.yaml` — 本地管理的 tunnel、2 個副本、Pod 反親和性
-- `networkpolicy.yaml` — ingress 只允許 tunnel；egress 排除叢集網段
-- `pvc.yaml` — 20Gi RWO，帶 `helm.sh/resource-policy: keep`
+- `networkpolicy.yaml` — ingress 只允許 tunnel（或擋在前面的代理）；egress 排除叢集網段
+- `pvc.yaml` — RWO，預設 `longhorn`，uninstall 時保留
 - `secret.yaml` — ttyd 憑證，或改用 `existingSecret`
-- `tests/smoke.yaml` — `helm test`，斷言 pi-web 回 200、ttyd 回 401
+- `tests/smoke.yaml` — `helm test`：pi-web 經 nginx 回 200（啟用 ttyd 時再斷言 ttyd 回 401）。唯讀、會重試，而且只跑 tunnel 的 release 不會渲染它
+- `NOTES.txt` — 接下來該執行什麼，以及這個 release 是否會保留資料
+
+兩個開關決定一個 release 的身分：
+
+| 值 | 渲染內容 |
+|---|---|
+| `agent.enabled=true`、`cloudflare.enabled=false`（預設） | 只有 agent — 對外入口由獨立的 tunnel release 提供 |
+| `agent.enabled=false`、`cloudflare.enabled=true` | 只跑 tunnel 的 release：cloudflared、它的設定與憑證 |
+| 兩者皆 `true` | 一個 release 同時擁有兩者，也就是原本的單團隊拓撲 |
+
+`keepOnUninstall`（預設 `true`）會在資料 PVC 以及 chart 建立的每一個 Secret 上加 `helm.sh/resource-policy: keep`，所以 `helm uninstall` 不會是「一個月的 session 消失」或「本地管理 tunnel 的唯一一份憑證消失」的原因。chart 從不渲染 Namespace：Helm 的 release 記錄就放在那裡，所以由 `--create-namespace` 負責建立。
 
 ### `patches/fix-unicode-space-paths.mjs` — CJK 路徑修正
 
@@ -224,11 +236,34 @@ flowchart TD
 | `usr/local/bin/ttyd-start.sh` | ttyd sidecar；沒有 `TTYD_PASSWORD` 就拒絕啟動 |
 | `usr/local/bin/pi-shell.sh` | ttyd 為每個瀏覽器 session fork 出來的 shell |
 
-### `deploy/rendered/` — CI 渲染出的 manifest
+### `charts/pi-agent/values/woow-k3s/` — 實機各 release 的 values
 
-> chart 是唯一事實來源；CI 負責渲染並把結果提交進版本庫。
+> 每個實機 release 一份檔案，這樣重建叢集靠的是這個 repo，而不是 `helm get values`。
 
-渲染時使用 `ttyd.existingSecret` 與 `cloudflare.existingCredentialsSecret`，因此不會有任何憑證進到渲染檔案、CI 日誌或 git 歷史。有一道 grep 檢查步驟會在偵測到機密內容時讓建置失敗。
+| 檔案 | Release | 特別之處 |
+|---|---|---|
+| `pi-agent.yaml` | `pi-agent` | 51Gi 磁碟區（手動擴容過，絕對不可縮小）、`NODE_OPTIONS=--max-old-space-size=12288`、Omnigent 開啟。沒有 `fullnameOverride`：它的 release 名稱剛好等於 chart 名稱 |
+| `pi-agent-2.yaml`、`pi-agent-3.yaml` | `pi-agent-2/-3` | 20Gi、12288MB heap、Omnigent 關閉 |
+| `pi-agent-4.yaml`、`pi-agent-5.yaml` | `pi-agent-4/-5` | 20Gi、6144MB heap、Omnigent 開啟 |
+| `pi-tunnel.yaml` | `pi-tunnel` | 只跑 tunnel 的 release：`agent.enabled=false`，以及完整的七條路由表，其中兩條其實屬於別的東西（opendesign、NPM 管理介面） |
+
+**這些檔案刻意不含任何憑證。** `pi-tunnel` 的實機 release 是把 tunnel 憑證直接寫在 values 裡，所以升級時必須再餵一次：
+
+```bash
+umask 077
+helm --kube-context woow-k3s get values pi-tunnel -n pi-agent-woow -o json \
+  | jq -r .cloudflare.credentialsJson > /secure/tunnel-credentials.json
+```
+
+`scripts/check-drift.sh` 會把每一份 values 渲染出來與實機 release 比對，同時報告物件層級的差異與 pod template 的差異 — 後者才是「升級會不會重啟東西」的答案：
+
+```bash
+CONTEXT=woow-k3s NAMESPACE=pi-agent-woow scripts/check-drift.sh
+```
+
+### `deploy/npm/` — Nginx Proxy Manager，刻意不放進 chart
+
+NPM 為五台 agent 中的四台提供 Basic Auth，部署方式是 `kubectl apply -f deploy/npm/npm.yaml`。這是擁有者的決定，不是漏掉：把它併進某個 chart release，等於讓所有 agent 的閘門跟其中一台的 `helm upgrade` 綁在一起。chart 的 `networkPolicy.extraCloudflaredApps: [npm]` 才是放行它流量的地方。
 
 ---
 
@@ -278,49 +313,118 @@ session 會在持久磁碟區上的 `pi-cwd-YYYYMMDD` 目錄中開啟。模型�
 # Creates a locally-managed tunnel and writes credentials.json
 cloudflared tunnel create pi-agent-<team>
 
-# Point both hostnames at it
+# Point the hostname at it
 cloudflared tunnel route dns pi-agent-<team> pi-agent-<team>.example.com
-cloudflared tunnel route dns pi-agent-<team> pi-agent-<team>-tty.example.com
 ```
 
-記下 tunnel UUID — 它要填進 `cloudflare.tunnelId`。
+記下 tunnel UUID — 它要填進 `cloudflare.tunnelId`。`credentials.json` 請放在 repo 外面：它沒辦法再從 Cloudflare 下載一次。
 
-### 步驟二：建立 namespace 與 secret
+### 步驟二：建立 namespace 與 tunnel Secret
 
 ```bash
 kubectl create namespace pi-agent-<team>
 
-# The browser terminal is a root shell. Generate, do not choose.
-kubectl -n pi-agent-<team> create secret generic pi-agent-ttyd \
-  --from-literal=TTYD_PASSWORD="$(openssl rand -base64 18)"
-
+# 比用 Helm value 傳憑證更好：這樣它不會落進任何一版 release 記錄。
+# 每個 key 的說明見 examples/secrets.example.yaml。
 kubectl -n pi-agent-<team> create secret generic pi-agent-cf-creds \
   --from-file=credentials.json=./tunnel-credentials.json
+kubectl -n pi-agent-<team> annotate secret pi-agent-cf-creds helm.sh/resource-policy=keep
 ```
 
-### 步驟三：安裝 chart
+### 步驟三：安裝 agent
+
+從 clone 安裝：
 
 ```bash
 helm upgrade --install pi-agent ./charts/pi-agent \
   --namespace pi-agent-<team> \
-  -f values-woow.yaml \
-  --set cloudflare.tunnelId=<tunnel-uuid> \
-  --set cloudflare.hostnames.web=pi-agent-<team>.example.com \
-  --set cloudflare.hostnames.terminal=pi-agent-<team>-tty.example.com \
-  --set ttyd.existingSecret=pi-agent-ttyd \
-  --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds
+  --set persistence.storageClassName=longhorn \
+  --set persistence.size=20Gi
+```
 
-helm test pi-agent -n pi-agent-<team>
+或者不 clone，用 GitHub tarball 安裝。chart 放在 `charts/` 底下，所以必須先解開壓縮檔 — Helm 無法直接安裝 tarball 子目錄裡的 chart，而這個 chart 也還沒有 OCI／`helm repo` 發佈管道：
+
+```bash
+curl -sSL https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/archive/refs/heads/main.tar.gz | tar xz
+helm upgrade --install pi-agent \
+  ./Woow_k3s_pi_agent_package-main/charts/pi-agent \
+  --namespace pi-agent-<team> \
+  --set persistence.storageClassName=longhorn
+```
+
+若要重建 WoowTech 既有的某個 release，改帶它的 instance values：
+
+```bash
+helm upgrade --install pi-agent-4 ./charts/pi-agent -n pi-agent-woow \
+  -f charts/pi-agent/values/woow-k3s/pi-agent-4.yaml
 ```
 
 首次開機會在背景下載大約 720 MB 的 Python venv 與 Chromium。整個過程中對話介面都可以使用，只有影片產製流程需要等待。
 
-### 步驟四：以 Cloudflare Access 保護兩個主機名稱
+### 步驟四：把 tunnel 裝成獨立的 release
+
+tunnel 刻意**不**屬於任何 agent release：一個 cloudflared 擋在所有 agent 前面，而升級其中一台 agent 不該有能力動到它。
+
+```bash
+helm upgrade --install pi-tunnel ./charts/pi-agent \
+  --namespace pi-agent-<team> \
+  --set agent.enabled=false \
+  --set fullnameOverride=pi-tunnel \
+  --set cloudflare.enabled=true \
+  --set cloudflare.tunnelId=<tunnel-uuid> \
+  --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds \
+  --set-json 'cloudflare.extraIngress=[{"hostname":"pi-agent-<team>.example.com","service":"http://pi-agent.pi-agent-<team>.svc.cluster.local:30142","originRequest":{"connectTimeout":"30s","httpHostHeader":"localhost"}}]'
+```
+
+接著告訴 agent 哪個 tunnel 可以連它 — tunnel 一旦搬走，chart 依 release 名稱產生的那條 selector 就誰也對不上：
+
+```bash
+helm upgrade pi-agent ./charts/pi-agent -n pi-agent-<team> --reuse-values \
+  --set 'networkPolicy.extraCloudflaredApps[0]=pi-tunnel-cloudflared'
+```
+
+### 步驟五：驗證
+
+```bash
+kubectl -n pi-agent-<team> rollout status deploy/pi-agent --timeout=10m
+helm test pi-agent -n pi-agent-<team> --logs
+```
+
+smoke test 是唯讀的：它經 nginx sidecar 向 pi-web 要 `/api/home`，預期 200。它最多重試 150 秒，因為 k3s 的 NetworkPolicy 實作需要幾秒鐘才會放行一個剛建立的 Pod。
+
+> 在 `networkPolicy.enabled=true` 的情況下，`helm test` 需要 `networkPolicy.allowHelmTest=true`（chart 預設值）。這個值在 `values/woow-k3s/*.yaml` 裡是**關閉**的 — 原因見「已知限制」。
+
+### 步驟六：以 Cloudflare Access 保護每個主機名稱
 
 1. 開啟 **Cloudflare Zero Trust > Access > Applications**
 2. 為每個主機名稱各新增一個 **Self-hosted** 應用程式
 3. 掛上一條 **allow** 政策，使用電子郵件白名單或你的 IdP 群組
-4. **不要**在終端的主機名稱上掛 IP-bypass 政策 — 那是一個 root shell
+4. **不要**掛 IP-bypass 政策 — agent 本身是一個沒有任何認證的 root shell
+
+### 卸載 — 資料會留下
+
+```bash
+helm uninstall pi-agent -n pi-agent-<team>
+```
+
+Deployment、Service、ConfigMap 與 NetworkPolicy 會消失。PVC 與 chart 建立的每一個 Secret 都會留下，因為 `keepOnUninstall` 是 `true`；之後用同樣名稱 `helm install` 會把它們接回來。刪掉資料是另一件必須刻意去做的事：
+
+```bash
+kubectl -n pi-agent-<team> delete pvc pi-agent-data   # 不可逆
+```
+
+### 接管既有 release，或搬移 release
+
+woow-k3s 上這六個 release 都已經由 Helm 管理，所以接管就只是帶著正確 values 的 `helm upgrade` — 而且它應該什麼都不會重啟。執行之前先證明這件事：
+
+```bash
+CONTEXT=woow-k3s NAMESPACE=pi-agent-woow scripts/check-drift.sh   # 離開碼 0 = 沒有漂移
+```
+
+如果某個 release 是要從 `kubectl` 管理的物件接手，升級時再加上 `--take-ownership`。有兩件事即使功能沒變也會讓 Pod 重啟，請先確認：
+
+- **chart 版本。** `helm.sh/chart` 在這裡是 pod template 的標籤，而 nginx／cloudflared 兩個 ConfigMap 也帶著它，所以它們的 `checksum/*` annotation 會跟著動。停在舊 chart 版本的 release，升到目前版本**一定**會重啟。
+- **`persistence.size`。** 只能變大。values 裡的數字比實機 PVC 小，升級會直接失敗。
 
 ---
 
@@ -358,7 +462,12 @@ EOF
 | `networkPolicy.blockedCIDRs` | pod、service、node、metadata | 請依你的叢集網段調整 |
 | `videoPipeline.enabled` | `true` | 首次開機約 720 MB 下載，於背景執行 |
 | `videoPipeline.reset` | `false` | 一次性操作：清掉 venv 與 Chromium，之後請改回 |
-| `persistence.storageClassName` | `nfs-data` | 必須可跨節點搬移 |
+| `persistence.storageClassName` | `longhorn` | 必須可跨節點搬移。`nfs-data` 在 woow-k3s 根本不存在，只會讓 PVC 卡在 Pending |
+| `persistence.size` | `20Gi` | 只能變大 — 比實機 PVC 小就會讓升級失敗 |
+| `keepOnUninstall` | `true` | uninstall 時保留 PVC 與 chart 建立的 Secret |
+| `agent.enabled` | `true` | 設 `false` 會渲染成只跑 tunnel 的 release |
+| `cloudflare.enabled` | `false` | tunnel 應該自己一個 release |
+| `networkPolicy.allowHelmTest` | `true` | 讓 smoke Pod 穿過 policy；實機的 instance values 是關閉的 |
 | `ttyd.existingSecret` | `""` | 優先於 `ttyd.password` — 可讓憑證不出現在渲染後的 manifest 中 |
 | `cloudflare.replicas` | `2` | 單一 tunnel Pod 會成為兩個主機名稱共同的單點故障 |
 | `podSecurityContext.runAsUser` | `0` | 參見安全機制 — 改用非 root 需要對既有磁碟區做一次 chown |
@@ -371,7 +480,7 @@ EOF
 
 | 控制項 | 狀態 |
 |---|---|
-| 兩個主機名稱都受 Cloudflare Access 保護 | 已強制執行，採電子郵件白名單，終端不開放 IP bypass |
+| 每個主機名稱前面都有 Access 把關 | **在 woow-k3s 上並不一致。** 只有 `pi-agent-woow-k3s-3` 在 Cloudflare Access 後面；其餘四台只靠 NPM Basic Auth，而 `pi-agent-npm`（NPM 自己的管理介面）前面什麼都沒有、直接回 200。以實際請求驗證，2026-09 |
 | ttyd basic auth | 已強制執行；密碼為空時容器拒絕啟動 |
 | NetworkPolicy ingress | 只有 tunnel Pod 能連到應用；直接以 Pod IP 存取會被擋下 |
 | NetworkPolicy egress | 允許連外網際網路；Kubernetes API、service CIDR、pod CIDR 與節點網路全部封鎖 |
@@ -423,11 +532,28 @@ EOF
 - **請求上限 300 秒。** 耗時較長的轉換會在沒有最終答案的情況下被終止。
 - **開著的對話無法熱重載外掛。** 修改擴充套件原始碼需要重啟 Pod。
 - **Session 儲存會無上限地成長。** 沒有保留期清理工作，`/api/sessions` 也沒有分頁。
+- **`helm.sh/chart` 是 pod template 的標籤。** 因此任何 chart 版號變動都會讓每個 release 重啟，所以版號先停在 0.2.4，等擁有者想要一次 rollout 時再動。把這個標籤從 pod template 拿掉才是真正的修法，而那本身也是一次性的重啟。
+- **實機 release 目前還跑不過 `helm test`。** `values/woow-k3s/*.yaml` 裡的 `networkPolicy.allowHelmTest` 是 `false`，因為打開它等於在一條正在服務流量的 policy 上新增 ingress 規則。它不會重啟任何東西，只是必須是一個刻意的決定。
+- **`pi-tunnel` 把憑證當成 Helm value 傳入**，所以它存在每一版 release 記錄裡。`cloudflare.existingCredentialsSecret` 才是最終樣貌，但切換過去會讓 chart 不再渲染 `pi-tunnel-cf-creds`，屬於擁有者的決定。
+- **五個 agent release 的實機 values 還留著 `ttyd.password`**，而那個終端從 0.2.0 起就停用了。它不會渲染出任何東西，但下次升級時應該從 release values 移掉。已提交的 instance values 已經不含它。
+- **NPM 是用 `kubectl` 而非 Helm 部署的** — 這是決定。它是五台 agent 中四台的認證閘門，而 `deploy/npm/npm.yaml` 目前仍把管理介面（port 81）開放給 `192.168.0.0/16`，並以 `pi-agent-npm.woowtech.io` 公開，前面沒有 Cloudflare Access。
+- **NetworkPolicy 比需要的範圍寬。** 節點實際是 `192.168.10.21-24`，`nodeCIDRs` 卻寫整個 `/16`；ttyd 停用時 ingress 規則仍放行 7681。兩者都會改到實機物件，這次刻意沒動。
 - **20Gi 的 PVC 只是宣告值** — 在 NFS subdir provisioner 上並不會被實際強制執行。
 
 ---
 
 ## 更新日誌
+
+### chart 0.2.4 — Helm 化整理（2026-09）
+
+- `charts/pi-agent/values/woow-k3s/`：六個實機 release 的 values（不含機密），讓叢集可以從這個 repo 重建
+- `keepOnUninstall`（預設開啟）：`helm uninstall` 之後資料 PVC **與** chart 建立的 Secret 都會留下
+- 預設 StorageClass 由 `nfs-data` 改為 `longhorn`；`nfs-data` 在 woow-k3s 不存在，舊的預設值只會讓 PVC 卡在 Pending
+- `cloudflare.enabled` 預設改為 `false`，於是單純執行 `helm template charts/pi-agent` 會成功渲染，而不是因為缺 `tunnelId` 而失敗
+- `helm test`：改成重試而非一次定生死、只跑 tunnel 的 release 不再渲染它，並由可選的 `networkPolicy.allowHelmTest` 讓它穿過 NetworkPolicy
+- 新增 `scripts/check-drift.sh`、`templates/NOTES.txt`、`.helmignore`、`examples/secrets.example.yaml` 與 chart `icon`
+- CI：helm 3.19.5、對每一種 values 組合做 lint 與 render、`kubeconform -strict`、驗證必填值與 `keepOnUninstall` 行為真的成立、掃描是否提交機密，並且不再讓 bot 推送到 `main`
+- 移除 `values-woow.yaml` 與 `deploy/rendered/`：兩者描述的 tunnel 與 StorageClass 從 0.2.0 起就沒有任何實機 release 在用
 
 ### v0.1.0 (2026-08)
 

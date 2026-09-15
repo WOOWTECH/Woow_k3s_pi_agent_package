@@ -33,3 +33,21 @@ app: {{ include "pi-agent.fullname" . }}
 {{ include "pi-agent.fullname" . }}-data
 {{- end -}}
 {{- end -}}
+
+{{/*
+Marks the `helm test` Pod. The Pod already carries app.kubernetes.io/instance
+from pi-agent.labels, so this adds only the component half — repeating the
+instance label here would emit a duplicate YAML key.
+*/}}
+{{- define "pi-agent.testLabels" -}}
+pi-agent.woowtech.io/component: helm-test
+{{- end -}}
+
+{{/*
+NetworkPolicy selector for that same Pod: both halves, so one release's test Pod
+cannot reach another release's Service. Must stay in step with the labels above.
+*/}}
+{{- define "pi-agent.testSelectorLabels" -}}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{ include "pi-agent.testLabels" . }}
+{{- end -}}

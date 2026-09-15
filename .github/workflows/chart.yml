@@ -5,17 +5,23 @@ on:
     branches: [main]
     paths:
       - "charts/**"
-      - "values-woow.yaml"
+      - "examples/**"
+      - "scripts/**"
       - ".github/workflows/chart.yml"
   pull_request:
     paths:
       - "charts/**"
-      - "values-woow.yaml"
+      - "examples/**"
+      - "scripts/**"
       - ".github/workflows/chart.yml"
   workflow_dispatch:
 
+# Read-only. The old workflow rendered the chart and pushed the result back to
+# main; that manifest matched no live release (it was built from the retired
+# values-woow.yaml) and a bot with push rights to the default branch is not
+# worth a file nobody consumed.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: chart-${{ github.ref }}
@@ -30,53 +36,196 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.15.3
+          version: v3.19.5
 
-      - name: helm lint
-        run: helm lint charts/pi-agent -f values-woow.yaml
-
-      - name: helm template (existing-secret mode)
+      - name: helm lint (defaults, every instance, tunnel-only, ttyd)
         run: |
-          mkdir -p deploy/rendered
-          helm template pi-agent charts/pi-agent \
-            --namespace pi-agent-woow \
-            -f values-woow.yaml \
-            --set ttyd.existingSecret=pi-agent-ttyd \
+          set -e
+          helm lint charts/pi-agent
+          for f in charts/pi-agent/values/woow-k3s/*.yaml; do
+            rel="$(basename "$f" .yaml)"
+            echo "--- lint $rel"
+            if [ "$rel" = pi-tunnel ]; then
+              helm lint charts/pi-agent -f "$f" \
+                --set cloudflare.existingCredentialsSecret=pi-tunnel-cf-creds
+            else
+              helm lint charts/pi-agent -f "$f"
+            fi
+          done
+          helm lint charts/pi-agent --set ttyd.enabled=true,ttyd.password=dummy-not-a-real-password
+
+      - name: helm template (every values combination)
+        run: |
+          set -e
+          mkdir -p /tmp/render
+          # 1. plain defaults — this is what used to fail outright
+          helm template pi-agent charts/pi-agent -n pi-agent-ci > /tmp/render/default.yaml
+          # 2. every live instance, exactly as a takeover would render it
+          for f in charts/pi-agent/values/woow-k3s/*.yaml; do
+            rel="$(basename "$f" .yaml)"
+            if [ "$rel" = pi-tunnel ]; then
+              # secrets.create=true equivalent: the chart renders the Secret from
+              # a value. Dummy credential, never a real one.
+              helm template "$rel" charts/pi-agent -n pi-agent-woow -f "$f" \
+                --set cloudflare.credentialsJson='{"AccountTag":"dummy","TunnelID":"dummy","TunnelName":"dummy","TunnelSecret":"ZHVtbXk="}' \
+                > "/tmp/render/$rel-inline-secret.yaml"
+              # and the recommended mode: credential supplied out of band
+              helm template "$rel" charts/pi-agent -n pi-agent-woow -f "$f" \
+                --set cloudflare.existingCredentialsSecret=pi-tunnel-cf-creds \
+                > "/tmp/render/$rel.yaml"
+            else
+              helm template "$rel" charts/pi-agent -n pi-agent-woow -f "$f" \
+                > "/tmp/render/$rel.yaml"
+            fi
+          done
+          # 3. ttyd re-enabled, chart-created Secret, dummy password
+          helm template pi-agent charts/pi-agent -n pi-agent-ci \
+            --set ttyd.enabled=true,ttyd.password=dummy-not-a-real-password \
+            > /tmp/render/ttyd-inline-secret.yaml
+          helm template pi-agent charts/pi-agent -n pi-agent-ci \
+            --set ttyd.enabled=true,ttyd.existingSecret=pi-agent-ttyd \
+            > /tmp/render/ttyd-existing-secret.yaml
+          # 4. agent + its own tunnel, the single-release topology
+          helm template pi-agent charts/pi-agent -n pi-agent-ci \
+            --set cloudflare.enabled=true,cloudflare.tunnelId=00000000-0000-0000-0000-000000000000 \
+            --set cloudflare.hostnames.web=pi-agent.example.com \
             --set cloudflare.existingCredentialsSecret=pi-agent-cf-creds \
-            > deploy/rendered/pi-agent-woow.yaml
+            > /tmp/render/agent-with-tunnel.yaml
+          # 5. minimal: no policy, no volume, nothing kept
+          helm template pi-agent charts/pi-agent -n pi-agent-ci \
+            --set networkPolicy.enabled=false,persistence.enabled=false \
+            --set videoPipeline.enabled=false,omnigent.enabled=false \
+            --set sessionCwdRestore.enabled=false,keepOnUninstall=false \
+            > /tmp/render/minimal.yaml
+          ls -l /tmp/render
 
-      - name: Guard against committed credentials
+      - name: kubeconform (schema validation)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -strict -summary /tmp/render/*.yaml
+          kubeconform -strict -summary deploy/npm/npm.yaml
+
+      - name: Every template renders (catches one dropped by .gitignore)
         run: |
           set -e
-          file=deploy/rendered/pi-agent-woow.yaml
-          leak=0
-          if grep -nE 'TTYD_PASSWORD: ' "$file"; then leak=1; fi
-          if grep -nE 'credentials\.json: \{' "$file"; then leak=1; fi
-          if grep -nE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----' "$file"; then leak=1; fi
-          if [ "$leak" -ne 0 ]; then
-            echo "::error::rendered manifest contains what looks like a credential; refusing to commit"
-            exit 1
-          fi
-          echo "no credential markers found in $file"
+          # A pattern like "secret*.yaml" in .gitignore once removed a chart's
+          # own Secret template from git; the chart then rendered fine for
+          # whoever still had it locally. Assert the file is tracked AND that
+          # each template contributes a rendered object.
+          for t in charts/pi-agent/templates/*.yaml charts/pi-agent/templates/tests/*.yaml; do
+            git ls-files --error-unmatch "$t" > /dev/null
+          done
+          all=$(helm template pi-agent charts/pi-agent -n pi-agent-ci \
+                  --set ttyd.enabled=true,ttyd.password=dummy-not-a-real-password \
+                  --set omnigent.enabled=true \
+                  --set cloudflare.enabled=true,cloudflare.tunnelId=00000000-0000-0000-0000-000000000000 \
+                  --set cloudflare.hostnames.web=a.example.com,cloudflare.hostnames.terminal=b.example.com \
+                  --set cloudflare.credentialsJson='{"TunnelSecret":"ZHVtbXk="}')
+          for t in cloudflared configmap-cloudflared configmap-nginx configmap-omnigent-patch \
+                   deployment networkpolicy pvc secret service tests/smoke; do
+            echo "$all" | grep -q "pi-agent/templates/$t.yaml" \
+              || { echo "::error::templates/$t.yaml rendered nothing"; exit 1; }
+          done
+          echo "all 10 templates render"
 
-      - name: Upload rendered manifest as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pi-agent-woow-rendered
-          path: deploy/rendered/pi-agent-woow.yaml
-
-      - name: Commit rendered manifest back to main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Required values are enforced
         run: |
           set -e
-          git config user.name  'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add deploy/rendered/pi-agent-woow.yaml
-          if git diff --cached --quiet; then
-            echo "no changes to rendered manifest; skipping commit"
-            exit 0
+          fails=0
+          # cloudflare.enabled=true with nothing else must fail, not render a
+          # tunnel that points nowhere.
+          if helm template x charts/pi-agent --set cloudflare.enabled=true > /dev/null 2>&1; then
+            echo "::error::cloudflare.enabled=true rendered without a tunnelId"; fails=1
           fi
-          git commit \
-            -m "chore(chart): re-render deploy/rendered/pi-agent-woow.yaml" \
-            -m "Auto-generated from charts/pi-agent + values-woow.yaml with ttyd.existingSecret=pi-agent-ttyd and cloudflare.existingCredentialsSecret=pi-agent-cf-creds. Source: ${{ github.sha }}"
-          git push
+          if helm template x charts/pi-agent \
+               --set cloudflare.enabled=true,cloudflare.tunnelId=t > /dev/null 2>&1; then
+            echo "::error::rendered without hostnames.web or credentials"; fails=1
+          fi
+          if helm template x charts/pi-agent \
+               --set cloudflare.enabled=true,cloudflare.tunnelId=t,cloudflare.hostnames.web=a.example.com \
+               > /dev/null 2>&1; then
+            echo "::error::rendered without tunnel credentials"; fails=1
+          fi
+          # ttyd is a root shell: no password, no render.
+          if helm template x charts/pi-agent --set ttyd.enabled=true > /dev/null 2>&1; then
+            echo "::error::ttyd.enabled=true rendered without a password"; fails=1
+          fi
+          [ "$fails" -eq 0 ] || exit 1
+          echo "required-value guards all fire"
+
+      - name: keepOnUninstall protects data
+        run: |
+          set -e
+          python3 - <<'EOF'
+          import subprocess, sys, yaml
+          def render(*extra):
+              return list(yaml.safe_load_all(subprocess.run(
+                  ["helm","template","x","charts/pi-agent","-n","ci",
+                   "--set","ttyd.enabled=true,ttyd.password=d",
+                   "--set","cloudflare.enabled=true,cloudflare.tunnelId=t",
+                   "--set","cloudflare.hostnames.web=a.example.com",
+                   "--set",'cloudflare.credentialsJson={"TunnelSecret":"ZA=="}',
+                   *extra], capture_output=True, text=True, check=True).stdout))
+          bad = []
+          for d in render():
+              if d and d["kind"] in ("PersistentVolumeClaim", "Secret"):
+                  ann = (d["metadata"].get("annotations") or {})
+                  if ann.get("helm.sh/resource-policy") != "keep":
+                      bad.append(f"{d['kind']}/{d['metadata']['name']} is not kept on uninstall")
+          for d in render("--set", "keepOnUninstall=false"):
+              if d and d["kind"] in ("PersistentVolumeClaim", "Secret"):
+                  if (d["metadata"].get("annotations") or {}).get("helm.sh/resource-policy"):
+                      bad.append(f"{d['kind']}/{d['metadata']['name']} still kept with keepOnUninstall=false")
+          # The chart must never render a Namespace: Helm's release record lives
+          # in it, so --create-namespace owns it and an uninstall cannot take it.
+          for d in render():
+              if d and d["kind"] == "Namespace":
+                  bad.append("the chart must not render a Namespace")
+          sys.exit("\n".join(bad)) if bad else print("PVC + Secrets kept on uninstall; no Namespace rendered")
+          EOF
+
+      - name: No secrets committed
+        run: |
+          set -e
+          python3 - <<'EOF'
+          import glob, pathlib, re, sys, yaml
+          bad = []
+          v = yaml.safe_load(open("charts/pi-agent/values.yaml"))
+          for path, val in (("ttyd.password", v["ttyd"]["password"]),
+                            ("ttyd.existingSecret", v["ttyd"]["existingSecret"]),
+                            ("cloudflare.credentialsJson", v["cloudflare"]["credentialsJson"]),
+                            ("cloudflare.existingCredentialsSecret", v["cloudflare"]["existingCredentialsSecret"]),
+                            ("cloudflare.tunnelId", v["cloudflare"]["tunnelId"])):
+              if val:
+                  bad.append(f"values.yaml {path} must be empty, got a value")
+          # Instance values are committed: they must carry no credential at all.
+          for f in glob.glob("charts/pi-agent/values/woow-k3s/*.yaml"):
+              d = yaml.safe_load(open(f)) or {}
+              if (d.get("ttyd") or {}).get("password"):
+                  bad.append(f"{f}: ttyd.password must not be committed")
+              if (d.get("cloudflare") or {}).get("credentialsJson"):
+                  bad.append(f"{f}: cloudflare.credentialsJson must not be committed")
+          # Placeholders only in the example.
+          for d in yaml.safe_load_all(open("examples/secrets.example.yaml")):
+              for k, val in ((d or {}).get("stringData") or {}).items():
+                  if "REPLACE_ME" not in str(val):
+                      bad.append(f"examples: {d['metadata']['name']}.{k} is not a placeholder")
+          # Nothing anywhere in the repo may look like tunnel or key material.
+          pats = [re.compile(r'"TunnelSecret"\s*:\s*"(?!REPLACE_ME|ZHVtbXk=|ZA==|dummy)[A-Za-z0-9+/=]{16,}'),
+                  re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')]
+          for p in pathlib.Path(".").rglob("*"):
+              if not p.is_file() or ".git/" in str(p) or p.suffix in (".png", ".svg"):
+                  continue
+              try:
+                  t = p.read_text()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for pat in pats:
+                  if pat.search(t):
+                      bad.append(f"{p}: looks like committed credential material")
+          sys.exit("\n".join(bad)) if bad else print("no secrets committed")
+          EOF
+
+      - name: Shell scripts parse
+        run: bash -n scripts/*.sh rootfs/usr/local/bin/*.sh

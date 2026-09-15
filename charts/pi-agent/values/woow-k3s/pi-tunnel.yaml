@@ -1,0 +1,70 @@
+# Live instance values for release pi-tunnel in namespace pi-agent-woow on the
+# woow-k3s cluster. Recovered from `helm get values pi-tunnel` so the release
+# can be rebuilt from this repo.
+#
+# THE TUNNEL CREDENTIAL IS NOT IN THIS FILE and must never be committed. The
+# live release holds it inline in cloudflare.credentialsJson, so every upgrade
+# has to pass it again:
+#
+#   helm --kube-context woow-k3s get values pi-tunnel -n pi-agent-woow -o json \
+#     | jq -r .cloudflare.credentialsJson > /secure/tunnel-credentials.json
+#   helm --kube-context woow-k3s upgrade pi-tunnel charts/pi-agent \
+#     -n pi-agent-woow -f charts/pi-agent/values/woow-k3s/pi-tunnel.yaml \
+#     --set-file cloudflare.credentialsJson=/secure/tunnel-credentials.json
+#
+# Moving it to cloudflare.existingCredentialsSecret is the recommended end
+# state (it takes the credential out of every release revision), but that stops
+# the chart from rendering the pi-tunnel-cf-creds Secret, so it is a deliberate
+# owner decision and not part of this change. See README "Known gaps".
+
+fullnameOverride: pi-tunnel
+
+# Tunnel-only release: no pi-web, no PVC, no Service. One cloudflared
+# Deployment fronts every agent plus opendesign, so upgrading an agent can no
+# longer touch the tunnel the others depend on.
+agent:
+  enabled: false
+
+cloudflare:
+  enabled: true
+  # UUID of the locally-managed tunnel pi-agent-woow-k3s. Not secret.
+  tunnelId: 7a39cd1c-8684-4dc9-940e-da8e26f5a2cf
+  replicas: 2
+  # This release owns no agent, so it declares no hostname of its own; every
+  # route lives in extraIngress below.
+  hostnames:
+    web: ""
+    terminal: ""
+  # The full public routing table for pi-agent-woow. Five agent hostnames go to
+  # NPM (which supplies Basic Auth and proxies on to the per-agent Service),
+  # od-woow-k3s is the opendesign release in this namespace, and
+  # pi-agent-npm is NPM's own admin UI on port 81.
+  extraIngress:
+    - hostname: pi-agent-woow-k3s.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:80
+      originRequest:
+        connectTimeout: 30s
+    - hostname: pi-agent-woow-k3s-2.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:80
+      originRequest:
+        connectTimeout: 30s
+    - hostname: pi-agent-woow-k3s-3.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:80
+      originRequest:
+        connectTimeout: 30s
+    - hostname: pi-agent-woow-k3s-4.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:80
+      originRequest:
+        connectTimeout: 30s
+    - hostname: pi-agent-woow-k3s-5.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:80
+      originRequest:
+        connectTimeout: 30s
+    - hostname: od-woow-k3s.woowtech.io
+      service: http://opendesign.pi-agent-woow.svc.cluster.local:7457
+      originRequest:
+        connectTimeout: 30s
+    - hostname: pi-agent-npm.woowtech.io
+      service: http://npm.pi-agent-woow.svc.cluster.local:81
+      originRequest:
+        connectTimeout: 30s

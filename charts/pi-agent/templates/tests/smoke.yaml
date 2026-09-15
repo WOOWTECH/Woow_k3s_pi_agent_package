@@ -1,3 +1,9 @@
+{{- /*
+Read-only smoke test. Only for a release that HAS an agent: a tunnel-only
+release (agent.enabled=false) renders no Service, so this Pod used to be
+created anyway and curl a hostname that does not resolve.
+*/ -}}
+{{- if .Values.agent.enabled }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -5,9 +11,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "pi-agent.labels" . | nindent 4 }}
+    {{- include "pi-agent.testLabels" . | nindent 4 }}
   annotations:
     helm.sh/hook: test
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    # before-hook-creation only: the Pod is replaced on the next `helm test`
+    # but left in place afterwards, so `helm test --logs` (and a plain
+    # `kubectl logs`) can still show what it saw. hook-succeeded deleted it the
+    # instant it passed, which made a passing run unreadable.
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   restartPolicy: Never
   containers:
@@ -18,9 +29,30 @@ spec:
         - -c
         - |
           set -e
+          url="http://{{ include "pi-agent.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.nginx.port }}/api/home"
           echo "==> pi-web through nginx"
-          curl -fsS -o /dev/null -w 'GET /api/home -> %{http_code}\n' \
-            "http://{{ include "pi-agent.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.nginx.port }}/api/home"
+          # Retried, not one shot. Two things are racing a freshly created test
+          # Pod: the agent may still be rolling, and k3s's NetworkPolicy
+          # implementation only admits this Pod once its IP has been programmed
+          # into the ipset behind the allowHelmTest rule — measured at ~5-10s
+          # after the Pod starts. A single curl here fails for a healthy
+          # release, which is worse than no test at all.
+          code=000
+          for i in $(seq 1 30); do
+            code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$url") || true
+            [ -n "$code" ] || code=000
+            [ "$code" = "200" ] && break
+            echo "  attempt $i: GET /api/home -> $code"
+            sleep 5
+          done
+          echo "GET /api/home -> $code"
+          if [ "$code" != "200" ]; then
+            echo "FAIL: pi-web did not answer 200 through the nginx sidecar."
+            echo "      With networkPolicy.enabled=true, check that"
+            echo "      networkPolicy.allowHelmTest=true — otherwise this Pod is"
+            echo "      denied by the policy and can never reach the Service."
+            exit 1
+          fi
           {{- if .Values.ttyd.enabled }}
           echo "==> ttyd demands auth"
           code=$(curl -s -o /dev/null -w '%{http_code}' \
@@ -31,3 +63,4 @@ spec:
           [ "$code" = "401" ] || { echo "FAIL: expected 401 from ttyd, got $code"; exit 1; }
           {{- end }}
           echo "smoke OK"
+{{- end }}

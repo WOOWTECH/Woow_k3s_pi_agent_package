@@ -172,11 +172,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #   tini — PID 1 reaping. Both ttyd and pi-web 0.9.0's built-in terminal fork
 #     a shell per browser session; without an init that reaps, every closed
 #     tab leaves a zombie.
-#   tmux — Omnigent's native-terminal launcher (create_terminal_instance)
-#     shells out to `tmux` unconditionally for every harness it drives,
-#     Pi included. Without it every "Native Pi terminal" session fails at
-#     launch with "tmux is not installed or not on PATH" — this was missing
-#     from every prior build of this image, not a regression.
+#   tmux — Omnigent's native Pi harness launches the Pi TUI in a private tmux
+#     server. It must be image-baked: runtime apt installs disappear whenever
+#     Kubernetes recreates the pod and then every native Pi session fails.
 #   python3/venv/pip, ffmpeg, fonts-noto-* , chromium .so set, rclone —
 #     the video pipeline. fonts-noto-cjk is not optional: nothing else in
 #     Debian covers CJK glyphs for libass subtitle burn.
@@ -241,6 +239,7 @@ RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/video-tools-init.sh \
     && test -x "$(command -v pi)" \
     && pi --version \
+    && tmux -V \
     # Cross-stage ABI assertion: stage 1 compiled pty.node against ITS nodejs,
     # and this is the first moment the module is asked to load under the
     # nodejs that will actually run it.

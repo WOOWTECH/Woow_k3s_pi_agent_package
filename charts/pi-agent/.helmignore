@@ -1,0 +1,16 @@
+# Patterns to ignore when packaging this chart.
+# files/ must stay in: templates/configmap-omnigent-patch.yaml reads it with
+# .Files.Get, so excluding it would render an empty patch script.
+.DS_Store
+.git/
+.gitignore
+.github/
+.helmignore
+*.tgz
+*.bak
+*.tmp
+*.swp
+.idea/
+.vscode/
+# Instance values are inputs, not chart content: they are passed with -f.
+values/

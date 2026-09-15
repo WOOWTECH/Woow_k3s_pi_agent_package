@@ -38,6 +38,22 @@ spec:
       ports:
         - port: {{ .Values.nginx.port }}
         - port: {{ .Values.ttyd.port }}
+    {{- if .Values.networkPolicy.allowHelmTest }}
+    # The `helm test` Pod, and nothing else: its IP is in the pod CIDR, which no
+    # other rule here admits, so without this the smoke test cannot pass while
+    # this policy is on. Scoped to a Pod carrying this release's instance label
+    # AND the chart's helm-test component label, on the nginx port only.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "pi-agent.testSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: {{ .Values.nginx.port }}
+        {{- if .Values.ttyd.enabled }}
+        # The smoke test also asserts that ttyd answers 401 rather than 200.
+        - port: {{ .Values.ttyd.port }}
+        {{- end }}
+    {{- end }}
     # kubelet health probes originate from the node, not from a pod. Some CNIs
     # subject them to NetworkPolicy, and a blocked probe means the container is
     # killed on a liveness failure — so the node network is explicitly allowed.

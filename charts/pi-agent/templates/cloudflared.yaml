@@ -10,6 +10,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "pi-agent.labels" . | nindent 4 }}
+  {{- if .Values.keepOnUninstall }}
+  annotations:
+    # A locally-managed tunnel's credential cannot be re-downloaded from
+    # Cloudflare: this Secret is the only copy, so `helm uninstall` must not be
+    # what destroys it. (Better still, hand the chart an
+    # existingCredentialsSecret and keep it out of the release entirely.)
+    helm.sh/resource-policy: keep
+  {{- end }}
 type: Opaque
 stringData:
   credentials.json: {{ .Values.cloudflare.credentialsJson | quote }}
