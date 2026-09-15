@@ -172,12 +172,17 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #   tini — PID 1 reaping. Both ttyd and pi-web 0.9.0's built-in terminal fork
 #     a shell per browser session; without an init that reaps, every closed
 #     tab leaves a zombie.
+#   tmux — Omnigent's native-terminal launcher (create_terminal_instance)
+#     shells out to `tmux` unconditionally for every harness it drives,
+#     Pi included. Without it every "Native Pi terminal" session fails at
+#     launch with "tmux is not installed or not on PATH" — this was missing
+#     from every prior build of this image, not a regression.
 #   python3/venv/pip, ffmpeg, fonts-noto-* , chromium .so set, rclone —
 #     the video pipeline. fonts-noto-cjk is not optional: nothing else in
 #     Debian covers CJK glyphs for libass subtitle burn.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates curl git gnupg jq openssh-client tini procps less vim-tiny \
+       ca-certificates curl git gnupg jq openssh-client tini tmux procps less vim-tiny \
        python3 python3-venv python3-pip \
        ffmpeg \
        fonts-noto-cjk fonts-noto-color-emoji fontconfig \
