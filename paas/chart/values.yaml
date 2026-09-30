@@ -1,0 +1,135 @@
+# ── Image (platform helm_default_values aligns image.*; tag pinned tag@sha256) ─
+image:
+  repository: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent
+  tag: ""             # "" → .Chart.AppVersion (platform always overrides with a digest pin)
+  pullPolicy: IfNotPresent
+# operator forwards the tenant-ns pull secret (paas-registry).
+imagePullSecrets:
+  - name: paas-registry
+# per-instance, single replica (RWO PVC + Recreate strategy).
+replicaCount: 1
+timezone: Asia/Taipei
+logLevel: info
+
+# ── pi-web (the app) ──────────────────────────────────────────────────────────
+piWeb:
+  # LOOPBACK ONLY. The upstream package binds 0.0.0.0 so kubelet can probe the
+  # pod IP; here the auth-proxy is the only entrance and the probes run in-pod,
+  # so pi-web is never reachable on the pod IP (closes the "any pod can dial
+  # podIP:30141 and read the provider key" hole from upstream READINESS B3).
+  host: "127.0.0.1"
+  port: 30141
+  dataDir: /data/pi-agent
+  # V8 heap for the agent process. Keep well under resources.limits.memory.
+  nodeMaxOldSpaceMb: 3072
+  # Video toolchain (~720 MB download, Chromium): OFF for tenants — browserless later.
+  videoPipeline: false
+  extraEnv: []
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+# ── Auth-proxy (nginx sidecar; THE tenant entrance) ───────────────────────────
+authProxy:
+  image:
+    repository: nginxinc/nginx-unprivileged
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+  port: 8080            # platform default_port; tunnel routes here
+  # Tenant-changeable from the platform ("Admin Credentials"; it re-renders this
+  # value and restarts the pod). Validated at render time — see
+  # pi-agent.basicAuthUsername: 1-64 of A-Z a-z 0-9 . _ @ - .
+  basicAuthUsername: "admin"
+  workerProcesses: 2
+  workerConnections: 1024
+  clientMaxBodySize: 100m
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+  initResources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {cpu: 100m, memory: 64Mi}
+
+# ── Tenant credential (platform #357 has_admin_gui supply chain) ──────────────
+config:
+  sensitive:
+    # The ONE tenant credential: nginx basic-auth password. "" → self-generated once
+    # and persisted across helm upgrade via `lookup` (never churns the tenant's
+    # password). The platform pins it here via sensitive_values; reset = helm
+    # upgrade + rollout restart (admin_password_carrier = helm_secret).
+    admin_password: ""
+auth:
+  # CD/operator-provided Secret carrying key admin_password → chart renders no Secret.
+  existingSecret: ""
+
+# ── Service (ClusterIP-only; port pinned 8080 — platform aligns service.port) ─
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+# ── Persistence (RWO PVC at piWeb.dataDir; Recreate strategy) ─────────────────
+persistence:
+  enabled: true
+  size: 20Gi           # keep == CloudAppTemplate min_storage_gb (quota lockstep)
+  accessModes: [ReadWriteOnce]
+  storageClass: ""     # platform-injected; "" = cluster default
+  existingClaim: ""
+
+# ── NetworkPolicy (default-deny + explicit allow; same shape as mcp-server) ───
+networkPolicy:
+  enabled: true
+  ingressNamespaces: []   # empty = operator-baseline-governed (no chart ingress rule)
+  # The agent calls model providers (BYOK) and installs packages → internet egress
+  # stays on. Cluster CIDRs are NOT reachable anyway: the operator baseline
+  # default-deny-ingress on every paas-ws-* pod blocks lateral moves.
+  allowAllEgress: true
+
+# ── Pod hardening ─────────────────────────────────────────────────────────────
+# Non-root. The PaaS image runs as uid 1000 (the upstream ghcr image is root — a
+# root image WILL fail here: pi-web-start.sh cannot write /data as 1000 unless
+# fsGroup owns the volume, which it does below).
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 5
+readinessProbe:
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+startupProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 30
+
+terminationGracePeriodSeconds: 30
+serviceAccount:
+  create: true
+  name: ""
+  automountToken: false   # the pod never talks to the K8s API
+nodeSelector:
+  kubernetes.io/arch: amd64
+affinity: {}
+tolerations: []
+podLabels: {}
+podAnnotations: {}
+nameOverride: ""
+fullnameOverride: ""

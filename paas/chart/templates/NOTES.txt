@@ -1,0 +1,8 @@
+{{ .Chart.Name }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+Entrance (ClusterIP — NO in-chart Ingress/NodePort; platform subdomain + Cloudflare tunnel → :{{ .Values.service.port }}):
+    {{ include "pi-agent.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+    basic auth user "{{ .Values.authProxy.basicAuthUsername }}", password = Secret {{ include "pi-agent.secretName" . }} key admin_password
+    {{- if .Values.auth.existingSecret }} (existing){{ else if .Values.config.sensitive.admin_password }} (platform-pinned){{ else }} (self-generated once, persisted){{ end }}
+pi-web binds {{ .Values.piWeb.host }}:{{ .Values.piWeb.port }} (loopback) — reachable only through the auth-proxy.
+Data: PVC {{ include "pi-agent.pvcName" . }} ({{ .Values.persistence.size }}) at {{ .Values.piWeb.dataDir }} — skills, sessions, models.json (BYOK provider keys), home.
+Video pipeline: {{ .Values.piWeb.videoPipeline }}. Terminal: pi-web's built-in TUI (no ttyd).

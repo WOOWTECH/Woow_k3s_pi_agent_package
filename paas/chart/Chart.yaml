@@ -1,0 +1,35 @@
+apiVersion: v2
+name: pi-agent
+description: |
+  pi coding agent (pi-web) cloud service chart.
+
+  A per-tenant AI coding-agent workstation: the pi-web chat UI + pi coding agent
+  (with its own in-browser TUI) on one RWO volume, reached through an in-pod nginx
+  auth-proxy on port 8080 — the ONLY exposed port. pi-web itself binds loopback
+  only, so nothing in the cluster can reach it without passing the proxy's basic
+  auth, whose password is the platform-supplied tenant credential
+  (config.sensitive.admin_password, has_admin_gui / helm_secret carrier — the same
+  mechanism as hermes-agent).
+
+  Derived from WOOWTECH/Woow_k3s_pi_agent_package (charts/pi-agent 0.2.5) and
+  re-cut to the PaaS contract: cloudflared + NodePort removed (platform tunnel),
+  ttyd removed (pi-web ships its own TUI), video pipeline off (browserless later),
+  non-root, default-deny NetworkPolicy, ResourceQuota-compatible resources.
+  Deployed per-tenant by paas-operator into a paas-ws-* namespace.
+type: application
+# 0.1.0 = first cut (2026-09-23). Image: jcr-prod mirror/derivative of
+# ghcr.io/woowtech/woow-k3s-pi-agent, built by paas-odoo-ci; platform pins tag@sha256.
+# 0.1.1 = authProxy.basicAuthUsername becomes tenant-changeable from the platform
+# and is validated at render (pi-agent.basicAuthUsername); no image change.
+# 0.1.2 = the basic-auth username moves into the chart Secret (admin_username) and
+# the htpasswd init reads it via secretKeyRef, so a username change no longer changes
+# the pod template (it used to time out the 15 s reset and roll back).
+version: 0.1.2
+appVersion: "0.2.1"
+keywords: [paas, pi-agent, coding-agent, cloud-service]
+maintainers:
+  - name: WOOW PaaS Team
+home: https://git-prod.woowtech.io/woow-paas/woow-paas-charts
+sources:
+  - https://git-prod.woowtech.io/woow-paas/woow-paas-charts
+  - https://git-prod.woowtech.io/woow-paas/Woow_k3s_pi_agent_package

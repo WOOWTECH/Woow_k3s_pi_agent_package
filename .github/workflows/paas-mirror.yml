@@ -1,0 +1,76 @@
+name: paas-mirror
+
+# Validates paas/ — the read-only mirror of the WOOW PaaS pi-agent edition
+# (see paas/MIRROR.md). Does not push anything: the PaaS image is built and
+# published by woow-paas/paas-odoo-ci on the internal Gitea.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "paas/**"
+      - "scripts/sync-paas-from-gitea.sh"
+      - ".github/workflows/paas-mirror.yml"
+  pull_request:
+    paths:
+      - "paas/**"
+      - "scripts/sync-paas-from-gitea.sh"
+      - ".github/workflows/paas-mirror.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paas-mirror-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chart:
+    name: PaaS chart lint + tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: v3.13.3
+      - name: Install yq (mikefarah)
+        run: |
+          set -Eeuo pipefail
+          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+      - name: helm lint
+        run: helm lint paas/chart
+      - name: Chart tests
+        run: |
+          set -Eeuo pipefail
+          for t in paas/chart/tests/*.sh; do echo "== $t"; bash "$t"; done
+
+  image:
+    name: PaaS image build (no push)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: docker build
+        # The Dockerfile asserts its patches applied (grep -q guards), so a
+        # successful build proves the layer still fits the pinned base image.
+        run: docker build -t pi-agent-paas:ci paas/image
+
+  mirror-guard:
+    name: Mirror completeness
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check the mirror layout
+        run: |
+          set -Eeuo pipefail
+          found=0
+          for f in paas/MIRROR.md paas/chart/Chart.yaml paas/chart/values.yaml paas/image/Dockerfile scripts/sync-paas-from-gitea.sh; do
+            [ -e "$f" ] || { echo "MISSING: $f"; found=1; }
+          done
+          grep -q '<!-- BEGIN GENERATED' paas/MIRROR.md || { echo "paas/MIRROR.md lost its generated block"; found=1; }
+          # The PaaS image must stay a digest-pinned layer on this repository's release image.
+          grep -qE '^ARG BASE=ghcr\.io/woowtech/woow-k3s-pi-agent:[0-9.]+@sha256:[0-9a-f]{64}$' paas/image/Dockerfile \
+            || { echo "paas/image/Dockerfile base is not a digest-pinned woow-k3s-pi-agent release"; found=1; }
+          exit $found
