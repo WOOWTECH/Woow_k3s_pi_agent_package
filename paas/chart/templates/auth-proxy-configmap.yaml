@@ -1,0 +1,67 @@
+{{- $app := .Values.piWeb.port -}}
+# nginx auth-proxy — the single tenant-facing entrance of the pod.
+#   /                 → pi-web 127.0.0.1:{{ $app }}, gated by basic auth (tenant admin_password)
+#   /healthz          → nginx-local 200 (sidecar liveness; an app outage must not restart nginx)
+#   /healthz-upstream → pi-web /api/home, auth-exempt (pod readiness target)
+# pi-web's isApiRequestAllowed() rejects any Host that is not a loopback name or raw
+# IP and any Origin that does not match it — hence Host localhost / empty Origin
+# (a compatibility shim carried over from the upstream package, NOT the access
+# control; the access control is auth_basic).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pi-agent.authProxyConfigMapName" . }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    worker_processes {{ .Values.authProxy.workerProcesses | default 2 }};
+    error_log  /var/log/nginx/error.log notice;
+    pid        /tmp/nginx.pid;
+    events { worker_connections {{ .Values.authProxy.workerConnections | default 1024 }}; }
+    http {
+      proxy_temp_path /tmp/proxy_temp;
+      client_body_temp_path /tmp/client_temp;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      include       /etc/nginx/mime.types;
+      default_type  application/octet-stream;
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
+      access_log /var/log/nginx/access.log main;
+      sendfile on;
+      keepalive_timeout 65;
+      include /etc/nginx/conf.d/*.conf;
+    }
+  default.conf: |
+    map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+    server {
+      listen {{ .Values.authProxy.port }};
+      server_name _;
+      client_max_body_size {{ .Values.authProxy.clientMaxBodySize }};
+      auth_basic           "pi-agent";
+      auth_basic_user_file /auth/.htpasswd;
+      location = /healthz { auth_basic off; access_log off; return 200 "ok\n"; }
+      location = /healthz-upstream {
+        auth_basic off; access_log off;
+        proxy_pass http://127.0.0.1:{{ $app }}/api/home;
+        proxy_set_header Host localhost;
+        proxy_set_header Origin "";
+      }
+      location / {
+        proxy_pass http://127.0.0.1:{{ $app }};
+        proxy_http_version 1.1;
+        proxy_set_header Host localhost;
+        proxy_set_header Origin "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # chat streams over SSE, the TUI is a PTY over WebSocket: no buffering, long timeouts.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+      }
+    }
