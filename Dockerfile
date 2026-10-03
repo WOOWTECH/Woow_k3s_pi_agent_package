@@ -118,8 +118,15 @@ RUN apt-get update \
 # so neither change reaches it. pi 1.0.0 also ships a dist/bundle/ CLI, but the `pi`
 # wrapper in rootfs/ still runs dist/cli.js, the same unbundled tree pi-web
 # imports, so the CJK patch below covers both.
+#
+# 0.10.0 brings node-pty 1.2.0-beta.15, which ships linux prebuilds and would
+# load prebuilds/linux-x64/pty.node instead of compiling. Its own install
+# script honours npm_config_build_from_source=true by deleting the prebuilds
+# and running node-gyp, so the terminal keeps using a pty.node compiled here
+# against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
-RUN npm install -g --omit=dev --prefix=/opt/piweb "@agegr/pi-web@${PI_WEB_VERSION}" \
+RUN npm_config_build_from_source=true \
+    npm install -g --omit=dev --prefix=/opt/piweb "@agegr/pi-web@${PI_WEB_VERSION}" \
     && rm -rf /tmp/npm-cache
 
 # node-gyp can fail in ways npm does not treat as fatal, and a missing
