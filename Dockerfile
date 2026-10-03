@@ -110,7 +110,15 @@ RUN apt-get update \
 #     suspect if a future proxy change breaks the UI.
 #   - PI_WEB_PASSWORD enables built-in HTTP Basic Auth (username "pi").
 #     The chart exposes this as piWeb.password; see values.yaml.
-ARG PI_WEB_VERSION=0.9.0
+# 0.10.0 notes (2026-10-03): pins @earendil-works/pi-coding-agent 1.0.0 exactly
+# (0.9.0 pinned 0.85.1). The Host/Origin guard (proxy.ts) adds "/login" to
+# its matcher. With PI_WEB_PASSWORD set, the UI now signs in on a /login page
+# with a session cookie and Basic Auth is only honoured on /api/*. This
+# image's chart does not set PI_WEB_PASSWORD (the nginx sidecar does auth),
+# so neither change reaches it. pi 1.0.0 also ships a dist/bundle/ CLI, but the `pi`
+# wrapper in rootfs/ still runs dist/cli.js, the same unbundled tree pi-web
+# imports, so the CJK patch below covers both.
+ARG PI_WEB_VERSION=0.10.0
 RUN npm install -g --omit=dev --prefix=/opt/piweb "@agegr/pi-web@${PI_WEB_VERSION}" \
     && rm -rf /tmp/npm-cache
 
@@ -134,7 +142,7 @@ RUN set -euo pipefail; \
 #
 # Carried by the Podman sibling and the HA add-on since day one; this image
 # went without it, which was an oversight rather than a decision. Still
-# unfixed upstream at pi-coding-agent 0.85.1.
+# unfixed upstream at pi-coding-agent 1.0.0.
 #
 # The patch asserts every hunk, so an upstream bump fails the build rather
 # than shipping an image that quietly lost the fix.
@@ -143,8 +151,8 @@ RUN set -euo pipefail; \
     mapfile -d '' FILES < <(find /opt/piweb/lib/node_modules/@agegr/pi-web \
       -path '*@earendil-works/*/dist/*/tools/path-utils.js' -print0); \
     echo "[patch] found ${#FILES[@]} path-utils.js copies"; \
-    if [ "${#FILES[@]}" -lt 2 ]; then \
-      echo "[patch] FAIL: expected at least 2 copies, found ${#FILES[@]}" >&2; \
+    if [ "${#FILES[@]}" -lt 1 ]; then \
+      echo "[patch] FAIL: expected at least 1 copy, found ${#FILES[@]}" >&2; \
       exit 1; \
     fi; \
     node /opt/patches/fix-unicode-space-paths.mjs "${FILES[@]}"
@@ -248,7 +256,7 @@ RUN chmod +x /usr/local/bin/pi \
 ARG BUILD_VERSION=dev
 ARG BUILD_REF=unknown
 ARG BUILD_DATE=unknown
-ARG PI_WEB_VERSION=0.9.0
+ARG PI_WEB_VERSION=0.10.0
 
 ENV PI_AGENT_IMAGE_VERSION=${BUILD_VERSION} \
     PI_WEB_VERSION=${PI_WEB_VERSION} \
