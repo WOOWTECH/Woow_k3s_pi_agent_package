@@ -47,6 +47,12 @@ if [ ! -e "${AGENT_SKILLS_DIR}" ]; then
   log "skills bridged: ${AGENT_SKILLS_DIR} -> ${DATA_DIR}/skills"
 fi
 
+# --- Shared Claude/Codex runtime ---------------------------------------------
+# New data volumes need the image-bundled runtime registered once before Pi Web
+# loads packages. The seed respects existing package configuration and deliberate
+# removal, and starts its watcher without creating a chat session or prompt.
+/usr/local/bin/pi-shared-runtime-seed.sh
+
 # --- Video tools reset (maintenance escape hatch) -----------------------------
 # Ported from the add-on's reset_video_tools option. Without it, recovering a
 # half-written venv means exec'ing in and deleting the sentinel by hand — and a

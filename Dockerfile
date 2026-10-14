@@ -246,10 +246,28 @@ RUN set -euo pipefail; \
 COPY --from=piweb-builder /opt/piweb/lib/node_modules /usr/local/lib/node_modules
 COPY --from=piweb-builder /opt/piweb/bin              /usr/local/bin
 
+# Shared skills/MCP runtime. It is pinned to an immutable Git commit and its
+# dependencies are installed at build time so a tenant's first Pi Web boot does
+# not need GitHub or npm access. `--legacy-peer-deps` is required by Pi's peer
+# dependency contract and matches the package's documented installation mode.
+ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
+RUN set -euo pipefail; \
+    install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
+    git -C /opt/woow/pi-agent-shared-runtime init -q; \
+    git -C /opt/woow/pi-agent-shared-runtime remote add origin https://github.com/WOOWTECH/pi-agent-shared-runtime.git; \
+    git -C /opt/woow/pi-agent-shared-runtime fetch --depth=1 origin "${PI_SHARED_RUNTIME_REF}"; \
+    git -C /opt/woow/pi-agent-shared-runtime checkout --detach -q FETCH_HEAD; \
+    test "$(git -C /opt/woow/pi-agent-shared-runtime rev-parse HEAD)" = "${PI_SHARED_RUNTIME_REF}"; \
+    npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
+    node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime") throw new Error("unexpected shared runtime package"); import("/opt/woow/pi-agent-shared-runtime/src/sync.mjs").then(()=>console.log("[build] shared runtime bundle OK"))'; \
+    rm -rf /opt/woow/pi-agent-shared-runtime/.git; \
+    chmod -R a+rX,go-w /opt/woow/pi-agent-shared-runtime
+
 COPY rootfs/ /
 
 RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/pi-web-start.sh \
+             /usr/local/bin/pi-shared-runtime-seed.sh \
              /usr/local/bin/pi-shell.sh \
              /usr/local/bin/ttyd-start.sh \
              /usr/local/bin/video-tools-init.sh \

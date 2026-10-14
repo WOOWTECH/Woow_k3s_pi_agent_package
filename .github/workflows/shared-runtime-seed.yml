@@ -1,0 +1,28 @@
+name: shared-runtime-seed
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "rootfs/usr/local/bin/pi-shared-runtime-seed.sh"
+      - "rootfs/usr/local/bin/pi-web-start.sh"
+      - "tests/test-shared-runtime-seed.sh"
+      - ".github/workflows/shared-runtime-seed.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "rootfs/usr/local/bin/pi-shared-runtime-seed.sh"
+      - "rootfs/usr/local/bin/pi-web-start.sh"
+      - "tests/test-shared-runtime-seed.sh"
+      - ".github/workflows/shared-runtime-seed.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  seed-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: bash tests/test-shared-runtime-seed.sh
