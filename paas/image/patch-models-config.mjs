@@ -5,7 +5,7 @@
 // caller that passes the auth-proxy (READINESS.md B3). The browser never needs the
 // real value: the Models page only shows it back in an <input>. So:
 //   GET  → every providers.*.apiKey (non-empty string) becomes "__PI_REDACTED__:<last4>"
-//   POST → any apiKey that still carries that prefix is restored from the on-disk
+//   PUT  → any apiKey that still carries that prefix is restored from the on-disk
 //          models.json before writing (so a UI save round-trip can never overwrite the
 //          key with the mask), or dropped if there is no on-disk value.
 // Exact-match discipline (same as upstream's fix-unicode-space-paths.mjs): each anchor
@@ -17,8 +17,9 @@ const file = process.argv[2];
 if (!file) { console.error("usage: patch-models-config.mjs <route.js>"); process.exit(2); }
 let src = readFileSync(file, "utf8");
 
-const GET_OLD  = 'async function h(){return e.NextResponse.json((0,f.V6)())}';
-const GET_NEW  = 'async function h(){return e.NextResponse.json(__piRedact((0,f.V6)()))}';
+// pi-web 0.10.0 wrapped the GET body in try/catch (unreadable models.json → 422).
+const GET_OLD  = 'async function h(){try{return e.NextResponse.json((0,f.V6)())}';
+const GET_NEW  = 'async function h(){try{return e.NextResponse.json(__piRedact((0,f.V6)()))}';
 const POST_OLD = 'async function i(a){try{let b=await a.json();return(0,f.IX)(b),';
 const POST_NEW = 'async function i(a){try{let b=__piRestore(await a.json(),(0,f.V6)());return(0,f.IX)(b),';
 const HELPERS =
