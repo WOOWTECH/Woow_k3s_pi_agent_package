@@ -1,0 +1,25 @@
+# ── Omnigent host (inside the main container) ───────────────────────────────
+# Copy this block into charts/<chart>/values.yaml (shared/omnigent-host/README.md).
+# Makes this environment a machine ("host") of an Omnigent service, so Omnigent
+# can run sessions here with the tenant's own LLM logins. The host runs INSIDE
+# the main container, next to the product, like a daemon on an ordinary
+# machine, and dials out to the Omnigent service. It shares the container's
+# plan limits (no separate budget). The tenant connects it ONCE from the
+# environment's terminal:  omnigent login <Omnigent URL>
+# The background supervisor waits for that login, then keeps `omnigent host`
+# running and brings it back after every restart. The platform never logs in,
+# stores or sees an Omnigent token; not logged in = the supervisor only sleeps.
+omnigentHost:
+  enabled: true
+  # The same-workspace Omnigent URL (injected by the platform). Rendered only
+  # into a small runtime ConfigMap the supervisor re-reads, so setting or
+  # changing it never restarts the pod. It is only a hint for the login command
+  # and a fallback: the host uses the URL the tenant logged in to.
+  serverUrl: ""
+  # Name in Omnigent's machine list; "" → "<chart> · <release>". Must be unique
+  # per Omnigent account (a duplicate name merges two machines into one).
+  hostName: ""
+  # Absolute path Omnigent sessions should use; "" → the chart's default.
+  workspace: ""
+  # Login re-check period (seconds) of a running host; >= 30 (render fails below).
+  watchSeconds: 120

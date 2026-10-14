@@ -1,0 +1,14 @@
+#!/bin/sh
+# omnigent-host-entry — image-side stub of the WOOW PaaS omnigent-host kit.
+#
+# Canonical copy: woow-paas-charts/shared/omnigent-host/image/omnigent-host-entry.
+# Images COPY it to /usr/local/bin/omnigent-host-entry and put it between the
+# init and the product, e.g.
+#   ENTRYPOINT ["dumb-init", "--", "/usr/local/bin/omnigent-host-entry", "/usr/bin/entrypoint.sh"]
+# When the chart mounted the kit (omnigentHost.enabled), the product is started
+# through the kit's launcher, which also runs the omnigent-host supervisor in
+# the background; otherwise the product is exec'd unchanged. The launcher
+# itself comes from the chart's ConfigMap, so kit fixes never need a new image.
+L=${OG_KIT_DIR:-/etc/omnigent-host}/omnigent-host-launch
+[ -r "$L" ] && exec /bin/sh "$L" -- "$@"
+exec "$@"

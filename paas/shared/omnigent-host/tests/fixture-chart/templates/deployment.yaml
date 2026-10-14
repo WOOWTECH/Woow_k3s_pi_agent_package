@@ -1,0 +1,64 @@
+{{- $kitCM := printf "%s-omnigent-host" .Release.Name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+      {{- if include "woow.omnigentHost.enabled" . }}
+      annotations:
+        # restarts the pod when the KIT changes; serverUrl changes never do
+        checksum/omnigent-host: {{ include "woow.omnigentHost.checksum" (dict "root" . "name" $kitCM) }}
+      {{- end }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      # SIGTERM -> launcher stops the supervisor (host: 15 s grace) -> product
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: app
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          command: {{ include "woow.omnigentHost.command" (dict "root" . "init" (list "dumb-init") "command" (list "/usr/bin/app" "--port" "8080")) }}
+          env:
+            - name: PASSWORD
+              value: not-for-the-host
+            - name: PI_CODING_AGENT_DIR
+              value: /data/app
+            {{- include "woow.omnigentHost.env" (dict
+                  "root" .
+                  "configHome" "/data/app/omnigent"
+                  "home" "/data/app/home"
+                  "workspace" "/workspace"
+                  "providers" "claude-subscription,pi-original"
+                  "passthrough" "PI_CODING_AGENT_DIR"
+                  "unsetEnv" "PASSWORD,ANTHROPIC_API_KEY"
+                  "ogBin" .Values.ogBin) | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/app
+            - name: workspace
+              mountPath: /workspace
+            {{- include "woow.omnigentHost.volumeMounts" (dict "root" .) | nindent 12 }}
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: workspace
+          emptyDir: {}
+        {{- include "woow.omnigentHost.volumes" (dict "root" . "name" $kitCM) | nindent 8 }}

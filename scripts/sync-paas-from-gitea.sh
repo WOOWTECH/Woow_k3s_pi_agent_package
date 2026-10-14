@@ -10,6 +10,8 @@
 #
 #   paas/image/  <- woow-paas/paas-odoo-ci      pi-agent/
 #   paas/chart/  <- woow-paas/woow-paas-charts  charts/pi-agent/
+#   paas/shared/omnigent-host/  <- woow-paas/woow-paas-charts  shared/omnigent-host/
+#                (the canonical Omnigent host kit the chart vendors; its chart tests need it)
 #
 # Usage:  scripts/sync-paas-from-gitea.sh [paas-odoo-ci-ref] [woow-paas-charts-ref]
 #         (both refs default to "main")
@@ -45,6 +47,7 @@ replace() {  # replace <src-dir> <dst-dir>
 
 replace "$WORK/ci/pi-agent"              "$ROOT/paas/image"
 replace "$WORK/charts/charts/pi-agent"   "$ROOT/paas/chart"
+replace "$WORK/charts/shared/omnigent-host" "$ROOT/paas/shared/omnigent-host"
 
 CHART_VERSION="$(sed -n 's/^version: *//p' "$ROOT/paas/chart/Chart.yaml")"
 APP_VERSION="$(sed -n 's/^appVersion: *"\{0,1\}\([^"]*\)"\{0,1\}/\1/p' "$ROOT/paas/chart/Chart.yaml")"
@@ -63,6 +66,7 @@ block = (
     "|---|---|---|---|\n"
     f"| `paas/image/` | `woow-paas/paas-odoo-ci` | `pi-agent/` | `{ci}` |\n"
     f"| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `{charts}` |\n"
+    f"| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `{charts}` |\n"
     "\n"
     f"PaaS image base (this repository's release): `{base}`  \n"
     f"PaaS image repository: `{repo}` (the platform pins the tag by `tag@sha256`)\n"

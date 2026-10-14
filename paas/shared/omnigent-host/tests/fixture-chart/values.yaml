@@ -1,0 +1,29 @@
+# Fixture: the omnigent host runs inside "app"; the plan limits are the app's own.
+image:
+  repository: registry.example/kit-fixture
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+
+# ── Omnigent host (in the app container) — from shared/omnigent-host/chart/values-snippet.yaml
+omnigentHost:
+  enabled: true
+  serverUrl: ""
+  hostName: ""
+  workspace: ""
+  watchSeconds: 120
+# The image's pinned omnigent CLI ("" = the kit default /usr/local/bin/omnigent);
+# a value here only so the kit tests can exercise the ogBin parameter.
+ogBin: ""

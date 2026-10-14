@@ -1,0 +1,3 @@
+{{- /* omnigent-host kit (launcher, supervisor, guard, status) + the runtime ConfigMap
+       carrying only server-url (not checksummed: a URL change never restarts the pod). */}}
+{{- include "woow.omnigentHost.configMaps" (dict "root" . "name" (printf "%s-omnigent-host" (include "pi-agent.fullname" .)) "labels" (include "pi-agent.labels" . | fromYaml)) }}
