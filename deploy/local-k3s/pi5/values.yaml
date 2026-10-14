@@ -1,6 +1,6 @@
 # Live values for release pi5 in namespace pi5 on the local k3s cluster (kube context "default").
-# Installed from the PaaS edition chart (paas/chart, 0.1.7) with the same image digest the
-# PaaS service ran, so moving off PaaS did not also upgrade anything. NO SECRETS HERE:
+# Installed from the PaaS edition chart (paas/chart, 0.1.7). Image: the PaaS pi-agent build
+# 20261014.1017 (upstream base v0.2.5), the same digest the PaaS template pins. NO SECRETS HERE:
 # the admin password lives in Secret pi5-auth and the registry login in Secret paas-registry.
 #
 #   helm upgrade --install pi5 paas/chart --kube-context default -n pi5 \
@@ -9,7 +9,7 @@ fullnameOverride: pi5
 replicaCount: 1
 image:
   repository: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent
-  tag: 20261003.1400@sha256:a00d92d8465dd1a4ad2d7c4d4c20d5b6b21073b350cb13ec86d49eadf0996048
+  tag: 20261014.1017@sha256:e03edf0de84081a0c52e17bcfd85de404b214c5abd380b629352228658c7e063
   pullPolicy: IfNotPresent
 imagePullSecrets:
   - name: paas-registry
