@@ -1,0 +1,1 @@
+{{- include "woow.omnigentHost.configMaps" (dict "root" . "name" (printf "%s-omnigent-host" .Release.Name) "labels" (dict "app" .Release.Name)) }}

@@ -6,7 +6,7 @@
 - 平台側 **pin image digest**；chart 為 `woow-paas-charts` 的 `charts/pi-agent`。
 - 上游：`WOOWTECH/Woow_k3s_pi_agent_package`（Gitea 鏡像 `woow-paas/Woow_k3s_pi_agent_package`），其 GitHub Actions 發佈 `ghcr.io/woowtech/woow-k3s-pi-agent:<semver>`。本 image **以 digest 消費上游**，不重建 pi-web。
 
-## 這顆 image 改了什麼（相對上游 0.2.2：pi-web 0.10.0／pi 1.0.0）
+## 這顆 image 改了什麼（相對上游 0.2.4：pi-web 0.12.0）
 
 | # | 改動 | 為什麼 |
 |---|---|---|
@@ -18,6 +18,7 @@
 | 5 | 文件工具：`python`（python-is-python3）、python3-docx、python3-openpyxl、python3-pypdf、python3-reportlab、poppler-utils、fonts-wqy-microhei（Debian 12 套件，版本釘死） | QA round 1 PA-02：pi 處理 Word／Excel／PDF 時沒有工具可用。中文 PDF：基底的 Noto CJK 是 CFF 字型，reportlab 不能嵌入（postscript outlines are not supported），所以另裝 TrueType 的文泉驛微米黑（`/usr/share/fonts/truetype/wqy/wqy-microhei.ttc`）。reportlab 內建的 CID 字型（例如 MSung-Light）不會嵌入，沒有中文字型的閱讀器和 pdftotext 都讀不出來，不要用。build 驗證用 `doc-tools-check.py` 實際產生並讀回 docx／xlsx（含公式）／pdf（含嵌入文泉驛字型的繁中 PDF：pypdf、pdftotext 讀回，pdffonts 顯示已嵌入） |
 
 | 6 | 沒有模型或 provider 金鑰時按「傳送」：`/api/agent/new`、`/api/agent/[id]` 的錯誤文字改成「尚未設定模型：請點左下角「模型」，登入供應商（OAuth）或填入 API 金鑰……（No API key found for the selected model.）」；回應形狀不變（500、`code: prompt_rejected`、`accepted: false`，訊息照樣退回輸入框）。只改 pi 的三種訊息（No API key found／No model selected／No models available），其他錯誤原樣 | #1357：pi 原文是英文、叫租戶打 TUI 的 `/login`、還附兩個 `node_modules` 絕對路徑，pi-web 只用 5 秒 toast 顯示，租戶以為服務沒反應 |
+| 7 | 上游首次啟動自動註冊的 Shared Runtime：Pi Web 安裝的 skills 與全域 MCP 會提供給 Claude Code、Codex；官方 CLI 已在映像內 | 新租戶不必另行下載 CLI 或手動安裝共享套件。Pi plugin／extension 是 Pi 專用程式碼，不跨代理載入；登入與帳號憑證仍由使用者完成 |
 
 patch 用**精確錨點**（`patch-models-config.mjs`、`patch-prompt-errors.mjs`），錨點數 ≠ 1 就讓 build 失敗——pi-web 升版搬了程式碼時會被擋下，不會靜默漏 patch。
 
@@ -51,3 +52,7 @@ Pi Web OAuth route 傳入 `getDeviceId`。UUID 由 SDK `SettingsManager.getOrCre
 ## 新開通預裝 CLI
 
 官方 Claude Code 2.1.296 與 Codex 0.162.1 在 image build 以 npm lockfile 安裝到 /opt/pi-clis，/usr/local/bin 提供可執行入口。一般 uid1000 與新 HOME 的 --version 於 CI 驗證。新服務不用下載 CLI；Shared Runtime 會偵測已有安裝而跳過。登入、訂閱、API key 與 workspace 均由使用者設定，不把任何帳號或 token 打包進映像。既有 PVC 自行安裝版本不覆蓋。
+
+## Skills 與 MCP 共用
+
+首次啟動會在空白的 Pi 資料卷註冊映像內的 Shared Runtime，且不會建立對話或送出模型請求。Pi Web 安裝的 skill 會以符號連結供 Claude Code 與 Codex 使用；Pi Web 的全域 MCP 會經受控 bridge 提供給兩個 CLI。使用者自行移除 runtime 或原本就設定外部 runtime 時，啟動流程會保留該選擇。Pi plugin／extension 不會跨代理同步。

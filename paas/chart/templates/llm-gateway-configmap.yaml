@@ -1,0 +1,23 @@
+{{- /*
+Same-workspace LiteLLM gateway URL (llmGateway.baseUrl, injected by the platform)
+as env LITELLM_BASE_URL for the main container (envFrom, optional). Runtime data:
+deliberately NOT hashed into the pod template, and the pod only references this
+ConfigMap by name — injecting, changing or clearing the URL never changes the pod
+template, so the operator's password reset (helm upgrade --atomic --timeout 15s,
+then rollout restart) never waits for a new pod. Env is read at container start:
+a running container sees a new value after its next restart. Always rendered
+(data {} when unset) so the pod template is the same either way.
+tests/test-llm-gateway.sh locks this contract.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pi-agent.llmGatewayConfigMapName" . }}
+  labels:
+    {{- include "pi-agent.labels" . | nindent 4 }}
+{{- with include "pi-agent.llmGatewayBaseUrl" . }}
+data:
+  LITELLM_BASE_URL: {{ . | quote }}
+{{- else }}
+data: {}
+{{- end }}

@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Fake `omnigent` CLI for the omnigent-host kit tests (only `omnigent host ...`).
+
+Every invocation appends its argv to $FAKE_OG_DIR/calls.log. Behaviour of
+`omnigent host` comes from $FAKE_OG_DIR/ctl.json, read at start:
+  {"mode": "run" | "ignore-term" | "spam" | "exit" | "children",
+   "exit_code": 78, "lines": ["stderr lines printed before exiting"],
+   "connect": true, "child_mb": 40, "child_step_mb": 0}
+"children" also starts one session-like child process holding child_mb MiB
+(growing by child_step_mb MiB every 0.5 s when that is set)
+(pid in $FAKE_OG_DIR/child.pid; it inherits the host's environment and
+oom_score_adj). Creating $FAKE_OG_DIR/reconnect makes a running host print
+"✓ Connected as ..." again (a reconnect after an outage) and removes the file.
+Each start appends "<epoch> pid=<pid>" to $FAKE_OG_DIR/starts.log and writes an
+environment/argv snapshot to $FAKE_OG_DIR/env-<n>.txt. Like omnigent 0.16 it
+completes the config.yaml host block (generates host_id when missing, keeps an
+existing one) and prints "✓ Connected as ..." once "connected".
+"""
+
+import json
+import os
+import signal
+import sys
+import time
+import uuid
+from pathlib import Path
+
+import yaml
+
+d = Path(os.environ["FAKE_OG_DIR"])
+try:
+    ctl = json.loads((d / "ctl.json").read_text())
+except (OSError, ValueError):
+    ctl = {}
+
+with (d / "calls.log").open("a") as f:
+    f.write(" ".join(sys.argv[1:]) + "\n")
+
+if len(sys.argv) < 2 or sys.argv[1] != "host" or (len(sys.argv) > 2 and sys.argv[2] in ("status", "reset-id", "stop", "stop-session")):
+    print("fake omnigent: only `host` is implemented", file=sys.stderr)
+    sys.exit(2)
+
+with (d / "starts.log").open("a") as f:
+    f.write(f"{time.time():.3f} pid={os.getpid()}\n")
+n = len((d / "starts.log").read_text().splitlines())
+keys = [
+    "OMNIGENT_CONFIG_HOME", "OMNIGENT_DATA_DIR", "OMNIGENT_RUNNER_ENV_PASSTHROUGH",
+    "OMNIGENT_ANALYTICS", "DO_NOT_TRACK", "DISABLE_TELEMETRY", "OMNIGENT_HOST_NO_OPEN",
+    "OMNIGENT_HOST_ID", "OMNIGENT_HOST_NAME", "FAKE_SECRET_KEY", "PASSWORD", "HOME", "OG_HOST_TREE",
+]
+with (d / f"env-{n}.txt").open("w") as f:
+    f.write("argv=" + " ".join(sys.argv[1:]) + "\n")
+    f.write("cwd=" + os.getcwd() + "\n")
+    for k in keys:
+        f.write(f"{k}={os.environ.get(k, '<unset>')}\n")
+    try:
+        f.write("oom_score_adj=" + Path("/proc/self/oom_score_adj").read_text().strip() + "\n")
+    except OSError:
+        pass
+    f.write(f"pgid_is_pid={os.getpgid(0) == os.getpid()}\n")
+
+cfg_path = Path(os.environ.get("OMNIGENT_CONFIG_HOME", os.path.expanduser("~/.omnigent"))) / "config.yaml"
+cfg = {}
+if cfg_path.exists():
+    cfg = yaml.safe_load(cfg_path.read_text()) or {}
+host = cfg.get("host") if isinstance(cfg.get("host"), dict) else {}
+if not (host.get("host_id") and host.get("name")):
+    host["host_id"] = host.get("host_id") or uuid.uuid4().hex
+    host["name"] = host.get("name") or "fake-hostname"
+    cfg["host"] = host
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg_path.write_text(yaml.safe_dump(cfg, default_flow_style=False, sort_keys=True))
+
+server = sys.argv[sys.argv.index("--server") + 1] if "--server" in sys.argv else "?"
+print(f"Connecting to {server} as {host['name']!r} ({host['host_id']})", flush=True)
+
+mode = ctl.get("mode", "run")
+if mode == "exit":
+    for line in ctl.get("lines", []):
+        print(line, file=sys.stderr, flush=True)
+    sys.exit(int(ctl.get("exit_code", 1)))
+
+if ctl.get("connect", True):
+    print(f"✓ Connected as {host['name']!r} ({host['host_id']}), 0 live runner(s).", flush=True)
+
+CHILDREN = []
+
+
+def _term(*_):
+    for c in CHILDREN:
+        c.kill()
+    sys.exit(0)
+
+
+if mode == "children":
+    import subprocess
+
+    mb = int(ctl.get("child_mb", 40))
+    step = int(ctl.get("child_step_mb", 0))
+    if step:
+        # grow by child_step_mb every 0.5 s up to child_mb (a session whose memory
+        # keeps climbing; used by the real-cgroup sandbox check)
+        code = (
+            "import time\nb = []\n"
+            f"while sum(map(len, b)) < {mb} * 1048576:\n"
+            f"    x = bytearray({step} * 1048576); x[::4096] = b'x' * len(x[::4096]); b.append(x); time.sleep(0.5)\n"
+            "time.sleep(3600)\n"
+        )
+    else:
+        code = f"import time; b = bytearray({mb} * 1048576); b[::4096] = b'x' * len(b[::4096]); time.sleep(3600)"
+    child = subprocess.Popen([sys.executable, "-c", code])
+    (d / "child.pid").write_text(str(child.pid))
+    CHILDREN.append(child)
+
+if mode == "ignore-term":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+else:
+    signal.signal(signal.SIGTERM, _term)
+
+reconnect = d / "reconnect"
+while True:
+    for c in CHILDREN:
+        c.poll()  # reap a session child that was killed, like omnigent does
+    if reconnect.exists():
+        reconnect.unlink()
+        print(f"✓ Connected as {host['name']!r} ({host['host_id']}), 0 live runner(s).", flush=True)
+    if mode == "spam":
+        print("x" * 2000, flush=True)
+        time.sleep(0.1)
+    else:
+        time.sleep(0.2)

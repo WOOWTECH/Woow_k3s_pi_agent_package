@@ -6,3 +6,22 @@ Entrance (ClusterIP — NO in-chart Ingress/NodePort; platform subdomain + Cloud
 pi-web binds {{ .Values.piWeb.host }}:{{ .Values.piWeb.port }} (loopback) — reachable only through the auth-proxy.
 Data: PVC {{ include "pi-agent.pvcName" . }} ({{ .Values.persistence.size }}) at {{ .Values.piWeb.dataDir }} — skills, sessions, models.json (BYOK provider keys), home.
 Video pipeline: {{ .Values.piWeb.videoPipeline }}. Terminal: pi-web's built-in TUI (no ttyd).
+{{- if include "woow.omnigentHost.enabled" . }}
+Omnigent host: runs inside the pi-web container (shared kit, no sidecar). It waits for
+    `omnigent login {{ include "woow.omnigentHost.serverUrl" . | default "<Omnigent URL>" }}` run in pi-web's terminal, then keeps this pi-agent
+    online as the machine "{{ include "woow.omnigentHost.hostName" . }}" (identity + login in {{ .Values.piWeb.dataDir }}/home/.omnigent).
+    Status (tenant): `omnigent-host-status` in pi-web's terminal (printed at terminal start when action is needed).
+    Status (operator): kubectl logs -n {{ .Release.Namespace }} deploy/{{ include "pi-agent.fullname" . }} -c pi-web | grep omnigent-host
+{{- end }}
+{{- $llm := include "pi-agent.llmGatewayBaseUrl" . }}
+{{- $llmRaw := include "pi-agent.llmGatewayRawBaseUrl" . }}
+{{- if $llm }}
+
+同工作區 LiteLLM（llmGateway.baseUrl）：pi-web 容器（Omnigent session 也繼承）有 env LITELLM_BASE_URL={{ $llm }}
+    （OpenAI 相容 base URL；容器啟動時讀取，改網址後下次重啟才生效）。平台不傳金鑰：
+    在 LiteLLM 後台自建虛擬金鑰，貼到要用的工具自己的設定。{{ if not .Values.networkPolicy.allowAllEgress }}
+    Egress（allowAllEgress=false）：開同 ns LiteLLM proxy pod（name=litellm, component=app）TCP 4000（networkPolicy.litellmEgress）。{{ end }}
+{{- else if $llmRaw }}
+
+同工作區 LiteLLM：llmGateway.baseUrl {{ $llmRaw | quote }} 不是 http(s) 網址，已略過（沒有 LITELLM_BASE_URL、沒有 egress 洞）。
+{{- end }}

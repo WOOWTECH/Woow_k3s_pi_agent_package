@@ -37,15 +37,21 @@ jobs:
       - name: Install yq (mikefarah)
         run: |
           set -Eeuo pipefail
-          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
           yq --version
       - name: helm lint
         run: helm lint paas/chart
       - name: Chart tests
+        # The chart tests resolve the shared Omnigent host kit as <repo>/shared/omnigent-host
+        # relative to charts/<chart>, the layout of woow-paas-charts; rebuild that layout.
         run: |
           set -Eeuo pipefail
-          for t in paas/chart/tests/*.sh; do echo "== $t"; bash "$t"; done
+          layout="$RUNNER_TEMP/woow-paas-charts"
+          mkdir -p "$layout/charts" "$layout/shared"
+          cp -a paas/chart "$layout/charts/pi-agent"
+          cp -a paas/shared/omnigent-host "$layout/shared/omnigent-host"
+          for t in "$layout"/charts/pi-agent/tests/*.sh; do echo "== $t"; bash "$t"; done
 
   image:
     name: PaaS image build (no push)
@@ -66,7 +72,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           found=0
-          for f in paas/MIRROR.md paas/chart/Chart.yaml paas/chart/values.yaml paas/image/Dockerfile scripts/sync-paas-from-gitea.sh; do
+          for f in paas/MIRROR.md paas/chart/Chart.yaml paas/chart/values.yaml paas/image/Dockerfile paas/shared/omnigent-host/chart/kit-test-lib.sh scripts/sync-paas-from-gitea.sh; do
             [ -e "$f" ] || { echo "MISSING: $f"; found=1; }
           done
           grep -q '<!-- BEGIN GENERATED' paas/MIRROR.md || { echo "paas/MIRROR.md lost its generated block"; found=1; }

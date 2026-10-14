@@ -1,3 +1,5 @@
+{{- $kitCM := printf "%s-omnigent-host" (include "pi-agent.fullname" .) }}
+{{- $home := printf "%s/home" .Values.piWeb.dataDir }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,6 +23,11 @@ spec:
         {{- end }}
       annotations:
         checksum/authproxy: {{ include (print $.Template.BasePath "/auth-proxy-configmap.yaml") . | sha256sum }}
+        {{- if include "woow.omnigentHost.enabled" . }}
+        # Restarts the pod when the omnigent-host KIT changes; omnigentHost.serverUrl
+        # lives in the separate runtime ConfigMap and never restarts it.
+        checksum/omnigent-host: {{ include "woow.omnigentHost.checksum" (dict "root" . "name" $kitCM) }}
+        {{- end }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -104,7 +111,21 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          command: ["/usr/local/bin/pi-web-start.sh"]
+          # PID 1 is tini (in the image since 0.1.0), which reaps the zombies of pi's
+          # tools and of Omnigent sessions. With omnigentHost.enabled the kit's launcher
+          # (/etc/omnigent-host/omnigent-host-launch, from the ConfigMap) sits between
+          # tini and pi-web-start.sh: it starts the omnigent-host supervisor in the
+          # background, runs pi-web unchanged in its own session and, on SIGTERM, stops
+          # the supervisor (and its host) first, then pi-web. Without the omnigent CLI
+          # (older image) it simply execs pi-web-start.sh.
+          command: {{ include "woow.omnigentHost.command" (dict "root" . "init" (list "/usr/bin/tini" "--") "command" (list "/usr/local/bin/pi-web-start.sh")) }}
+          # LITELLM_BASE_URL (same-workspace LiteLLM, llmGateway.baseUrl) from the runtime
+          # ConfigMap: referenced by name only, so the URL never enters this template and
+          # injecting / changing it never restarts the pod (templates/llm-gateway-configmap.yaml).
+          envFrom:
+            - configMapRef:
+                name: {{ include "pi-agent.llmGatewayConfigMapName" . }}
+                optional: true
           env:
             - name: PI_AGENT_DATA_DIR
               value: {{ .Values.piWeb.dataDir | quote }}
@@ -122,6 +143,22 @@ spec:
               value: "false"
             - name: NODE_OPTIONS
               value: "--max-old-space-size={{ .Values.piWeb.nodeMaxOldSpaceMb }}"
+            # pi's real login and data (pi-agent-env.sh exports the same values, but only
+            # inside pi-web-start.sh; the omnigent-host supervisor starts next to it and its
+            # pi sessions must read /data/pi-agent/auth.json, not ~/.pi/agent).
+            - name: PI_CODING_AGENT_DIR
+              value: {{ .Values.piWeb.dataDir | quote }}
+            # omnigent host inside this container (shared/omnigent-host, README.md):
+            # identity + login in <dataDir>/home/.omnigent (= ~/.omnigent, where a by-hand
+            # install kept them), HOME <dataDir>/home for the host and its sessions.
+            {{- include "woow.omnigentHost.env" (dict
+                  "root" .
+                  "configHome" (printf "%s/.omnigent" $home)
+                  "home" $home
+                  "workspace" $home
+                  "providers" "pi-original"
+                  "passthrough" "PI_CODING_AGENT_DIR,PI_AGENT_DATA_DIR,PI_TELEMETRY,PI_SKIP_VERSION_CHECK,LITELLM_BASE_URL"
+                  "unsetEnv" "") | nindent 12 }}
             {{- with .Values.piWeb.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -143,6 +180,7 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ .Values.piWeb.dataDir }}
+            {{- include "woow.omnigentHost.volumeMounts" (dict "root" .) | nindent 12 }}
         - name: auth-proxy
           image: "{{ .Values.authProxy.image.repository }}:{{ .Values.authProxy.image.tag }}"
           imagePullPolicy: {{ .Values.authProxy.image.pullPolicy }}
@@ -187,7 +225,9 @@ spec:
         - name: authproxy-auth
           emptyDir: {medium: Memory}
         - name: nginx-tmp
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: {{ .Values.authProxy.tmpSizeLimit | default "128Mi" }}
+        {{- include "woow.omnigentHost.volumes" (dict "root" . "name" $kitCM) | nindent 8 }}
         {{- if .Values.persistence.enabled }}
         - name: data
           persistentVolumeClaim:

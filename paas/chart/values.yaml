@@ -25,13 +25,28 @@ piWeb:
   # Video toolchain (~720 MB download, Chromium): OFF for tenants — browserless later.
   videoPipeline: false
   extraEnv: []
+  # The full plan (CloudAppTemplate cloud_app_pi_agent: 2 vCPU / 4 GiB). With
+  # omnigentHost enabled the Omnigent host and its sessions run INSIDE this container
+  # and share these limits (no split). Best effort, not a guarantee: the kit's memory
+  # guard tries, at a 2 s sampling interval, to kill the largest session before the
+  # container reaches its limit (a container OOM still takes pi-web down with it:
+  # memory.oom.group=1); in a node-level OOM the kernel prefers sessions
+  # (oom_score_adj 1000) unless pi-web's RSS is much larger (shared/omnigent-host
+  # README, "OOM").
+  # ephemeral-storage (#1434): the node's system disk under the container layer
+  # (/tmp, /var/tmp, anything outside the PVC). pi's HOME and data are on the PVC, so
+  # 6Gi is scratch space for builds and downloads in /tmp; above it the kubelet evicts
+  # ONLY this pod instead of letting it fill the node into DiskPressure (which evicts
+  # neighbours). The request is what the scheduler reserves on the node's disk.
   resources:
     requests:
       cpu: 500m
       memory: 1Gi
+      ephemeral-storage: 512Mi
     limits:
       cpu: "2"
       memory: 4Gi
+      ephemeral-storage: 6Gi
 
 # ── Auth-proxy (nginx sidecar; THE tenant entrance) ───────────────────────────
 authProxy:
@@ -47,12 +62,15 @@ authProxy:
   workerProcesses: 2
   workerConnections: 1024
   clientMaxBodySize: 100m
+  # ephemeral-storage (#1434) covers nginx's /tmp emptyDir (tmpSizeLimit) + logs.
   resources:
-    requests: {cpu: 25m, memory: 32Mi}
-    limits: {cpu: 200m, memory: 128Mi}
+    requests: {cpu: 25m, memory: 32Mi, ephemeral-storage: 32Mi}
+    limits: {cpu: 200m, memory: 128Mi, ephemeral-storage: 256Mi}
   initResources:
-    requests: {cpu: 10m, memory: 16Mi}
-    limits: {cpu: 100m, memory: 64Mi}
+    requests: {cpu: 10m, memory: 16Mi, ephemeral-storage: 8Mi}
+    limits: {cpu: 100m, memory: 64Mi, ephemeral-storage: 64Mi}
+  # nginx's /tmp (proxy buffers spill here) — size-capped emptyDir.
+  tmpSizeLimit: 128Mi
 
 # ── Tenant credential (platform #357 has_admin_gui supply chain) ──────────────
 config:
@@ -65,6 +83,55 @@ config:
 auth:
   # CD/operator-provided Secret carrying key admin_password → chart renders no Secret.
   existingSecret: ""
+
+# ── Omnigent host (inside the pi-web container; shared kit shared/omnigent-host) ─
+# Makes this environment a machine ("host") of an Omnigent service, so Omnigent
+# can run sessions here with the tenant's own LLM logins. The host runs INSIDE
+# the main container, next to the product, like a daemon on an ordinary
+# machine, and dials out to the Omnigent service. It shares the container's
+# plan limits (no separate budget). The tenant connects it ONCE from the
+# pi-web terminal:  omnigent login <Omnigent URL>   (WOOW default: the Omnigent
+# admin account, which then owns this machine).
+# The background supervisor waits for that login, then keeps `omnigent host`
+# running and brings it back after every restart. The platform never logs in,
+# stores or sees an Omnigent token; not logged in = the supervisor only sleeps.
+omnigentHost:
+  enabled: true
+  # The same-workspace Omnigent URL (injected by the platform). Rendered only
+  # into a small runtime ConfigMap the supervisor re-reads, so setting or
+  # changing it never restarts the pod. It is only a hint for the login command
+  # and a fallback: the host uses the URL the tenant logged in to.
+  serverUrl: ""
+  # Name in Omnigent's machine list; "" → "pi-agent · <release>". Must be unique
+  # per Omnigent account (a duplicate name merges two machines into one).
+  hostName: ""
+  # Absolute path Omnigent sessions should use; "" → <piWeb.dataDir>/home (pi-web's
+  # HOME, where pi keeps its per-session worktrees).
+  workspace: ""
+  # Login re-check period (seconds) of a running host; >= 30 (render fails below).
+  watchSeconds: 120
+
+# ── Same-workspace LiteLLM (model gateway) ────────────────────────────────────
+# The in-cluster OpenAI-compatible base URL of a LiteLLM service in the same
+# workspace, e.g. http://<release>-litellm.<ns>.svc.cluster.local:4000/v1 —
+# INJECTED BY THE PLATFORM (the oldest running LiteLLM of the workspace); a
+# non-empty value set by the tenant wins and is never overwritten. Only the URL
+# is injected, never a key: the tenant creates a virtual key in LiteLLM's admin
+# UI and pastes it into pi's own provider settings (models.json).
+# pi-web gets it as env LITELLM_BASE_URL (Omnigent sessions on this host too)
+# from a small runtime ConfigMap that is NOT hashed into the pod template, so
+# setting or changing it never restarts the pod (the password reset stays
+# within its 15 s budget); a running pod picks it up at its next restart.
+# OPENAI_BASE_URL / ANTHROPIC_BASE_URL are deliberately NOT set (that would
+# hijack the tenant's own provider setup). Not an http(s) URL → ignored (no env;
+# NOTES says so), never a render failure.
+# Egress: with allowAllEgress=false (the default; the internet rule excludes
+# 10.0.0.0/8) pi-web gets a hole to the same-namespace LiteLLM proxy pod
+# (app.kubernetes.io/name=litellm + component=app) on TCP 4000 while this URL is
+# set — tunable as networkPolicy.litellmEgress {enabled, podLabels, ports}
+# (defaults in templates/_llm-gateway.tpl). allowAllEgress=true reaches it anyway.
+llmGateway:
+  baseUrl: ""
 
 # ── Service (ClusterIP-only; port pinned 8080 — platform aligns service.port) ─
 service:
@@ -80,14 +147,39 @@ persistence:
   storageClass: ""     # platform-injected; "" = cluster default
   existingClaim: ""
 
-# ── NetworkPolicy (default-deny + explicit allow; same shape as mcp-server) ───
+# ── NetworkPolicy (default-deny + explicit allow; same shape as code-server) ──
 networkPolicy:
   enabled: true
   ingressNamespaces: []   # empty = operator-baseline-governed (no chart ingress rule)
-  # The agent calls model providers (BYOK) and installs packages → internet egress
-  # stays on. Cluster CIDRs are NOT reachable anyway: the operator baseline
-  # default-deny-ingress on every paas-ws-* pod blocks lateral moves.
-  allowAllEgress: true
+  # #1436: the agent runs code the tenant (or the model) writes, so egress is the
+  # public internet on any port (model APIs, package registries, git over https and
+  # ssh) but NOT the cluster or private networks: Pod CIDR, Service CIDR (incl. the
+  # kube-apiserver ClusterIP), node IPs, link-local / cloud metadata
+  # (169.254.169.254) and CGNAT (tailnets) — egressExcludeCidrs below.
+  # allowAllEgress (legacy): since 0.1.7 it no longer renders the 0.1.4 bare `- {}`
+  # (that defeats the platform baseline egress, because NetworkPolicies are a union);
+  # true and false render the same internet rule below.
+  allowAllEgress: false
+  egressExcludeCidrs:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 169.254.0.0/16
+    - 100.64.0.0/10
+    - 224.0.0.0/4 # multicast (mDNS / SSDP leak across tenants on the node bridge, #1441)
+    - 240.0.0.0/4 # reserved + limited broadcast 255.255.255.255
+  # The omnigent host inside pi-web reaches an Omnigent SERVER pod in this namespace
+  # (labels app.kubernetes.io/name=omnigent + component=server) on this port — the
+  # in-cluster URL the platform injects as omnigentHost.serverUrl. A public https
+  # Omnigent URL goes over the internet rule above.
+  omnigentPort: 8000
+  # Workspace = LAN (woow_paas_platform #1441): every pod in this namespace on any
+  # port (the tenant's other services over their in-cluster addresses). Default on
+  # since 0.1.7 (0.1.6 only opened the Omnigent server, which cut pi off from the
+  # rest of its own workspace). false → only the Omnigent server / LiteLLM holes.
+  sameNamespaceEgress: true
+  # Every pod in this namespace may reach pi-web on any port (#1441).
+  sameNamespaceIngress: true
 
 # ── Pod hardening ─────────────────────────────────────────────────────────────
 # Non-root. The PaaS image runs as uid 1000 (the upstream ghcr image is root — a
@@ -97,6 +189,9 @@ podSecurityContext:
   runAsUser: 1000
   runAsGroup: 1000
   fsGroup: 1000
+  # Skip the recursive chown/chmod of the whole PVC on every start when its root
+  # already matches (faster starts; keeps omnigent's 0600/0700 on ~/.omnigent).
+  fsGroupChangePolicy: OnRootMismatch
   runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
@@ -120,7 +215,9 @@ startupProbe:
   periodSeconds: 10
   failureThreshold: 30
 
-terminationGracePeriodSeconds: 30
+# SIGTERM: the omnigent-host launcher stops the host first (15 s grace, then SIGKILL),
+# then pi-web; keep >= 20 s + pi-web's own stop time.
+terminationGracePeriodSeconds: 45
 serviceAccount:
   create: true
   name: ""

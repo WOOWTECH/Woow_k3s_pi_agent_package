@@ -36,7 +36,28 @@ spec:
               kubernetes.io/metadata.name: {{ . | quote }}
         {{- end }}
     {{- end }}
+    {{- if .Values.networkPolicy.sameNamespaceIngress }}
+    # Workspace = LAN (woow_paas_platform #1441): every pod of this namespace, on
+    # every port.
+    - from:
+        - podSelector: {}
+    {{- end }}
   egress:
+    {{- with (include "pi-agent.litellmEgress" . | fromYaml) }}
+    # pi-web → the same-workspace LiteLLM proxy over the in-cluster URL the platform
+    # injects (llmGateway.baseUrl). Only while that URL is set; pod-label + port scoped,
+    # never the whole namespace (the internet rule below excludes 10.0.0.0/8). Kept
+    # explicit even though sameNamespaceEgress (default on since 0.1.7) covers it, so
+    # turning the namespace rule off never cuts pi from its model gateway.
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- toYaml .podLabels | nindent 14 }}
+      ports:
+        {{- range .ports }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+    {{- end }}
     - to:
         - namespaceSelector:
             matchLabels:
@@ -44,7 +65,34 @@ spec:
       ports:
         - {protocol: UDP, port: 53}
         - {protocol: TCP, port: 53}
-    {{- if .Values.networkPolicy.allowAllEgress }}
-    - {}
+    # #1436 / #1441: the public internet on any port (model APIs, package registries,
+    # git over https and ssh), but not the cluster or private networks (Pod / Service
+    # CIDR, node IPs, cloud metadata, CGNAT) nor multicast: code the agent writes runs
+    # in this pod. allowAllEgress (legacy) no longer renders a bare `- {}` — it would
+    # cancel the platform baseline egress (NetworkPolicies are a union).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- range .Values.networkPolicy.egressExcludeCidrs }}
+              - {{ . }}
+              {{- end }}
+    {{- if .Values.networkPolicy.sameNamespaceEgress }}
+    # Workspace = LAN (#1441, default since 0.1.7): every pod in this namespace on
+    # every port — the tenant's HA, EMQX, code-server, Omnigent, LiteLLM …
+    - to:
+        - podSelector: {}
+    {{- end }}
+    {{- if include "woow.omnigentHost.enabled" . }}
+    # omnigent host (inside pi-web) → an Omnigent server pod in this namespace, over
+    # the in-cluster URL the platform injects (omnigentHost.serverUrl). Pod-label +
+    # port scoped: never the runner pods, never other namespaces.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: omnigent
+              app.kubernetes.io/component: server
+      ports:
+        - {protocol: TCP, port: {{ .Values.networkPolicy.omnigentPort | default 8000 }}}
     {{- end }}
 {{- end }}

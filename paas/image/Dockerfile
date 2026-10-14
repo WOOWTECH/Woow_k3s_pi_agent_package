@@ -20,7 +20,7 @@
 #      pi-web's "模型" button instead of pi's TUI "/login" text (patch-prompt-errors.mjs)
 # Chart: woow-paas-charts charts/pi-agent (loopback pi-web behind an nginx basic-auth
 # sidecar). Registry: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}.
-ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.2.3@sha256:b50cfeb5a1840bee0e7eeaee33313597ae85a30ababdb7c242ece334c9ea1df1
+ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.2.4@sha256:32f83c2932003c7e5b24f40133011028d06bcfd919c420cb88e23f2822be6df6
 FROM ${BASE}
 
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web

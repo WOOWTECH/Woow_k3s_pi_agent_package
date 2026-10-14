@@ -37,6 +37,15 @@ $HELM template t "$CHART_DIR" --set auth.existingSecret=ext | yq -N 'select(.kin
 [ "$(printf '%s' "$OUT" | yq -N 'select(.kind=="PersistentVolumeClaim") | .spec.accessModes[0]')" = "ReadWriteOnce" ] || fail "PVC must be RWO"
 $HELM template t "$CHART_DIR" --set persistence.existingClaim=keep | yq -N 'select(.kind=="PersistentVolumeClaim") | .metadata.name' | grep -q . && fail "PVC rendered despite existingClaim"
 for c in $(printf '%s' "$DEP" | yq '.spec.template.spec | (.initContainers + .containers)[] | .name'); do
-  printf '%s' "$DEP" | yq ".spec.template.spec | (.initContainers + .containers)[] | select(.name==\"$c\") | .resources.limits.cpu" | grep -q . || fail "container $c lacks limits (ResourceQuota)"; done
+  printf '%s' "$DEP" | yq ".spec.template.spec | (.initContainers + .containers)[] | select(.name==\"$c\") | .resources.limits.cpu" | grep -q . || fail "container $c lacks limits (ResourceQuota)"
+  # #1434: every container caps its share of the node's system disk.
+  printf '%s' "$DEP" | yq ".spec.template.spec | (.initContainers + .containers)[] | select(.name==\"$c\") | .resources.limits[\"ephemeral-storage\"]" | grep -qv null || fail "container $c lacks an ephemeral-storage limit (#1434)"
+  printf '%s' "$DEP" | yq ".spec.template.spec | (.initContainers + .containers)[] | select(.name==\"$c\") | .resources.requests[\"ephemeral-storage\"]" | grep -qv null || fail "container $c lacks an ephemeral-storage request (#1434)"; done
+# every emptyDir on the node disk is size-capped (#1434; Memory-medium ones count as RAM)
+[ "$(printf '%s' "$DEP" | yq '[.spec.template.spec.volumes[] | select(has("emptyDir")) | select(.emptyDir.medium != "Memory") | select(.emptyDir.sizeLimit == null)] | length')" = "0" ] || fail "an emptyDir without sizeLimit (#1434)"
+# platform helm_default_values override piWeb.resources cpu/memory only: the chart's
+# ephemeral-storage must survive that merge
+[ "$($HELM template t "$CHART_DIR" --set piWeb.resources.limits.cpu=2 --set piWeb.resources.limits.memory=4Gi | yq 'select(.kind=="Deployment") | .spec.template.spec.containers[] | select(.name=="pi-web") | .resources.limits["ephemeral-storage"]')" = "6Gi" ] || fail "ephemeral-storage lost when the platform sets cpu/memory"
+
 NS="$(printf '%s' "$OUT" | { grep -E '^  namespace:' || true; } | awk '{print $2}' | sort -u | tr '\n' ' ')"; [ -z "$NS" ] || [ "$NS" = "SENTINEL " ] || fail "hard-coded namespace: $NS"
-echo "PASS (render-contract): loopback app + basic-auth proxy :8080, admin_password→Secret→htpasswd (pin/existing/lookup), no tunnel/ttyd, video off, non-root, RWO+Recreate, limits everywhere."
+echo "PASS (render-contract): loopback app + basic-auth proxy :8080, admin_password→Secret→htpasswd (pin/existing/lookup), no tunnel/ttyd, video off, non-root, RWO+Recreate, limits (incl. ephemeral-storage) everywhere."
