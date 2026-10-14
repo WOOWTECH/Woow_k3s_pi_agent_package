@@ -39,6 +39,9 @@ WOOW PaaS 平台上的 pi-agent 雲端服務，是在**本 repo 發佈的 image 
 [`paas/`](paas/) 是它的唯讀鏡像；同步的來源 commit、兩個版本的差異請見
 [`paas/MIRROR.md`](paas/MIRROR.md)。請勿在這裡修改 `paas/`。
 
+其中一台（pi5）已改用這份 chart 跑在本地 k3s，設定與切換紀錄在
+[`deploy/local-k3s/pi5`](deploy/local-k3s/pi5/)。
+
 ## 概述
 
 本套件在 k3s 叢集上執行 [pi coding agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) 以及它的網頁介面 [pi-web](https://www.npmjs.com/package/@agegr/pi-web)。它是 [`Woow_ha_pi_agent_add_on`](https://github.com/WOOWTECH/Woow_ha_pi_agent_add_on) 的 Kubernetes 版本 — 後者把同一套堆疊包裝成 Home Assistant Supervisor 附加元件。

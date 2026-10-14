@@ -1,0 +1,49 @@
+# Live values for release pi5 in namespace pi5 on the local k3s cluster (kube context "default").
+# Installed from the PaaS edition chart (paas/chart, 0.1.7) with the same image digest the
+# PaaS service ran, so moving off PaaS did not also upgrade anything. NO SECRETS HERE:
+# the admin password lives in Secret pi5-auth and the registry login in Secret paas-registry.
+#
+#   helm upgrade --install pi5 paas/chart --kube-context default -n pi5 \
+#     -f deploy/local-k3s/pi5/values.yaml --wait --timeout 10m
+fullnameOverride: pi5
+replicaCount: 1
+image:
+  repository: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent
+  tag: 20261003.1400@sha256:a00d92d8465dd1a4ad2d7c4d4c20d5b6b21073b350cb13ec86d49eadf0996048
+  pullPolicy: IfNotPresent
+imagePullSecrets:
+  - name: paas-registry
+auth:
+  existingSecret: pi5-auth
+authProxy:
+  basicAuthUsername: admin
+# The volume is a pre-bound local-path PV (reclaim policy Retain) carrying the data moved
+# from PaaS; the chart does not create it.
+persistence:
+  enabled: true
+  existingClaim: pi5-data
+  storageClass: local-path
+  size: 25Gi
+# pi5 is used through Omnigent only; there is no web entry (no tunnel, ingress or NodePort).
+omnigentHost:
+  enabled: true
+  serverUrl: https://omnigent.woowtech.io
+  hostName: Pi Web ChatGPT (pi5)
+piWeb:
+  videoPipeline: true
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 4Gi}
+  extraEnv:
+    # Must match the image's PATH plus the tools installed on the volume; revisit when the image changes.
+    - name: PATH
+      value: /data/pi-agent/home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/data/pi-agent/bin
+networkPolicy:
+  enabled: true
+  ingressNamespaces: []
+serviceAccount:
+  automountToken: false
+# local-path data lives on this node; the pod cannot run anywhere else.
+nodeSelector:
+  kubernetes.io/arch: amd64
+  kubernetes.io/hostname: woowtech-ai-coder-asus-tuf-gaming-f15-fx507zu4-fx507zu4

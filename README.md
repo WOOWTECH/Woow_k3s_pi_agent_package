@@ -40,6 +40,9 @@ Its sources live on the internal Gitea; a read-only mirror is kept under
 [`paas/`](paas/) — see [`paas/MIRROR.md`](paas/MIRROR.md) for the synced commits
 and how the two editions differ. Do not edit `paas/` here.
 
+One PaaS instance now runs on the local k3s from that chart:
+[`deploy/local-k3s/pi5`](deploy/local-k3s/pi5/) has its values and the cutover record.
+
 ## Overview
 
 This package runs the [pi coding agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) and its web UI, [pi-web](https://www.npmjs.com/package/@agegr/pi-web), on a k3s cluster. It is the Kubernetes sibling of [`Woow_ha_pi_agent_add_on`](https://github.com/WOOWTECH/Woow_ha_pi_agent_add_on), which packages the same stack as a Home Assistant Supervisor add-on.
