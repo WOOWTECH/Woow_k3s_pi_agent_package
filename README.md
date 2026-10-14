@@ -32,6 +32,15 @@
 
 ---
 
+## Source of truth
+
+The primary repository is the internal Gitea
+[`woow-paas/Woow_k3s_pi_agent_package`](https://git-prod.woowtech.io/woow-paas/Woow_k3s_pi_agent_package).
+This GitHub repository is a one-way mirror of its `main` branch and tags
+(`.gitea/workflows/mirror-to-github.yml`). Open changes as Gitea pull requests;
+commits made directly on GitHub block the mirror. Image builds and releases still
+run on GitHub when a `v*` tag arrives.
+
 ## PaaS edition
 
 The pi-agent cloud service on the WOOW PaaS platform is built **on top of this

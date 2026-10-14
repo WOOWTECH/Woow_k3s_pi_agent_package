@@ -32,6 +32,14 @@
 
 ---
 
+## 主要 repo
+
+主要 repo 是內部 Gitea 的
+[`woow-paas/Woow_k3s_pi_agent_package`](https://git-prod.woowtech.io/woow-paas/Woow_k3s_pi_agent_package)，
+GitHub 這裡是它 `main` 分支與 tag 的單向鏡像（`.gitea/workflows/mirror-to-github.yml`）。
+修改請送 Gitea PR；直接在 GitHub 提交會讓鏡像推送失敗。推上 `v*` tag 後，
+GitHub 照樣建置映像與發佈。
+
 ## PaaS 版
 
 WOOW PaaS 平台上的 pi-agent 雲端服務，是在**本 repo 發佈的 image 之上**（以 digest 釘版）
