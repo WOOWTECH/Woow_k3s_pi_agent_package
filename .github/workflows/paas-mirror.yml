@@ -37,7 +37,7 @@ jobs:
       - name: Install yq (mikefarah)
         run: |
           set -Eeuo pipefail
-          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
           yq --version
       - name: helm lint
