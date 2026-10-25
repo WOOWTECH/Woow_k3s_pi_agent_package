@@ -129,6 +129,10 @@ spec:
           env:
             - name: PI_AGENT_DATA_DIR
               value: {{ .Values.piWeb.dataDir | quote }}
+            {{- if hasKey .Values.piWeb "omnigentSetup" }}
+            - name: PI_OMNIGENT_AUTO_SETUP
+              value: {{ .Values.piWeb.omnigentSetup | quote }}
+            {{- end }}
             - name: PI_WEB_HOSTNAME
               value: {{ .Values.piWeb.host | quote }}
             - name: PI_WEB_PORT

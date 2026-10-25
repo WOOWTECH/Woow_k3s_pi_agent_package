@@ -42,6 +42,11 @@ D="$TMP/default.yaml"
 render svc-a "$CHART_DIR" -n ns --set image.tag=20261001.0000@sha256:abc >"$D" || { cat "$TMP/err"; exit 1; }
 kit_assert_in_container "$D" pi-web chart || rc=1
 
+echo "== image-bundled Omnigent setup"
+check "fresh-volume setup defaults on" "$(envv "$D" PI_OMNIGENT_AUTO_SETUP)" true
+render svc-a "$CHART_DIR" -n ns --set piWeb.omnigentSetup=false >"$TMP/setup-off.yaml"
+check "operator can opt out of image seeding" "$(envv "$TMP/setup-off.yaml" PI_OMNIGENT_AUTO_SETUP)" false
+
 echo "== serverUrl is runtime data"
 kit_assert_runtime_server_url "$CHART_DIR" -n ns || rc=1
 

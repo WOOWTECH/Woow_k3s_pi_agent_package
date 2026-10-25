@@ -13,6 +13,10 @@ logLevel: info
 
 # ── pi-web (the app) ──────────────────────────────────────────────────────────
 piWeb:
+  # Register the image-bundled Omnigent plugin and create its setup conversation
+  # on a new volume. Users always enter their own URL/account/password. An
+  # existing external package, disable or removal choice is preserved.
+  omnigentSetup: true
   # LOOPBACK ONLY. The upstream package binds 0.0.0.0 so kubelet can probe the
   # pod IP; here the auth-proxy is the only entrance and the probes run in-pod,
   # so pi-web is never reachable on the pod IP (closes the "any pod can dial
@@ -109,9 +113,9 @@ auth:
 # can run sessions here with the tenant's own LLM logins. The host runs INSIDE
 # the main container, next to the product, like a daemon on an ordinary
 # machine, and dials out to the Omnigent service. It shares the container's
-# plan limits (no separate budget). The tenant connects it ONCE from the
-# pi-web terminal:  omnigent login <Omnigent URL>   (WOOW default: the Omnigent
-# admin account, which then owns this machine).
+# plan limits (no separate budget). With the current image, open /omnigent
+# or the automatic setup conversation and enter the server/account/password.
+# The terminal command `omnigent login <Omnigent URL>` remains available.
 # The background supervisor waits for that login, then keeps `omnigent host`
 # running and brings it back after every restart. The platform never logs in,
 # stores or sees an Omnigent token; not logged in = the supervisor only sleeps.
