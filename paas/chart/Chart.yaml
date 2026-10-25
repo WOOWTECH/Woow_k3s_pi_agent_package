@@ -69,8 +69,10 @@ type: application
 # the limit instead of nginx's HTML page; the comment documents the 25 MiB file / 95 MiB batch / ~100 MB Cloudflare
 # layers (the matching zh-TW app messages come with the pi-agent image patch-error-hints.mjs). Pod-template change:
 # existing releases restart once on the next Redeploy/upgrade (data on the PVC is kept).
-version: 0.1.9
-appVersion: "0.2.1"
+# 0.1.10 = image-bundled Omnigent setup, native /omnigent page and an explicit
+# first-boot opt-out. The host kit remains the sole host supervisor when enabled.
+version: 0.1.10
+appVersion: "20261025.1200"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
   - name: WOOW PaaS Team

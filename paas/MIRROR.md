@@ -20,14 +20,14 @@ them. Open the change against the Gitea repository instead.
 | Mirror path | Source repository | Source path | Commit |
 |---|---|---|---|
 | `paas/image/` | `woow-paas/paas-odoo-ci` | `pi-agent/` | `1edfb29be196454a11dfebf2688bc9abd45f2677` |
-| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `08a3c98757616e2129cc8d9eb0c6752cc7f5cd48` |
-| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `08a3c98757616e2129cc8d9eb0c6752cc7f5cd48` |
+| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `2183320bdc08af86a6ac8c9049fa042f4a3ceb2a` |
+| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `2183320bdc08af86a6ac8c9049fa042f4a3ceb2a` |
 
 PaaS image base (this repository's release): `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.2@sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6`
 
 PaaS image repository: `jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent` (the platform pins the tag by `tag@sha256`)
 
-Chart `0.1.9` / pi-agent image `0.2.1` — synced 2026-10-25 14:04 UTC.
+Chart `0.1.10` / pi-agent image `20261025.1200` — synced 2026-10-25 15:43 UTC.
 <!-- END GENERATED -->
 
 ## How the two editions relate

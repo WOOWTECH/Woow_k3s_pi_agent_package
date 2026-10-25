@@ -9,18 +9,54 @@
     },
     {
       "path": "paas/chart/",
-      "commit": "08a3c98757616e2129cc8d9eb0c6752cc7f5cd48",
+      "commit": "2183320bdc08af86a6ac8c9049fa042f4a3ceb2a",
       "fileCount": 30,
       "bytesEqual": true
     },
     {
       "path": "paas/shared/omnigent-host/",
-      "commit": "08a3c98757616e2129cc8d9eb0c6752cc7f5cd48",
+      "commit": "2183320bdc08af86a6ac8c9049fa042f4a3ceb2a",
       "fileCount": 20,
       "bytesEqual": true
     }
   ],
   "publishedImageSource": true,
-  "chartStatus": "Current published chart 0.1.9; next chart 0.1.10 is PR278 pending canonical PaaS image promotion.",
+  "chartStatus": "Chart 0.1.10 published to classic Helm and OCI, appVersion 20261025.1200.",
+  "promotion": {
+    "image": "jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:20261025.1200@sha256:7152969a4ffa3f05f46b28f49d8899448e426d85014d5f05875f7ede563c120d",
+    "candidateDigestPreserved": true,
+    "promotionRun": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/27876",
+    "status": "success",
+    "sizeBytes": 2189623755,
+    "evidence": [
+      "2026-10-25T14:34:59.5080773Z ::group::Run bash scripts/promote-candidate-tag.sh",
+      "2026-10-25T14:34:59.5081150Z bash scripts/promote-candidate-tag.sh",
+      "2026-10-25T14:34:59.5741406Z ::group::\u8b80\u53d6\u5019\u9078 tag manifest\uff08\u4f5c\u70ba promote \u5f8c\u6bd4\u5c0d\u7684\u57fa\u6e96\uff09",
+      "2026-10-25T14:35:00.2624623Z ::group::Promote \u5019\u9078 tag \u2192 \u6b63\u5f0f tag\uff08registry \u7aef copy\uff0c\u4e0d\u91cd\u65b0 build\uff09",
+      "2026-10-25T14:35:01.2573295Z \u6b63\u5f0f tag digest = sha256:7152969a4ffa3f05f46b28f49d8899448e426d85014d5f05875f7ede563c120d",
+      "2026-10-25T14:35:02.0525760Z ::notice title=promoted::artifactory-jcr-artifactory-nginx.jfrog.svc.cluster.local/woow-paas-docker-local/pi-agent:20261025.1200@sha256:7152969a4ffa3f05f46b28f49d8899448e426d85014d5f05875f7ede563c120d (size=2189623755 bytes)",
+      "2026-10-25T14:35:02.2353760Z ::notice title=pi-agent digest::jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:20261025.1200@sha256:7152969a4ffa3f05f46b28f49d8899448e426d85014d5f05875f7ede563c120d (size=2189623755 bytes)"
+    ]
+  },
+  "chartPublication": {
+    "chartVersion": "0.1.10",
+    "appVersion": "20261025.1200",
+    "sourceCommit": "2183320bdc08af86a6ac8c9049fa042f4a3ceb2a",
+    "classicUrl": "https://git-prod.woowtech.io/api/packages/woow-paas/helm/pi-agent-0.1.10.tgz",
+    "classicSha256": "56968c9e33cef513d8a376ec90eabadd8339c235541e53d2bb9b236bdde1af26",
+    "classicDownloadedAndInspected": true,
+    "omnigentSetupDefault": true,
+    "oci": "oci://jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:0.1.10",
+    "ociReadBackByCI": true,
+    "publishRun": "https://git-prod.woowtech.io/woow-paas/woow-paas-charts/actions/runs/27921",
+    "jobStatus": "completed",
+    "jobConclusion": "success",
+    "evidence": [
+      "2026-10-25T15:42:49.3531234Z   Gitea Helm repo: published pi-agent v0.1.10",
+      "2026-10-25T15:42:52.0635510Z   OCI: published oci://jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:0.1.10",
+      "2026-10-25T15:43:12.4367899Z OK   gitea  pi-agent:0.1.10",
+      "2026-10-25T15:43:13.5936818Z OK   oci    pi-agent:0.1.10"
+    ]
+  },
   "passed": true
 }
