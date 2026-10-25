@@ -36,7 +36,12 @@ if [ -z "${CLI}" ]; then
   exit 127
 fi
 
+# Preserve the model catalog selected by Omnigent for this native session.
+pi_launcher_agent_dir="${PI_CODING_AGENT_DIR:-}"
 # shellcheck source=/dev/null
 [ -r /usr/local/bin/pi-agent-env.sh ] && source /usr/local/bin/pi-agent-env.sh
+if [ -n "${pi_launcher_agent_dir}" ]; then
+  export PI_CODING_AGENT_DIR="${pi_launcher_agent_dir}"
+fi
 
 exec node "${CLI}" "$@"

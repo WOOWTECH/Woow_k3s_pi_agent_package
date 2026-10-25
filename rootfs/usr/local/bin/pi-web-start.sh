@@ -53,6 +53,14 @@ fi
 # removal, and starts its watcher without creating a chat session or prompt.
 /usr/local/bin/pi-shared-runtime-seed.sh
 
+# Seed once before package discovery. Activation creates a setup conversation;
+# it never submits credentials or a model prompt. User removal stays respected.
+node /usr/local/bin/pi-omnigent-seed.mjs || log "Omnigent setup needs attention in Plugins"
+if omnigent_root=$(node /usr/local/bin/pi-omnigent-seed.mjs --resolve-root); then
+  export PI_OMNIGENT_PLUGIN_ROOT="${omnigent_root}"
+fi
+export PATH="${HOME}/.local/bin:${PATH}"
+
 # --- Video tools reset (maintenance escape hatch) -----------------------------
 # Ported from the add-on's reset_video_tools option. Without it, recovering a
 # half-written venv means exec'ing in and deleting the sentinel by hand — and a

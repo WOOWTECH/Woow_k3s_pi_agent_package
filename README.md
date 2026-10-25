@@ -628,3 +628,26 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
 <p align="center">
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
+
+## Omnigent deployment package (0.3.0)
+
+The image includes `@woowtech/pi-omnigent-plugin` **0.3.11** and the native
+Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
+release archive and UI patch are SHA-256 verified during CI; Pi Web is built
+there, never on a tenant's first boot. The default chart image is `0.3.0`.
+
+A fresh data volume registers the plugin and creates **Omnigent 連線設定**.
+Open that conversation or `/omnigent` and enter the server URL, username and
+password. No server URL, login, provider credential or host ID is included in
+the image. Only engines already installed in the container are connected.
+Existing external packages, native disable and deliberate removal are kept.
+Set `PI_OMNIGENT_AUTO_SETUP=false` to opt out before first boot. Existing engine
+logins remain per-user; model listings alone do not count as verified replies.
+
+The Pi launcher preserves `PI_CODING_AGENT_DIR` supplied by Omnigent so its
+session-specific gateway catalog reaches the engine. The PaaS derivative
+continues to supply its pinned Omnigent Python runtime; the standalone k3s
+package downloads missing Omnigent dependencies through the plugin.
+
+HA add-on has its own release and Pi Web 0.12 integration. Use that repository's
+version and manifest, not the k3s image, for HA Supervisor/local builds.

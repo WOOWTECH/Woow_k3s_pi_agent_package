@@ -5,6 +5,11 @@ on:
     paths:
       - "Dockerfile"
       - "rootfs/usr/local/bin/pi-shared-runtime-seed.sh"
+      - "rootfs/usr/local/bin/pi-omnigent-seed.mjs"
+      - "rootfs/usr/local/bin/pi"
+      - "tests/omnigent-seed.test.mjs"
+      - "tests/image-startup.mjs"
+      - "tests/test-pi-session-env.sh"
       - "rootfs/usr/local/bin/pi-web-start.sh"
       - "rootfs/etc/profile.d/pi-agent.sh"
       - "tests/test-shared-runtime-seed.sh"
@@ -15,6 +20,11 @@ on:
     paths:
       - "Dockerfile"
       - "rootfs/usr/local/bin/pi-shared-runtime-seed.sh"
+      - "rootfs/usr/local/bin/pi-omnigent-seed.mjs"
+      - "rootfs/usr/local/bin/pi"
+      - "tests/omnigent-seed.test.mjs"
+      - "tests/image-startup.mjs"
+      - "tests/test-pi-session-env.sh"
       - "rootfs/usr/local/bin/pi-web-start.sh"
       - "rootfs/etc/profile.d/pi-agent.sh"
       - "tests/test-shared-runtime-seed.sh"
@@ -32,3 +42,5 @@ jobs:
       - run: |
           bash tests/test-shared-runtime-seed.sh
           bash tests/test-profile-posix.sh
+          node --test tests/omnigent-seed.test.mjs
+          bash tests/test-pi-session-env.sh

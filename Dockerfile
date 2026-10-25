@@ -82,7 +82,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates curl gnupg build-essential python3 \
+       ca-certificates curl git gnupg build-essential python3 \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -125,9 +125,45 @@ RUN apt-get update \
 # and running node-gyp, so the terminal keeps using a pty.node compiled here
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
-RUN npm_config_build_from_source=true \
-    npm install -g --omit=dev --prefix=/opt/piweb "@agegr/pi-web@${PI_WEB_VERSION}" \
-    && rm -rf /tmp/npm-cache
+ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
+ARG PI_OMNIGENT_VERSION=0.3.11
+ARG PI_OMNIGENT_SHA256=4d1565e727f8b02accfab135e7e4376dd00a2448e1f212299089d3fae7e19a01
+ARG PI_OMNIGENT_UI_SHA256=028f8317b02944fc56942090040e9414bb5f5db07393f2d034868bb96839c734
+# Immutable plugin payload; lifecycle scripts never run during image build.
+RUN set -euo pipefail; \
+    curl -fSL --retry 5 --retry-all-errors \
+      "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v${PI_OMNIGENT_VERSION}/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz" -o /tmp/omnigent-plugin.tgz; \
+    echo "${PI_OMNIGENT_SHA256}  /tmp/omnigent-plugin.tgz" | sha256sum -c -; \
+    mkdir -p /opt/woow/pi-omnigent-plugin; \
+    tar xzf /tmp/omnigent-plugin.tgz --strip-components=1 -C /opt/woow/pi-omnigent-plugin; \
+    node -e 'const p=require("/opt/woow/pi-omnigent-plugin/package.json"); if(p.name!=="@woowtech/pi-omnigent-plugin" || p.version!==process.argv[1]) throw Error("unexpected plugin release")' "${PI_OMNIGENT_VERSION}"; \
+    rm /tmp/omnigent-plugin.tgz
+# Build the reviewed native settings adapter into the image. Tenants never need
+# a compiler, npm install, or a second Pi Web tree to see the Omnigent tab.
+RUN set -euo pipefail; \
+    WEB=/opt/piweb-source; \
+    mkdir -p "$WEB" /opt/piweb/bin /opt/piweb/lib/node_modules/@agegr; \
+    git -C "$WEB" init -q; \
+    git -C "$WEB" fetch --depth=1 https://github.com/agegr/pi-web.git "${PI_WEB_REF}"; \
+    git -C "$WEB" checkout --detach -q FETCH_HEAD; \
+    test "$(git -C "$WEB" rev-parse HEAD)" = "${PI_WEB_REF}"; \
+    PATCH=/opt/woow/pi-omnigent-plugin/integrations/pi-web/adapter.patch; \
+    echo "${PI_OMNIGENT_UI_SHA256}  ${PATCH}" | sha256sum -c -; \
+    git -C "$WEB" apply --check "$PATCH"; \
+    git -C "$WEB" apply "$PATCH"; \
+    cd "$WEB"; \
+    NODE_ENV=development npm_config_build_from_source=true npm ci --include=dev --no-audit --no-fund; \
+    npm audit --audit-level=high --no-fund; \
+    node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs; \
+    NEXT_TELEMETRY_DISABLED=1 CIRCLE_NODE_TOTAL=3 npm run build; \
+    test -s .next/BUILD_ID; \
+    test -f .next/server/app/api/omnigent/route.js; \
+    test -f .next/server/app/omnigent/page.js; \
+    npm prune --omit=dev --ignore-scripts; \
+    ln -s ../lib/node_modules/@agegr/pi-web/bin/pi-web.js /opt/piweb/bin/pi-web; \
+    rm -rf .git .next/cache /tmp/npm-cache; \
+    cd /opt; \
+    mv "$WEB" /opt/piweb/lib/node_modules/@agegr/pi-web
 
 # node-gyp can fail in ways npm does not treat as fatal, and a missing
 # pty.node becomes a terminal that opens and immediately dies at runtime.
@@ -245,6 +281,11 @@ RUN set -euo pipefail; \
 # the `pi-web` bin stays a working RELATIVE symlink into lib/node_modules.
 COPY --from=piweb-builder /opt/piweb/lib/node_modules /usr/local/lib/node_modules
 COPY --from=piweb-builder /opt/piweb/bin              /usr/local/bin
+COPY --from=piweb-builder /opt/woow/pi-omnigent-plugin /opt/woow/pi-omnigent-plugin
+RUN ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-omnigent-plugin/node_modules \
+    && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent
+ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
+    PI_OMNIGENT_SDK_ROOT=/usr/local/lib/node_modules/@agegr/pi-web
 
 # Shared skills/MCP runtime. It is pinned to an immutable Git commit and its
 # dependencies are installed at build time so a tenant's first Pi Web boot does
@@ -264,16 +305,19 @@ RUN set -euo pipefail; \
     chmod -R a+rX,go-w /opt/woow/pi-agent-shared-runtime
 
 COPY rootfs/ /
+COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 
 RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/pi-web-start.sh \
              /usr/local/bin/pi-shared-runtime-seed.sh \
+             /usr/local/bin/pi-omnigent-seed.mjs \
              /usr/local/bin/pi-shell.sh \
              /usr/local/bin/ttyd-start.sh \
              /usr/local/bin/video-tools-init.sh \
     && test -x "$(command -v pi)" \
     && pi --version \
     && tmux -V \
+    && node /opt/woow/tests/image-startup.mjs \
     # Cross-stage ABI assertion: stage 1 compiled pty.node against ITS nodejs,
     # and this is the first moment the module is asked to load under the
     # nodejs that will actually run it.

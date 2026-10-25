@@ -6,6 +6,8 @@ on:
     paths:
       - "Dockerfile"
       - "rootfs/**"
+      - "patches/**"
+      - "tests/**"
       - ".github/workflows/build.yml"
     tags:
       - "v*"
@@ -44,6 +46,13 @@ jobs:
           else
             echo "value=linux/amd64" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Verify startup contracts
+        run: |
+          bash tests/test-profile-posix.sh
+          bash tests/test-shared-runtime-seed.sh
+          node --test tests/omnigent-seed.test.mjs
+          bash tests/test-pi-session-env.sh
 
       - name: Set up QEMU
         if: contains(steps.platforms.outputs.value, 'arm64')
