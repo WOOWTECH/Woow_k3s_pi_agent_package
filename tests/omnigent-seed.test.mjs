@@ -43,3 +43,25 @@ test('operator can opt out before first registration', t => {
   const f = fixture(t); assert.equal(seed({ ...f, seedEnabled: false }).active, false);
   assert.equal(fs.existsSync(f.settings), false); assert.equal(seed(f).active, true);
 });
+
+test('legacy removal before image migration remains removed', t => {
+  const f = fixture(t); f.write({ packages: [] });
+  fs.mkdirSync(path.join(f.agentDir, 'omnigent-plugin'));
+  fs.writeFileSync(path.join(f.agentDir, 'omnigent-plugin/state.json'), '{}');
+  assert.equal(seed(f).reason, 'existing-state'); assert.deepEqual(f.read(), { packages: [] });
+  assert.equal(seed(f).reason, 'user-removed');
+});
+test('git suffix and custom local installation do not create duplicate plugins', t => {
+  for (const kind of ['git', 'local']) {
+    const f = fixture(t);
+    const local = path.join(f.agentDir, 'custom-checkout'); fs.mkdirSync(local);
+    fs.writeFileSync(path.join(local, 'package.json'), JSON.stringify({ name: '@woowtech/pi-omnigent-plugin' }));
+    const source = kind === 'git' ? 'git:https://github.com/WOOWTECH/pi-omnigent-plugin.git@v0.3.11' : './custom-checkout';
+    f.write({ packages: [source] }); assert.equal(seed(f).active, false); assert.deepEqual(f.read(), { packages: [source] });
+  }
+});
+test('a home project disable choice wins over a new global image default', t => {
+  const f = fixture(t); const dir = path.join(f.agentDir, 'home/.pi'); fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ packages: [{ source: f.bundle, extensions: [] }] }));
+  assert.equal(seed(f).active, false); assert.equal(fs.existsSync(f.settings), false);
+});

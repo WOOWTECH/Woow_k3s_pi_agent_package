@@ -23,7 +23,7 @@ function write(file, value) {
     fs.renameSync(temporary, file);
   } finally { fs.rmSync(temporary, { force: true }); }
 }
-export function seed({ agentDir, bundle, seedEnabled = true }) {
+export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), seedEnabled = true }) {
   const pkg = read(path.join(bundle, 'package.json'), null);
   if (pkg?.name !== name) throw Error('image bundle missing or invalid');
   const file = path.join(agentDir, 'settings.json');
@@ -32,18 +32,31 @@ export function seed({ agentDir, bundle, seedEnabled = true }) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings) ||
       ('packages' in settings && !Array.isArray(settings.packages))) throw Error('invalid Pi settings');
   const packages = settings.packages || [];
-  const entry = packages.find(item => {
+  const matches = (item, base) => {
     const source = sourceOf(item);
     if (typeof source !== 'string') return false;
-    return source === bundle || /(?:^|\/)pi-omnigent-plugin(?:@|$)/.test(source) || source.startsWith(`npm:${name}`);
-  });
+    if (source === bundle || /(?:^|[/:])pi-omnigent-plugin(?:\.git)?(?:@[^/]*)?\/?$/i.test(source)
+        || source === `npm:${name}` || source.startsWith(`npm:${name}@`)) return true;
+    if (!source.includes(':')) return read(path.resolve(base, source, 'package.json'), null)?.name === name;
+    return false;
+  };
+  const project = read(path.join(home, '.pi/settings.json'), {});
+  if (!project || typeof project !== 'object' || Array.isArray(project)
+      || ('packages' in project && !Array.isArray(project.packages))) throw Error('invalid project settings');
+  // A project-level choice has precedence over the global image default.
+  const projectEntry = (project.packages || []).find(item => matches(item, home));
+  const entry = projectEntry || packages.find(item => matches(item, agentDir));
   const marker = read(markerFile, null);
   if (!seedEnabled) return { active: false, reason: 'image-setup-disabled' };
   if (entry) {
     if (!marker) write(markerFile, { schema: 1, mode: sourceOf(entry) === bundle ? 'managed' : 'external', source: sourceOf(entry) });
-    return { active: sourceOf(entry) === bundle && !disabled(entry), reason: disabled(entry) ? 'disabled' : 'existing', source: sourceOf(entry) };
+    return { active: !projectEntry && sourceOf(entry) === bundle && !disabled(entry), reason: disabled(entry) ? 'disabled' : 'existing', source: sourceOf(entry) };
   }
   if (marker) return { active: false, reason: 'user-removed' };
+  if (exists(path.join(agentDir, 'omnigent-plugin/state.json'))) {
+    write(markerFile, { schema: 1, mode: 'existing-state', source: bundle });
+    return { active: false, reason: 'existing-state' };
+  }
   write(file, { ...settings, packages: [...packages, bundle] });
   write(markerFile, { schema: 1, mode: 'managed', source: bundle, version: pkg.version });
   return { active: true, reason: 'registered', source: bundle };
@@ -64,7 +77,7 @@ async function main() {
     process.stdout.write(entry?.installedPath || bundle);
     return;
   }
-  const result = seed({ agentDir, bundle, seedEnabled: process.env.PI_OMNIGENT_AUTO_SETUP !== 'false' });
+  const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_OMNIGENT_AUTO_SETUP !== 'false' });
   if (process.env.PI_OMNIGENT_SEED_ONLY !== '1' && result.active) {
     const web = await import(pathToFileURL(path.join(bundle, 'src/web.mjs')).href);
     // Complete registration and the visible conversation before the server reads
