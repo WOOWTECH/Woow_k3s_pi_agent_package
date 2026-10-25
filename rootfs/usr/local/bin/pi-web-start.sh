@@ -55,6 +55,7 @@ fi
 
 # Seed once before package discovery. Activation creates a setup conversation;
 # it never submits credentials or a model prompt. User removal stays respected.
+node /usr/local/bin/pi-paseo-seed.mjs || log "Paseo setup needs attention in Plugins"
 node /usr/local/bin/pi-omnigent-seed.mjs || log "Omnigent setup needs attention in Plugins"
 if omnigent_root=$(node /usr/local/bin/pi-omnigent-seed.mjs --resolve-root); then
   export PI_OMNIGENT_PLUGIN_ROOT="${omnigent_root}"

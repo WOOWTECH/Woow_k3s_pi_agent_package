@@ -608,7 +608,7 @@ EOF
 
 ## Omnigent deployment package (0.3.2)
 
-The image includes `@woowtech/pi-omnigent-plugin` **0.3.21** and the native
+The image includes `@woowtech/pi-omnigent-plugin` **0.3.12** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
 there, never on a tenant's first boot. The default chart image is `0.3.2`.
@@ -634,3 +634,13 @@ executables without downloading missing ones when the setup conversation opens.
 Skills/MCP sharing for installed engines remains enabled. Engine installation is
 an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
 sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
+
+## Paseo 部署套件（0.3.3）
+
+映像內建 Paseo 插件 **0.1.7**、Omnigent 插件 **0.3.12** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持已驗證的 0.10.0，設定順序為 MCP → Omnigent → Paseo，獨立設定頁為 `/paseo/setup`。
+
+Paseo 套件在建置時安裝，避免首次啟動再下載到持久磁碟。新環境只註冊一次，由 Pi Web 建立或恢復初始化對話並啟動服務；使用者在 https://app.paseo.sh 完成官方加密 relay 配對。映像不含登入憑證、容器身分或配對密鑰。
+
+保留已停用、移除及外部安裝的插件；`PI_PASEO_AUTO_SETUP=false` 僅關閉新的預設註冊。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
+
+PaaS 沿用既有 Claude Code、Codex 與 Omnigent gateway；提供者仍需有效登入或 gateway 權限。預裝套件不等於對話驗證通過。HA 套件另以 ingress 整合其 Pi Web 0.12。

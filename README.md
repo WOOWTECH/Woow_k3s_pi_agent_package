@@ -631,7 +631,7 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
 
 ## Omnigent deployment package (0.3.2)
 
-The image includes `@woowtech/pi-omnigent-plugin` **0.3.21** and the native
+The image includes `@woowtech/pi-omnigent-plugin` **0.3.12** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
 there, never on a tenant's first boot. The default chart image is `0.3.2`.
@@ -657,3 +657,13 @@ executables without downloading missing ones when the setup conversation opens.
 Skills/MCP sharing for installed engines remains enabled. Engine installation is
 an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
 sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
+
+## Paseo deployment package (0.3.3)
+
+The image bundles Paseo plugin **0.1.7**, Omnigent plugin **0.3.12**, and the locked Paseo **0.11.2** runtime. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. The standalone setup page is `/paseo/setup`.
+
+Paseo packages are installed during image build, not copied onto each persistent volume. First boot registers the plugin once; Pi Web then creates or resumes its setup conversation and starts the local daemon. Official Web pairing uses encrypted relay at https://app.paseo.sh. No provider credentials, daemon identity, or pairing secret is included in the image.
+
+Native package disable/removal and existing external plugin installations are preserved. `PI_PASEO_AUTO_SETUP=false` opts out of new image registration; it does not remove an existing installation. Manual service Stop remains effective across restart. Use the Paseo settings page to resume. Existing services only change when explicitly upgraded.
+
+The PaaS overlay supplies its existing Claude Code/Codex tools and Omnigent gateway; each tenant still needs valid provider login or gateway access. A bundled runtime does not prove a provider can answer. The HA package uses a separate ingress adapter for Pi Web 0.12.
