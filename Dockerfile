@@ -291,6 +291,8 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
 # dependencies are installed at build time so a tenant's first Pi Web boot does
 # not need GitHub or npm access. `--legacy-peer-deps` is required by Pi's peer
 # dependency contract and matches the package's documented installation mode.
+COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
+COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
 ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
 RUN set -euo pipefail; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
@@ -300,6 +302,8 @@ RUN set -euo pipefail; \
     git -C /opt/woow/pi-agent-shared-runtime checkout --detach -q FETCH_HEAD; \
     test "$(git -C /opt/woow/pi-agent-shared-runtime rev-parse HEAD)" = "${PI_SHARED_RUNTIME_REF}"; \
     npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
+    node /opt/patches/patch-shared-runtime-discovery.mjs /opt/woow/pi-agent-shared-runtime/src/runtime.mjs; \
+    node /opt/woow/tests/image-engine-discovery.mjs; \
     node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime") throw new Error("unexpected shared runtime package"); import("/opt/woow/pi-agent-shared-runtime/src/sync.mjs").then(()=>console.log("[build] shared runtime bundle OK"))'; \
     rm -rf /opt/woow/pi-agent-shared-runtime/.git; \
     chmod -R a+rX,go-w /opt/woow/pi-agent-shared-runtime

@@ -606,12 +606,12 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Omnigent deployment package (0.3.0)
+## Omnigent deployment package (0.3.1)
 
 The image includes `@woowtech/pi-omnigent-plugin` **0.3.11** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
-there, never on a tenant's first boot. The default chart image is `0.3.0`.
+there, never on a tenant's first boot. The default chart image is `0.3.1`.
 
 A fresh data volume registers the plugin and creates **Omnigent 連線設定**.
 Open that conversation or `/omnigent` and enter the server URL, username and
@@ -628,3 +628,9 @@ package downloads missing Omnigent dependencies through the plugin.
 
 HA add-on has its own release and Pi Web 0.12 integration. Use that repository's
 version and manifest, not the k3s image, for HA Supervisor/local builds.
+
+0.3.1 also makes the bundled Shared Runtime discover existing Claude/Codex
+executables without downloading missing ones when the setup conversation opens.
+Skills/MCP sharing for installed engines remains enabled. Engine installation is
+an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
+sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
