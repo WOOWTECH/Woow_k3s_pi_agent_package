@@ -170,7 +170,7 @@ RUN set -euo pipefail; \
     cd "$WEB"; \
     NODE_ENV=development npm_config_build_from_source=true npm ci --include=dev --no-audit --no-fund; \
     npm audit --audit-level=high --no-fund; \
-    node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs; \
+    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs; \
     NEXT_TELEMETRY_DISABLED=1 CIRCLE_NODE_TOTAL=3 npm run build; \
     test -s .next/BUILD_ID; \
     test -f .next/server/app/api/omnigent/route.js; \
