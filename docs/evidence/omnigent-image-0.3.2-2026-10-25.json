@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-25",
+  "scope": "Pi Agent image packaging; no provider logins or paid model requests",
+  "releaseVersion": "0.3.2",
+  "pluginVersion": "0.3.11",
+  "pluginArchiveSha256": "4d1565e727f8b02accfab135e7e4376dd00a2448e1f212299089d3fae7e19a01",
+  "candidateImage": "ghcr.io/woowtech/woow-k3s-pi-agent:sha-cb042e3@sha256:0b01c1f2ab7cc581d6ae964bacb686bb703734f3becaf8b008d751bfc1ca56ba",
+  "candidateBuild": "https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40189849625",
+  "checks": {
+    "seedLifecycleCases": 9,
+    "existingSharingAndPosixChecks": true,
+    "nativePiSessionDirectory": true,
+    "realSdkOnboardingInImage": true,
+    "imageEngineDiscoveryWithoutDownloads": true,
+    "freshKubernetesDeployment": true,
+    "actualContainerRestart": true,
+    "sameOnboardingConversationAfterRestart": true,
+    "freshLoginRequired": true,
+    "missingEnginesRemainAbsent": true,
+    "desktopAndMobile": [
+      {
+        "viewport": "desktop",
+        "http": 200,
+        "versionVisible": true,
+        "passwordMasked": true,
+        "inputs": [
+          {
+            "type": "file",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "file",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "url",
+            "placeholder": "https://omnigent.example.com",
+            "empty": true
+          },
+          {
+            "type": "text",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "password",
+            "placeholder": "",
+            "empty": true
+          }
+        ],
+        "pageErrors": [],
+        "pageWidth": 1440,
+        "viewportWidth": 1440
+      },
+      {
+        "viewport": "mobile",
+        "http": 200,
+        "versionVisible": true,
+        "passwordMasked": true,
+        "inputs": [
+          {
+            "type": "file",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "file",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "url",
+            "placeholder": "https://omnigent.example.com",
+            "empty": true
+          },
+          {
+            "type": "text",
+            "placeholder": "",
+            "empty": true
+          },
+          {
+            "type": "password",
+            "placeholder": "",
+            "empty": true
+          }
+        ],
+        "pageErrors": [],
+        "pageWidth": 390,
+        "viewportWidth": 390
+      }
+    ],
+    "liveApiValidation": [
+      {
+        "case": "cross-origin",
+        "status": 403,
+        "error": "Untrusted API request"
+      },
+      {
+        "case": "missing-credentials",
+        "status": 400,
+        "error": {
+          "code": "INVALID_SETUP"
+        }
+      }
+    ],
+    "legacyRemovedGitAndDisabledProjectChoices": true,
+    "desktopMobileApiEvidenceNote": "UI and API smoke performed on sha-fd4ee80; UI build inputs unchanged in final sha-cb042e3. Fresh startup and real restart repeated on sha-cb042e3."
+  },
+  "limitations": [
+    "Fresh-image validation uses no account credentials and makes no provider/model calls; three-engine model switching was validated separately in the plugin fleet release.",
+    "HA and PaaS derivative release evidence is recorded separately."
+  ],
+  "publishedImage": {
+    "image": "ghcr.io/woowtech/woow-k3s-pi-agent:0.3.2@sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6",
+    "tag": "0.3.2",
+    "digest": "sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6",
+    "sourceRevision": "c9b31b4995cb246bdf2b4975c8d8a5095f3a02f9",
+    "anonymousPull": true,
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux",
+        "digest": "sha256:d13fc04eb3e9b560f8ec3d6897f07f83e54c615d3add4836f561154069ce264d",
+        "sourceRevision": "c9b31b4995cb246bdf2b4975c8d8a5095f3a02f9"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux",
+        "digest": "sha256:530a2160bcc730e3e8ceffced0b733b51976981480a0a212db23221ea3651851",
+        "sourceRevision": "c9b31b4995cb246bdf2b4975c8d8a5095f3a02f9"
+      }
+    ],
+    "build": "https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40190657389",
+    "passed": true
+  },
+  "releaseUrl": "https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/releases/tag/v0.3.2",
+  "releaseDownloads": [
+    {
+      "asset": "pi-agent-0.3.2.tgz",
+      "anonymousDownload": true,
+      "sha256": "120adef231483ecec29192693a93012b2fd33b639c8f678f990b48904b0a7b4b",
+      "verified": true
+    },
+    {
+      "asset": "root-final-manifest.json",
+      "anonymousDownload": true,
+      "sha256": "7e3c04face293b44687b9c3bf9ffdbf3eb1fe9b30922f68a947e9bd588bcc63e",
+      "verified": true
+    }
+  ]
+}

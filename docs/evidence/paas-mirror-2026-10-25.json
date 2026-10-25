@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-25",
+  "checks": [
+    {
+      "path": "paas/image/",
+      "commit": "1edfb29be196454a11dfebf2688bc9abd45f2677",
+      "fileCount": 31,
+      "bytesEqual": true
+    },
+    {
+      "path": "paas/chart/",
+      "commit": "08a3c98757616e2129cc8d9eb0c6752cc7f5cd48",
+      "fileCount": 30,
+      "bytesEqual": true
+    },
+    {
+      "path": "paas/shared/omnigent-host/",
+      "commit": "08a3c98757616e2129cc8d9eb0c6752cc7f5cd48",
+      "fileCount": 20,
+      "bytesEqual": true
+    }
+  ],
+  "publishedImageSource": true,
+  "chartStatus": "Current published chart 0.1.9; next chart 0.1.10 is PR278 pending canonical PaaS image promotion.",
+  "passed": true
+}

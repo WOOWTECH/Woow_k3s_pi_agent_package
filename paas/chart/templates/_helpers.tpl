@@ -92,3 +92,19 @@ release and the tenant keeps access.
 {{- end -}}
 {{- $u -}}
 {{- end -}}
+
+{{/*
+Exec probe command for the pi-web container (loopback, so httpGet cannot be used).
+`curl -m` bounds the whole request, `--connect-timeout` the connect, and `timeout -s KILL` is the backstop that
+kills curl itself if it ever ignores -m: the command ALWAYS exits within probe.seconds + 1, non-zero when pi-web
+does not answer, so kubelet counts a failure instead of waiting on a hung exec (AI-PI-005-1).
+*/}}
+{{- define "pi-agent.probeCommand" -}}
+{{- $max := int .Values.probe.curlMaxSeconds -}}
+{{- if or (lt $max 1) (gt $max 8) -}}
+{{- fail (printf "probe.curlMaxSeconds must be 1-8 (got %v): it has to stay below the liveness timeoutSeconds (10)" .Values.probe.curlMaxSeconds) -}}
+{{- end -}}
+{{- $url := printf "http://127.0.0.1:%v/api/home" .Values.piWeb.port -}}
+{{- $cmd := printf "timeout -s KILL %d curl -sf -m %d --connect-timeout 2 %s >/dev/null" (add $max 3) $max $url -}}
+["sh", "-c", {{ $cmd | quote }}]
+{{- end -}}

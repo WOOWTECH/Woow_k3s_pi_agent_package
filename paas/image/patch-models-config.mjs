@@ -12,10 +12,7 @@
 // must occur EXACTLY once, else the build fails loudly — a pi-web upgrade that moves
 // the code must be re-inspected, never silently un-patched.
 import { readFileSync, writeFileSync } from "node:fs";
-
-const file = process.argv[2];
-if (!file) { console.error("usage: patch-models-config.mjs <route.js>"); process.exit(2); }
-let src = readFileSync(file, "utf8");
+import { fileURLToPath } from "node:url";
 
 // pi-web 0.10.0 wrapped the GET body in try/catch (unreadable models.json → 422).
 const GET_OLD  = 'async function h(){try{return e.NextResponse.json((0,f.V6)())}';
@@ -34,10 +31,16 @@ const HELPERS =
 
 function once(hay, needle, what) {
   const n = hay.split(needle).length - 1;
-  if (n !== 1) { console.error(`[patch] FAIL: ${what} anchor occurs ${n} times (expected 1) in ${file}`); process.exit(1); }
+  if (n !== 1) throw new Error(`[patch] FAIL: models-config ${what} anchor occurs ${n} times (expected 1)`);
 }
-if (src.includes("__PI_REDACTED__")) { console.log("[patch] already applied"); process.exit(0); }
-once(src, GET_OLD, "GET"); once(src, POST_OLD, "POST");
-src = HELPERS + src.replace(GET_OLD, GET_NEW).replace(POST_OLD, POST_NEW);
-writeFileSync(file, src);
-console.log(`[patch] models-config: GET redacts providers.*.apiKey, POST restores masked keys (${file})`);
+export function patch(src) {
+  if (src.includes("__PI_REDACTED__")) return src;
+  once(src, GET_OLD, "GET"); once(src, POST_OLD, "PUT");
+  return HELPERS + src.replace(GET_OLD, GET_NEW).replace(POST_OLD, POST_NEW);
+}
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const file = process.argv[2];
+  if (!file) throw new Error("usage: patch-models-config.mjs <route.js>");
+  writeFileSync(file, patch(readFileSync(file, "utf8")));
+  console.log(`[patch] models-config privacy verified (${file})`);
+}
