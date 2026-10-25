@@ -126,9 +126,9 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.11
-ARG PI_OMNIGENT_SHA256=4d1565e727f8b02accfab135e7e4376dd00a2448e1f212299089d3fae7e19a01
-ARG PI_OMNIGENT_UI_SHA256=028f8317b02944fc56942090040e9414bb5f5db07393f2d034868bb96839c734
+ARG PI_OMNIGENT_VERSION=0.3.12
+ARG PI_OMNIGENT_SHA256=1d945c2a683f043c71353d08af1a1518e0563c646b7aa5df6b58d0cbd9610b3a
+ARG PI_OMNIGENT_UI_SHA256=eaddfb4cd9b3c748b84f7e7fe6fe1a51f1c8a8cc587eae4c8a04ceaff2c3205f
 # Immutable plugin payload; lifecycle scripts never run during image build.
 RUN set -euo pipefail; \
     curl -fSL --retry 5 --retry-all-errors \
@@ -138,6 +138,22 @@ RUN set -euo pipefail; \
     tar xzf /tmp/omnigent-plugin.tgz --strip-components=1 -C /opt/woow/pi-omnigent-plugin; \
     node -e 'const p=require("/opt/woow/pi-omnigent-plugin/package.json"); if(p.name!=="@woowtech/pi-omnigent-plugin" || p.version!==process.argv[1]) throw Error("unexpected plugin release")' "${PI_OMNIGENT_VERSION}"; \
     rm /tmp/omnigent-plugin.tgz
+# Pin both plugin source and runtime lockfile. No package manager is needed to
+# install Paseo itself on a fresh tenant volume.
+ARG PI_PASEO_VERSION=0.1.7
+ARG PI_PASEO_SHA256=71126517fa45f1a7899f6b036449e454e4e86b7c2abb1a1f80f72b063890fea0
+RUN set -euo pipefail; \
+    curl -fSL --retry 5 --retry-all-errors \
+      "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v${PI_PASEO_VERSION}/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz" -o /tmp/paseo-plugin.tgz; \
+    echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
+    mkdir -p /opt/woow/pi-paseo-plugin; \
+    tar xzf /tmp/paseo-plugin.tgz --strip-components=1 -C /opt/woow/pi-paseo-plugin; \
+    node -e 'const p=require("/opt/woow/pi-paseo-plugin/package.json"); if(p.name!=="@woowtech/pi-paseo" || p.version!==process.argv[1]) throw Error("unexpected Paseo release")' "${PI_PASEO_VERSION}"; \
+    PASEO_RUNTIME=$(node --input-type=module -e 'import {prepareRuntimeManifest} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; console.log(prepareRuntimeManifest({runtimeDir:"/opt/woow/pi-paseo-runtime"}))'); \
+    npm ci --prefix "$PASEO_RUNTIME" --omit=dev --no-audit --no-fund; \
+    test "$(node "$PASEO_RUNTIME/node_modules/@getpaseo/cli/bin/paseo" --version)" = 0.11.2; \
+    node --input-type=module -e 'import {markRuntimeReady} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; markRuntimeReady({runtimeDir:"/opt/woow/pi-paseo-runtime"})'; \
+    rm /tmp/paseo-plugin.tgz
 # Build the reviewed native settings adapter into the image. Tenants never need
 # a compiler, npm install, or a second Pi Web tree to see the Omnigent tab.
 RUN set -euo pipefail; \
@@ -147,18 +163,20 @@ RUN set -euo pipefail; \
     git -C "$WEB" fetch --depth=1 https://github.com/agegr/pi-web.git "${PI_WEB_REF}"; \
     git -C "$WEB" checkout --detach -q FETCH_HEAD; \
     test "$(git -C "$WEB" rev-parse HEAD)" = "${PI_WEB_REF}"; \
-    PATCH=/opt/woow/pi-omnigent-plugin/integrations/pi-web/adapter.patch; \
+    PATCH=/opt/woow/pi-omnigent-plugin/integrations/pi-web/combined.adapter.patch; \
     echo "${PI_OMNIGENT_UI_SHA256}  ${PATCH}" | sha256sum -c -; \
     git -C "$WEB" apply --check "$PATCH"; \
     git -C "$WEB" apply "$PATCH"; \
     cd "$WEB"; \
     NODE_ENV=development npm_config_build_from_source=true npm ci --include=dev --no-audit --no-fund; \
     npm audit --audit-level=high --no-fund; \
-    node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs; \
+    node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs; \
     NEXT_TELEMETRY_DISABLED=1 CIRCLE_NODE_TOTAL=3 npm run build; \
     test -s .next/BUILD_ID; \
     test -f .next/server/app/api/omnigent/route.js; \
     test -f .next/server/app/omnigent/page.js; \
+    test -f .next/server/app/api/plugin-paseo/route.js; \
+    test -f .next/server/app/paseo/setup/page.js; \
     npm prune --omit=dev --ignore-scripts; \
     ln -s ../lib/node_modules/@agegr/pi-web/bin/pi-web.js /opt/piweb/bin/pi-web; \
     rm -rf .git .next/cache /tmp/npm-cache; \
@@ -282,10 +300,18 @@ RUN set -euo pipefail; \
 COPY --from=piweb-builder /opt/piweb/lib/node_modules /usr/local/lib/node_modules
 COPY --from=piweb-builder /opt/piweb/bin              /usr/local/bin
 COPY --from=piweb-builder /opt/woow/pi-omnigent-plugin /opt/woow/pi-omnigent-plugin
+COPY --from=piweb-builder /opt/woow/pi-paseo-plugin /opt/woow/pi-paseo-plugin
+COPY --from=piweb-builder /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
 RUN ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-omnigent-plugin/node_modules \
-    && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent
+    && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent \
+    && ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-paseo-plugin/node_modules \
+    && ln -s /opt/woow/pi-paseo-plugin/bin/cli.mjs /usr/local/bin/pi-paseo \
+    && chmod -R a+rX /opt/woow/pi-paseo-runtime \
+    && chown -R 1000:1000 /opt/woow/pi-paseo-runtime
 ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
-    PI_OMNIGENT_SDK_ROOT=/usr/local/lib/node_modules/@agegr/pi-web
+    PI_OMNIGENT_SDK_ROOT=/usr/local/lib/node_modules/@agegr/pi-web \
+    PI_PASEO_RUNTIME_DIR=/opt/woow/pi-paseo-runtime \
+    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin
 
 # Shared skills/MCP runtime. It is pinned to an immutable Git commit and its
 # dependencies are installed at build time so a tenant's first Pi Web boot does
@@ -310,11 +336,13 @@ RUN set -euo pipefail; \
 
 COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
+COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 
 RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/pi-web-start.sh \
              /usr/local/bin/pi-shared-runtime-seed.sh \
              /usr/local/bin/pi-omnigent-seed.mjs \
+             /usr/local/bin/pi-paseo-seed.mjs \
              /usr/local/bin/pi-shell.sh \
              /usr/local/bin/ttyd-start.sh \
              /usr/local/bin/video-tools-init.sh \
@@ -322,6 +350,7 @@ RUN chmod +x /usr/local/bin/pi \
     && pi --version \
     && tmux -V \
     && node /opt/woow/tests/image-startup.mjs \
+    && node /opt/woow/tests/image-paseo.mjs \
     # Cross-stage ABI assertion: stage 1 compiled pty.node against ITS nodejs,
     # and this is the first moment the module is asked to load under the
     # nodejs that will actually run it.
