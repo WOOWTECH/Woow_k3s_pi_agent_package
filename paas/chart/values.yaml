@@ -59,8 +59,28 @@ authProxy:
   # value and restarts the pod). Validated at render time — see
   # pi-agent.basicAuthUsername: 1-64 of A-Z a-z 0-9 . _ @ - .
   basicAuthUsername: "admin"
+  # AI-FIX-SEC-1 (#1457) — auth-proxy guard (templates/_authproxy-guard.tpl, shared/authproxy-guard).
+  # Every key is optional; the defaults live in the template, so an upgrade with --reuse-values from an
+  # older chart behaves like a fresh install.
+  #   guard:
+  #     enabled: true          # false = no njs module/mount at all (headers + server_tokens off stay)
+  #     maxFailures: 10        # wrong logins from one client IP ...
+  #     windowSeconds: 120     # ... inside this window ...
+  #     lockSeconds: 300       # ... lock that IP out (429 + Retry-After, correct password included)
+  #     sharedDictSize: 1m     # RAM for the per-pod counters (a pod restart clears every lock)
+  #     loginPaths: []         # POST paths whose 401 counts as a wrong login (app login forms)
+  #     headers:
+  #       enabled: true        # HSTS, nosniff, X-Frame-Options, CSP frame-ancestors, Referrer-Policy, Permissions-Policy
+  #       hsts: "max-age=15552000"
+  #       frameOptions: SAMEORIGIN
+  #       contentSecurityPolicy: "frame-ancestors 'self'"
+  #       referrerPolicy: strict-origin-when-cross-origin
+  #       permissionsPolicy: "geolocation=(), payment=(), usb=()"
   workerProcesses: 2
   workerConnections: 1024
+  # Per-request ceiling. pi-web's own upload limits are 25 MiB per file and (patched, pi-agent image >= the AI-FIX-PI-3
+  # build) 95 MiB per batch — 100 MiB total is Cloudflare's ~100 MB request cap, so a bigger body never arrives anyway.
+  # nginx stays at 100m so pi-web answers with its own zh-TW message; a body above it gets nginx's JSON 413 below.
   clientMaxBodySize: 100m
   # ephemeral-storage (#1434) covers nginx's /tmp emptyDir (tmpSizeLimit) + logs.
   resources:
@@ -200,6 +220,11 @@ securityContext:
   capabilities:
     drop: [ALL]
 
+# Probe command (all three probes below): curl -m <curlMaxSeconds>, killed by `timeout` 3 s later. Keep it below the
+# liveness timeoutSeconds. A hung pi-web is then a counted failure: liveness restarts the container after
+# failureThreshold x periodSeconds (150 s) instead of never.
+probe:
+  curlMaxSeconds: 5
 livenessProbe:
   initialDelaySeconds: 60
   periodSeconds: 30

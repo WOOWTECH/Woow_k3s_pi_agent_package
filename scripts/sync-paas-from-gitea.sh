@@ -68,7 +68,7 @@ block = (
     f"| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `{charts}` |\n"
     f"| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `{charts}` |\n"
     "\n"
-    f"PaaS image base (this repository's release): `{base}`  \n"
+    f"PaaS image base (this repository's release): `{base}`\n\n"
     f"PaaS image repository: `{repo}` (the platform pins the tag by `tag@sha256`)\n"
     "\n"
     f"Chart `{chart_ver}` / pi-agent image `{app_ver}` — synced "

@@ -2,11 +2,15 @@
 # nginx auth-proxy — the single tenant-facing entrance of the pod.
 #   /                 → pi-web 127.0.0.1:{{ $app }}, gated by basic auth (tenant admin_password)
 #   /healthz          → nginx-local 200 (sidecar liveness; an app outage must not restart nginx)
-#   /healthz-upstream → pi-web /api/home, auth-exempt (pod readiness target)
+#   /healthz-upstream → pi-web /api/home probed in a subrequest, auth-exempt (pod readiness
+#                       target); the client only ever sees "ok" — the upstream body (the home
+#                       path) is not forwarded to anonymous callers (AI-PI-004-3)
 # pi-web's isApiRequestAllowed() rejects any Host that is not a loopback name or raw
 # IP and any Origin that does not match it — hence Host localhost / empty Origin
 # (a compatibility shim carried over from the upstream package, NOT the access
 # control; the access control is auth_basic).
+# AI-FIX-SEC-1 (#1457): wrong-password lockout (429), security headers, no X-Powered-By /
+# nginx version — see templates/_authproxy-guard.tpl (shared with open-design / hermes-agent).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,6 +19,7 @@ metadata:
     {{- include "pi-agent.labels" . | nindent 4 }}
 data:
   nginx.conf: |
+    {{- include "woow.authguard.main" . | nindent 4 }}
     worker_processes {{ .Values.authProxy.workerProcesses | default 2 }};
     error_log  /var/log/nginx/error.log notice;
     pid        /tmp/nginx.pid;
@@ -29,6 +34,7 @@ data:
       default_type  application/octet-stream;
       log_format main '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
       access_log /var/log/nginx/access.log main;
+      {{- include "woow.authguard.http" . | nindent 6 }}
       sendfile on;
       keepalive_timeout 65;
       include /etc/nginx/conf.d/*.conf;
@@ -38,17 +44,42 @@ data:
     server {
       listen {{ .Values.authProxy.port }};
       server_name _;
+      {{- include "woow.authguard.server" . | nindent 6 }}
       client_max_body_size {{ .Values.authProxy.clientMaxBodySize }};
+      # Too-big request body: answer in JSON with the real limit, not nginx's HTML page (AI-PI-005-4).
+      error_page 413 @too_large;
+      location @too_large {
+        internal;
+        default_type application/json;
+        return 413 '{"error":"【上傳總量太大】單一請求上限 {{ regexReplaceAll "^([0-9]+)[mM]$" (toString .Values.authProxy.clientMaxBodySize) "${1} MiB" }}，請分批上傳。（Request body too large）"}';
+      }
       auth_basic           "pi-agent";
       auth_basic_user_file /auth/.htpasswd;
       location = /healthz { auth_basic off; access_log off; return 200 "ok\n"; }
+      # Readiness: pi-web must answer 2xx on /api/home. The probe runs as an internal
+      # subrequest and only its status is used, so an anonymous caller gets "ok" and not
+      # the upstream JSON (it carried the pod's home path — AI-PI-004-3). pi-web down →
+      # the subrequest is 502 → auth_request answers 500 → the pod stays NotReady, as before.
+      # NB: `return` runs in the rewrite phase, BEFORE auth_request (access phase) — it would
+      # answer 200 without ever probing. try_files runs after the access phase, so the probe
+      # gates the answer; the named location is only reached when it passed.
       location = /healthz-upstream {
         auth_basic off; access_log off;
+        auth_request /_healthz_probe;
+        try_files /_woow_none @healthz_ok;
+      }
+      location @healthz_ok { auth_basic off; access_log off; return 200 "ok\n"; }
+      location = /_healthz_probe {
+        internal;
         proxy_pass http://127.0.0.1:{{ $app }}/api/home;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
         proxy_set_header Host localhost;
         proxy_set_header Origin "";
       }
       location / {
+        # basic-auth (server level) has checked the credentials of every request that gets here
+        {{- include "woow.authguard.verified" . | nindent 8 }}
         proxy_pass http://127.0.0.1:{{ $app }};
         proxy_http_version 1.1;
         proxy_set_header Host localhost;
@@ -65,3 +96,5 @@ data:
         proxy_send_timeout 3600s;
       }
     }
+  authguard.js: |
+    {{- include "woow.authguard.js" . | nindent 4 }}

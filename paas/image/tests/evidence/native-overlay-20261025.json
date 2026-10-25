@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-25",
+  "scope": "PaaS overlay native UI compatibility; no production promotion",
+  "pluginVersion": "0.3.11",
+  "nativeAdapterSha256": "028f8317b02944fc56942090040e9414bb5f5db07393f2d034868bb96839c734",
+  "nextVersion": "16.4.3",
+  "piSdkVersion": "1.4.0",
+  "local": {
+    "baselineChecks": 16,
+    "patchedChecks": 24,
+    "nodeTests": 13,
+    "pythonTests": 4,
+    "oauthDeviceIdLiveChecks": 2
+  },
+  "remote": {
+    "base": "ghcr.io/woowtech/woow-k3s-pi-agent:sha-2c42353@sha256:a8c94a96143327bbc8ee4e0b30545918ede9f29ad0a4a359dfe5f769f9b172df",
+    "gate": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/27702",
+    "result": "success",
+    "overlayCommit": "9c7ba1f",
+    "checks": [
+      "9 compiled files preflighted and syntax checked",
+      "session chunk discovery survives filename changes",
+      "failed preflight leaves every route unchanged",
+      "repeat patch application unchanged",
+      "24 HTTP/SSE behavior checks",
+      "real SDK OAuth persistent UUID",
+      "one persistent onboarding conversation",
+      "fresh account required",
+      "cross-site mutation rejected",
+      "native settings page and client entry served"
+    ]
+  },
+  "release": {
+    "targetRoot": "0.3.2",
+    "targetRootCommit": "c9b31b4995cb246bdf2b4975c8d8a5095f3a02f9",
+    "targetRootRun": "https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40190657389",
+    "targetPaaSTag": "20261025.1200",
+    "status": "official root 0.3.2 index pinned; final-base PR validation and candidate build pending",
+    "approvalPolicy": "existing signed human approval required before promote",
+    "base": "ghcr.io/woowtech/woow-k3s-pi-agent:0.3.2@sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6"
+  },
+  "remoteDiscoveryOnly": {
+    "base": "ghcr.io/woowtech/woow-k3s-pi-agent:sha-fd4ee80@sha256:492338298073fec1f01686ab4b0035cf636f5ed1872765a8cfc39704909a2e68",
+    "patchGate": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/27735",
+    "fullImageGate": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/27738",
+    "result": "success",
+    "overlayCommit": "887e77ac610cc3d9da304f3d70774805ad92a823",
+    "fullImageUid": 1000,
+    "published": false,
+    "lockedPythonPackages": 94,
+    "reminderPatchTests": 19,
+    "officialCliLockUnchanged": true,
+    "pythonLockUnchanged": true,
+    "requiredStatusCount": 6
+  }
+}

@@ -162,18 +162,21 @@ spec:
             {{- with .Values.piWeb.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          # pi-web binds loopback → probes must run inside the container.
+          # pi-web binds loopback → probes must run inside the container. Every probe command is time-bounded
+          # (pi-agent.probeCommand): a pi-web that accepts TCP but never answers (SIGSTOP, event-loop deadlock)
+          # used to hang `curl` for good, the probe never reported a result and the liveness restart took ~11 min
+          # (AI-PI-005-1).
           startupProbe:
             exec:
-              command: ["sh", "-c", "curl -sf http://127.0.0.1:{{ .Values.piWeb.port }}/api/home >/dev/null"]
+              command: {{ include "pi-agent.probeCommand" . }}
             {{- toYaml .Values.startupProbe | nindent 12 }}
           readinessProbe:
             exec:
-              command: ["sh", "-c", "curl -sf http://127.0.0.1:{{ .Values.piWeb.port }}/api/home >/dev/null"]
+              command: {{ include "pi-agent.probeCommand" . }}
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           livenessProbe:
             exec:
-              command: ["sh", "-c", "curl -sf http://127.0.0.1:{{ .Values.piWeb.port }}/api/home >/dev/null"]
+              command: {{ include "pi-agent.probeCommand" . }}
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.piWeb.resources | nindent 12 }}
@@ -213,6 +216,12 @@ spec:
               mountPath: /etc/nginx/conf.d/default.conf
               subPath: default.conf
               readOnly: true
+            {{- if include "woow.authguard.enabled" . }}
+            - name: authproxy-conf
+              mountPath: /etc/nginx/njs/authguard.js
+              subPath: authguard.js
+              readOnly: true
+            {{- end }}
             - name: authproxy-auth
               mountPath: /auth
               readOnly: true

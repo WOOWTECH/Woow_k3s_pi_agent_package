@@ -16,9 +16,7 @@
 // once per file, else the build fails — a pi-web upgrade that moves the code must be
 // re-inspected, never silently un-patched.
 import { readFileSync, writeFileSync } from "node:fs";
-
-const files = process.argv.slice(2);
-if (files.length === 0) { console.error("usage: patch-prompt-errors.mjs <route.js>..."); process.exit(2); }
+import { fileURLToPath } from "node:url";
 
 const OLD = 'catch(a){return e.NextResponse.json({error:a instanceof Error?a.message:String(a),..."prompt"===';
 const NEW = 'catch(a){return e.NextResponse.json({error:__piPromptHint(a instanceof Error?a.message:String(a)),..."prompt"===';
@@ -30,12 +28,17 @@ const HELPER =
   'if(/^No API key found for /.test(f)||/^No model selected\\b/.test(f)||/^No models available\\b/.test(f))' +
   `{return ${JSON.stringify(HINT)}+"（"+f+"）";}return m;}catch{return m;}}\n`;
 
-for (const file of files) {
-  let src = readFileSync(file, "utf8");
-  if (src.includes("__piPromptHint")) { console.log(`[patch] already applied: ${file}`); continue; }
+export function patch(src) {
+  if (src.includes("__piPromptHint")) return src;
   const n = src.split(OLD).length - 1;
-  if (n !== 1) { console.error(`[patch] FAIL: prompt-error anchor occurs ${n} times (expected 1) in ${file}`); process.exit(1); }
-  src = HELPER + src.replace(OLD, NEW);
-  writeFileSync(file, src);
-  console.log(`[patch] prompt errors: no-model/no-key messages become a zh-TW hint (${file})`);
+  if (n !== 1) throw new Error(`[patch] FAIL: prompt-error anchor occurs ${n} times (expected 1)`);
+  return HELPER + src.replace(OLD, NEW);
+}
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const files = process.argv.slice(2);
+  if (!files.length) throw new Error("usage: patch-prompt-errors.mjs <route.js>...");
+  for (const file of files) {
+    writeFileSync(file, patch(readFileSync(file, "utf8")));
+    console.log(`[patch] prompt hints verified (${file})`);
+  }
 }

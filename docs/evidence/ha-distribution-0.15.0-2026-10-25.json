@@ -1,0 +1,83 @@
+{
+  "checked_at": "2026-10-25T11:51:54.265652+00:00",
+  "checks": {
+    "catalog_integrity": true,
+    "store_rebrand_catalog_bytes_equal": true,
+    "rebrand_sync_catalog_id": true,
+    "rebrand_downloader_bytes_equal": true,
+    "store_manifest_version": true,
+    "release_version": true,
+    "release_commit": true,
+    "notification_source": true,
+    "requested_version": true,
+    "amd64_published_image_receipt": true,
+    "amd64_local_manifest": true,
+    "amd64_local_source_lock": true,
+    "amd64_local_image_digest": true,
+    "amd64_local_config_checksum": true,
+    "aarch64_published_image_receipt": true,
+    "aarch64_local_manifest": true,
+    "aarch64_local_source_lock": true,
+    "aarch64_local_image_digest": true,
+    "aarch64_local_config_checksum": true,
+    "source_build_manifest": true,
+    "source_build_original_dockerfile": true,
+    "existing_context_preserved": true
+  },
+  "version": "0.15.0",
+  "source_sha": "fa3cec47d590d8a4f80436d1549a10ab05cb0a4a",
+  "catalog_id": "sha256:90a829aa85d7fb5e70c5ae89c86e0fc7309a821003b9b68e21915b553d780508",
+  "store_commit": "5ca19ec1e7d9ac21906853c364e1a45937473de0",
+  "rebrand_commit": "71d640443ab2901f5e9386dc0daf5d6e2e6e7790",
+  "rebrand_origin_store_commit": "5ca19ec1e7d9ac21906853c364e1a45937473de0",
+  "release_url": "https://github.com/WOOWTECH/Woow_ha_pi_agent_add_on/releases/tag/v0.15.0",
+  "architectures": {
+    "amd64": {
+      "image_digest": "sha256:f22e6d6a9b0a044c407e6b36c1486e9ebde51d855711654830eae3a33a739183",
+      "source_revision": "fa3cec47d590d8a4f80436d1549a10ab05cb0a4a"
+    },
+    "aarch64": {
+      "image_digest": "sha256:3c0b0459ab19c12cec3e6a020ad2c7d4d7f56758dcd069eeb29f87837255be25",
+      "source_revision": "fa3cec47d590d8a4f80436d1549a10ab05cb0a4a"
+    }
+  },
+  "passed": true,
+  "scope": "Published distribution and generated local contexts; no Docker image build, live Supervisor refresh, install or restart.",
+  "criticalNewFileChecks": [
+    {
+      "file": "cli-runtime/omnigent/requirements.lock",
+      "sha256": "a5415a2ffdc0d9efbb7306f49d81a3a5e2ee71e1d3c32aae9d3f4aa6ad6d1220",
+      "equal": true
+    },
+    {
+      "file": "cli-runtime/omnigent/requirements.in",
+      "sha256": "baac30e430fecf47ee56238d5dee0189f3bfd93007863f0afe827e57be539c0b",
+      "equal": true
+    },
+    {
+      "file": "rootfs/usr/local/lib/pi-omnigent-ha/launch.mjs",
+      "sha256": "1a99bd26d3a67beaf2b3bb5a42d2f09da8ed3bc6e8651233258be1e8b4637d01",
+      "equal": true
+    },
+    {
+      "file": "rootfs/usr/local/lib/pi-omnigent-ha/lifecycle.mjs",
+      "sha256": "fa2eb5de9959a087d7d8c5a044dea0dcc342e3155e8c465befbc7b772be63a14",
+      "equal": true
+    },
+    {
+      "file": "rootfs/usr/local/lib/pi-omnigent-ha/bridge.mjs",
+      "sha256": "3724a925a0810d9368cc72815a088c5bb56add9cf92aea1f1ee5a596b40e6385",
+      "equal": true
+    },
+    {
+      "file": "rootfs/usr/local/lib/pi-omnigent-ha/server.mjs",
+      "sha256": "96877098c55192e66814f9052a45b0420ffdf5d89aabce6c6ff72faad25b6db9",
+      "equal": true
+    }
+  ],
+  "limitations": [
+    "Published Store and Local Download/source-build context sync verified; connected Home Assistant is Container without Supervisor, so actual HAOS Store cache and installed addon version are not verified.",
+    "HA retains Pi Web 0.12.0 with an Ingress /omnigent settings page and entrypoint. The MCP-adjacent native tab from the k3s Pi Web build is not ported to HA 0.12.0.",
+    "Store README version synchronization fix PR69 needs independent review; published payload version is already 0.15.0."
+  ]
+}

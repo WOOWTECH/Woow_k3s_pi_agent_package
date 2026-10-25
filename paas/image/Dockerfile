@@ -18,35 +18,42 @@
 #      base's Noto CJK fonts are CFF, which reportlab refuses)
 #   6. sending with no model or no provider key answers with a zh-TW hint pointing at
 #      pi-web's "模型" button instead of pi's TUI "/login" text (patch-prompt-errors.mjs)
+#   7. error hints and session fixes (patch-error-hints.mjs, AI-FIX-PI-3): zh-TW hints for provider 401/403,
+#      empty key, full disk and small-session /compact (HTTP 409 instead of 500); a saved models-config
+#      reaches sessions that are already open (#1461); a restart-interrupted tool call is closed with an
+#      "interrupted" result
+#   8. the passwd home of uid 1000 is the volume home ($HOME=/data/pi-agent/home), so ssh/ssh-keygen/git
+#      keep keys and known_hosts across restarts (they ignore $HOME and read /etc/passwd)
 # Chart: woow-paas-charts charts/pi-agent (loopback pi-web behind an nginx basic-auth
 # sidecar). Registry: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}.
-ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.2.4@sha256:32f83c2932003c7e5b24f40133011028d06bcfd919c420cb88e23f2822be6df6
+ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.2@sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6
 FROM ${BASE}
 
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web
 
-# 1. redact provider keys on the models-config API (exact-anchor patch; fails the build if upstream moved)
-COPY patch-models-config.mjs /opt/patches/patch-models-config.mjs
-RUN node /opt/patches/patch-models-config.mjs "${PI_WEB_DIR}/.next/server/app/api/models-config/route.js" \
-    && grep -q '__PI_REDACTED__' "${PI_WEB_DIR}/.next/server/app/api/models-config/route.js"
+# Omnigent writes a session-local model catalog with branded LiteLLM IDs.  Keep
+# the image launcher authoritative and enrich that catalog from the canonical
+# models.json on the data volume before Pi starts.
+COPY sync-litellm-model-metadata.py /opt/woow/pi-agent/context-window/sync-litellm-model-metadata.py
+COPY patch-pi-context-window-launcher.py sync-litellm-model-metadata.py /opt/patches/
+RUN python3 /opt/patches/patch-pi-context-window-launcher.py /usr/local/bin/pi \
+    && test -r /opt/woow/pi-agent/context-window/sync-litellm-model-metadata.py \
+    && grep -q 'sync-litellm-model-metadata.py' /usr/local/bin/pi \
+    && chmod 0755 /usr/local/bin/pi \
+    && chmod 0644 /opt/woow/pi-agent/context-window/sync-litellm-model-metadata.py
 
-# 6. no-model / no-key prompt errors become a zh-TW hint naming pi-web's "模型" button (#1357;
-#    exact-anchor patch on the compiled /api/agent/new and /api/agent/[id] routes)
-COPY patch-prompt-errors.mjs /opt/patches/patch-prompt-errors.mjs
-RUN node /opt/patches/patch-prompt-errors.mjs \
-      "${PI_WEB_DIR}/.next/server/app/api/agent/new/route.js" \
-      "${PI_WEB_DIR}/.next/server/app/api/agent/[id]/route.js" \
-    && grep -q '__piPromptHint' "${PI_WEB_DIR}/.next/server/app/api/agent/new/route.js" \
-    && grep -q '__piPromptHint' "${PI_WEB_DIR}/.next/server/app/api/agent/[id]/route.js"
-
-# ChatGPT OAuth now requires a stable installation UUID via login options.
-COPY patch-chatgpt-device-id.mjs /opt/patches/patch-chatgpt-device-id.mjs
-COPY tests/chatgpt-device-id.test.mjs /opt/patches/tests/chatgpt-device-id.test.mjs
-COPY tests/device-id-live.mjs /opt/patches/tests/device-id-live.mjs
-RUN node --test /opt/patches/tests/chatgpt-device-id.test.mjs \
-    && node /opt/patches/tests/device-id-live.mjs \
-    && node /opt/patches/patch-chatgpt-device-id.mjs "${PI_WEB_DIR}/.next/server/app/api/auth/login/[provider]/route.js" \
-    && node --check "${PI_WEB_DIR}/.next/server/app/api/auth/login/[provider]/route.js"
+# Apply all PaaS route patches after the root image builds the pinned native UI.
+# Resolve the session chunk by content, preflight every anchor and syntax-check
+# every output before writing. The same entry point is used by the PR gate.
+COPY patch-*.mjs /opt/patches/
+COPY tests/ /opt/patches/tests/
+RUN node --test /opt/patches/tests/*.test.mjs \
+    && python3 -B /opt/patches/tests/patch-pi-context-window-launcher.test.py \
+    && python3 -B /opt/patches/tests/sync-litellm-model-metadata.test.py \
+    && node /opt/patches/tests/compiled-overlay-live.mjs "${PI_WEB_DIR}" \
+    && node /opt/patches/patch-pi-web.mjs "${PI_WEB_DIR}" \
+    && node /opt/patches/patch-pi-web.mjs "${PI_WEB_DIR}" \
+    && node /opt/patches/tests/device-id-live.mjs "${PI_WEB_DIR}"
 
 # Official CLI distributions are baked into every new Pi instance. Exact npm
 # versions/integrities are locked; tenant HOME contains only login/user state.
@@ -59,7 +66,10 @@ RUN npm ci --omit=dev --prefix /opt/pi-clis \
     && chmod -R a+rX,go-w /opt/pi-clis
 
 # 2. non-root: uid/gid 1000, best-effort TZ writes, writable Next cache, volume mountpoint owned
-RUN groupadd -g 1000 pi && useradd -u 1000 -g 1000 -m -d /home/pi -s /bin/bash pi \
+# The passwd home is the VOLUME home, not /home/pi (container layer): OpenSSH (ssh, ssh-keygen, git over ssh)
+# resolves "~" from /etc/passwd and ignores $HOME, so with /home/pi a key generated the usual way and
+# known_hosts vanished on every restart (AI-PI-003-1). pi-web-start.sh creates the directory on the volume.
+RUN groupadd -g 1000 pi && useradd -u 1000 -g 1000 -M -d /data/pi-agent/home -s /bin/bash pi \
     && S=/usr/local/bin/pi-web-start.sh \
     && grep -q '^    ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime$' "$S" \
     && grep -q '^    echo "${TZ}" > /etc/timezone$' "$S" \
@@ -69,7 +79,10 @@ RUN groupadd -g 1000 pi && useradd -u 1000 -g 1000 -m -d /home/pi -s /bin/bash p
     && grep -q '^    ln -sf "/usr/share/zoneinfo/${TZ}" /etc/localtime 2>/dev/null || true$' "$S" \
     && grep -q '^    { echo "${TZ}" > /etc/timezone; } 2>/dev/null || true$' "$S" \
     && mkdir -p "${PI_WEB_DIR}/.next/cache" /data/pi-agent \
-    && chown -R 1000:1000 "${PI_WEB_DIR}/.next/cache" /data
+    && chown -R 1000:1000 "${PI_WEB_DIR}/.next/cache" /data \
+    && test "$(getent passwd pi | cut -d: -f6)" = /data/pi-agent/home \
+    && OUT="$(setpriv --reuid=1000 --regid=1000 --clear-groups env -u HOME ssh -vvv -o BatchMode=yes -o ConnectTimeout=1 -p 1 127.0.0.1 2>&1 || true)" \
+    && echo "$OUT" | grep -q "expanded UserKnownHostsFile '~/.ssh/known_hosts' -> '/data/pi-agent/home/.ssh/known_hosts'"
 
 # 4. omnigent CLI only. The launcher, supervisor, helper, `omnigent` guard and status
 # printer come from the chart (woow-paas-charts shared/omnigent-host, mounted from a
@@ -83,8 +96,8 @@ RUN groupadd -g 1000 pi && useradd -u 1000 -g 1000 -m -d /home/pi -s /bin/bash p
 # build (/opt is read-only at runtime, so nothing recompiles per start). uv itself is
 # not kept. tmux comes from the digest-pinned base (Debian 12: 3.3a) and is asserted
 # >= 3.3 (the native pi harness needs it), as are flock/setsid (util-linux) for the
-# kit's one-host lock and process group. This image ships no Claude Code: the Claude
-# Agent SDK's bundled 200 MB CLI is removed (pi-agent offers Omnigent's Pi harness).
+# kit's one-host lock and process group. The Claude Agent SDK's redundant bundled
+# CLI is removed; the official Claude Code and Codex distributions above remain.
 # The cluster's github.com downloads get reset mid-stream, hence the retries.
 ARG UV_VERSION=0.12.20
 ARG UV_SHA256=6590717592ace991ff83a63fef799e3ad9d33ecc8f96c5d6bdd732496e79337f
@@ -124,6 +137,19 @@ RUN set -eu; \
     printf '\n# WOOW PaaS: Omnigent (pi-web terminal hook)\n[ -r /etc/woow/omnigent-terminal.sh ] && . /etc/woow/omnigent-terminal.sh\n' >> /etc/bash.bashrc; \
     chmod 0644 /etc/woow/omnigent-terminal.sh; \
     bash -n /etc/woow/omnigent-terminal.sh
+# 4b. Claude Code's <system-reminder> blocks (CLAUDE.md, auto-memory index, task notifications) share the
+# person's role=user transcript record; omnigent 0.16.0 mirrors every block, so the web chat shows a ~19 KB
+# "<system-reminder> Codebase and user instructions ..." bubble and the session title is generated from it
+# ("記憶索引與專案狀態"). Exact-anchor, version-gated patch (fails the build if the omnigent pin moves or the
+# anchors drift); unit tests run on the patched package; pyc is rewritten because /opt is read-only at runtime.
+COPY omnigent-reminder-patch/ /opt/patches/omnigent-reminder-patch/
+COPY tests/omnigent-reminder-patch.test.py /opt/patches/tests/omnigent-reminder-patch.test.py
+RUN set -eu; \
+    SP=/opt/omnigent/venv/lib/python3.12/site-packages; \
+    /opt/omnigent/venv/bin/python /opt/patches/omnigent-reminder-patch/omnigent-reminder-patch.py --site-packages "$SP" --strict; \
+    /opt/omnigent/venv/bin/python /opt/patches/tests/omnigent-reminder-patch.test.py; \
+    grep -q 'omnigent-reminder-patch v2' "$SP/omnigent/harnesses/claude_native/bridge.py"; \
+    chmod -R a+rX,go-w /opt/omnigent
 # 5. office/PDF toolbox for pi's tools and skills (QA round 1, PA-02: pi had to improvise
 # without them). Debian 12 packages, top-level versions pinned (the base is digest-pinned;
 # a Debian point/security release that drops one of these versions fails the build here

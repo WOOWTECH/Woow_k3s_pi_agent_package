@@ -56,7 +56,20 @@ type: application
 #         不設 OPENAI_BASE_URL／ANTHROPIC_BASE_URL。非 http(s) 網址略過、不讓 render 失敗。
 #         Omnigent session 也繼承（OG_PASSTHROUGH）。egress：allowAllEgress=false（0.1.5 起預設）時，
 #         網址非空才開同 ns LiteLLM proxy pod（name=litellm, component=app）TCP 4000；true 本來就連得到。
-version: 0.1.7
+# 0.1.8 = AI-FIX-SEC-1 (#1457): the auth-proxy locks out a client IP after 10 wrong logins (429 + Retry-After 300 s,
+# per client IP via CF-Connecting-IP, never per account), adds HSTS / nosniff / X-Frame-Options SAMEORIGIN / CSP frame-ancestors /
+# Referrer-Policy / Permissions-Policy (an upstream header wins), hides X-Powered-By and the nginx version. Shared helper
+# templates/_authproxy-guard.tpl (shared/authproxy-guard); authProxy.guard.* tunes or disables it. /healthz-upstream no longer returns pi-web's /api/home body (AI-PI-004-3).
+# 0.1.9 = AI-FIX-PI-3 (stacked on 0.1.8 / #213). (1) AI-PI-005-1: the pi-web container's three exec probes are now
+# time-bounded (`timeout -s KILL <curl -m + 3> curl -sf -m <probe.curlMaxSeconds> ...`, new value probe.curlMaxSeconds=5).
+# A pi-web that accepts TCP but never answers (kill -STOP, event-loop deadlock) used to hang curl forever: kubelet got no
+# probe result and the liveness restart took ~11 min (659 s measured on QA 243, target <= 3 min). Now the command
+# always exits in <= 8 s, so the failure is counted and liveness restarts the container after failureThreshold (5) x
+# periodSeconds (30) = 150 s. (2) AI-PI-005-4: a request body above authProxy.clientMaxBodySize answers a JSON 413 naming
+# the limit instead of nginx's HTML page; the comment documents the 25 MiB file / 95 MiB batch / ~100 MB Cloudflare
+# layers (the matching zh-TW app messages come with the pi-agent image patch-error-hints.mjs). Pod-template change:
+# existing releases restart once on the next Redeploy/upgrade (data on the PVC is kept).
+version: 0.1.9
 appVersion: "0.2.1"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
