@@ -141,8 +141,8 @@ RUN set -euo pipefail; \
 # Build the reviewed native settings adapter into the image. Tenants never need
 # a compiler, npm install, or a second Pi Web tree to see the Omnigent tab.
 RUN set -euo pipefail; \
-    WEB=/opt/piweb/lib/node_modules/@agegr/pi-web; \
-    mkdir -p "$WEB" /opt/piweb/bin; \
+    WEB=/opt/piweb-source; \
+    mkdir -p "$WEB" /opt/piweb/bin /opt/piweb/lib/node_modules/@agegr; \
     git -C "$WEB" init -q; \
     git -C "$WEB" fetch --depth=1 https://github.com/agegr/pi-web.git "${PI_WEB_REF}"; \
     git -C "$WEB" checkout --detach -q FETCH_HEAD; \
@@ -161,7 +161,9 @@ RUN set -euo pipefail; \
     test -f .next/server/app/omnigent/page.js; \
     npm prune --omit=dev --ignore-scripts; \
     ln -s ../lib/node_modules/@agegr/pi-web/bin/pi-web.js /opt/piweb/bin/pi-web; \
-    rm -rf .git .next/cache /tmp/npm-cache
+    rm -rf .git .next/cache /tmp/npm-cache; \
+    cd /opt; \
+    mv "$WEB" /opt/piweb/lib/node_modules/@agegr/pi-web
 
 # node-gyp can fail in ways npm does not treat as fatal, and a missing
 # pty.node becomes a terminal that opens and immediately dies at runtime.
