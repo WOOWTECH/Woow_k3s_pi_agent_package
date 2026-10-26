@@ -16,6 +16,19 @@ owned resource IDs/labels. This is image smoke acceptance; it does not certify
 real-provider replies, a connected-host full VM reboot, fleet rollout, or HA Store
 distribution. Those release-specific checks still belong in the release record.
 
+The browser runner connects directly to the private address of the owned internal
+bridge; no external route or public host port is enabled. Before using that
+address, QA requires a running container, matching owner labels on both resources,
+exactly one attached network with the expected ID, and an IPv4 address inside both
+that network's CIDR and RFC1918 space. A small credential-free control server tests
+bridge HTTP independently of application startup and records whether Docker honored
+its requested host-port mapping. This distinguishes network behavior from an app exit.
+Before cleanup, QA records only selected container State/network fields and a bounded,
+redacted fresh-fixture log tail. It never records Config/Env, mount or process arguments,
+or user histories. The separate diagnostic artifact uploads even on failure; only a
+successful acceptance job can provide the acceptance receipt to the publication gate.
+
+
 ## Explicit publication
 
 After the required release-specific acceptance and any release HOLD are resolved,
