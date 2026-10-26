@@ -629,17 +629,17 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Omnigent deployment package (0.3.5)
+## Omnigent deployment package (0.3.6)
 
-The 0.3.5 image build pins `@woowtech/pi-omnigent-plugin` **0.3.14** and the native
+The 0.3.6 image build pins `@woowtech/pi-omnigent-plugin` **0.3.15** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
-there, never on a tenant's first boot. The chart selects `0.3.5`.
-The plugin archive is published in [v0.3.14](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.14);
+there, never on a tenant's first boot. The chart selects `0.3.6`.
+The plugin archive is published in [v0.3.15](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.15);
 the root image follows this repository's image validation and release workflow.
 
-For a verification conversation created by the plugin, version 0.3.14 reports
-`NATIVE_TERMINAL_REMOVED` promptly when the required Pi or Claude main terminal
+For a verification conversation created by the plugin, version 0.3.15 retains
+the v0.3.14 behavior: it reports `NATIVE_TERMINAL_REMOVED` promptly when the required Pi or Claude main terminal
 disappears, instead of waiting for the 120-second verification timeout. This diagnostic does not
 fix the underlying engine exit; the Pi3 exit cause remains unresolved. It does
 not establish that any provider or all engines can answer successfully.
@@ -668,7 +668,7 @@ sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
 ## Bundled Paseo integration
 
-The 0.3.5 image build preserves the Paseo integration introduced in 0.3.3: Paseo plugin **0.1.7** and the locked Paseo **0.11.2** runtime, alongside Omnigent plugin **0.3.14**. The combined UI adapter checksum is unchanged; Omnigent 0.3.14 explicitly supports Paseo plugin 0.1.7 and 0.1.8. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. The standalone setup page is `/paseo/setup`.
+The 0.3.6 image build preserves the Paseo integration introduced in 0.3.3: Paseo plugin **0.1.7** and the locked Paseo **0.11.2** runtime, alongside Omnigent plugin **0.3.15**. The updated combined UI adapter supports the bundled Paseo 0.1.7 and the separately verified Paseo 0.1.9 adapter; this image still bundles 0.1.7. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. The bundled Paseo setup page is `/paseo/setup`.
 
 Paseo packages are installed during image build, not copied onto each persistent volume. First boot registers the plugin once; Pi Web then creates or resumes its setup conversation and starts the local daemon. Official Web pairing uses encrypted relay at https://app.paseo.sh. No provider credentials, daemon identity, or pairing secret is included in the image.
 
