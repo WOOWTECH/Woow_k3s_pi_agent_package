@@ -1,0 +1,11 @@
+{
+  "paseoVersion": "0.1.10",
+  "omnigentVersion": "0.3.21",
+  "webClient": {
+    "version": "0.13.0-woow.1",
+    "basePath": "/paseo-web",
+    "sourceCommit": "68388f19198f1f696efe18906df42049e208d135",
+    "repairCommit": "043aa8286b90418eb1f4e9982ca1a349c84f2a3d",
+    "sha256": "7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce"
+  }
+}

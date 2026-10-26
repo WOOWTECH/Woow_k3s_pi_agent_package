@@ -1,0 +1,9 @@
+{
+  "revision": "0.11.2-r3-6d8dbe515479",
+  "lockSha256": "6d8dbe5154790bbbb0b1281e991871b6f354919022fb55a1235162e969779526",
+  "pidLockPatchId": "9cb53ae98869412f55f4f5987cf1244d46641a3d492a70219893891c671578c0",
+  "pidLockSha256": "a12564718dde7ac54f530ef3fedafdb762d8ee3055961b8e9919d58f34536264",
+  "transitionSha256": "37bdef75ee090452ce946bbf051d411352d51fda95d8121ff0c83a34680e3987",
+  "officialVersion": "0.11.2",
+  "protocol": "linux-flock-v1"
+}

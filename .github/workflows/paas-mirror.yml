@@ -40,6 +40,15 @@ jobs:
           sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.53.6/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
           yq --version
+      - name: Install nginx with njs for the real auth proxy test
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends nginx-core \
+            || sudo apt-get install -y -qq --no-install-recommends nginx
+          sudo apt-get install -y -qq --no-install-recommends libnginx-mod-http-js
+          nginx -v
+          test -f /usr/lib/nginx/modules/ngx_http_js_module.so
       - name: helm lint
         run: helm lint paas/chart
       - name: Chart tests

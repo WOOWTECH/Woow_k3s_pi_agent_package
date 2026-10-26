@@ -103,7 +103,7 @@ export const KINDS = [
   { name: "models-config", test: /\/api\/models-config\/route\.js$/, helpers: HINT_SRC + REFRESH_SRC, edits: [[MC_PUT_OLD, MC_PUT_NEW], [MC_ERR_OLD, MC_ERR_NEW]], mark: "__piRefreshSessions" },
   { name: "files-upload", test: /\/api\/files\/\[\.\.\.path\]\/route\.js$/, helpers: "", edits: [[UP1_OLD, UP1_NEW], [UP2_OLD, UP2_NEW], [UP3_OLD, UP3_NEW]], mark: "【上傳總量太大】" },
   // The chunk name is a compiler detail. The orchestrator discovers it by its
-  // unique session-open anchor and still requires exactly one match.
+  // session-open anchor, requiring exactly one occurrence in each emitted copy.
   { name: "session-chunk", test: /\/chunks\/(?:[^/]+\/)*[^/]+\.js$/, helpers: HEAL_SRC, edits: [[HEAL_OLD, HEAL_NEW]], mark: "__piHeal" },
 ];
 
