@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { seedWebClient } from './pi-paseo-web-seed.mjs';
 
 const name = '@woowtech/pi-paseo';
 const sourceOf = item => typeof item === 'string' ? item : item?.source;
@@ -66,6 +67,7 @@ async function main() {
   const agentDir = process.env.PI_CODING_AGENT_DIR || process.env.PI_AGENT_DATA_DIR || '/data/pi-agent';
   const bundle = process.env.PI_PASEO_PLUGIN_ROOT || '/opt/woow/pi-paseo-plugin';
   const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_PASEO_AUTO_SETUP !== 'false' });
+  if (result.active) await seedWebClient({ bundle });
   // Native Pi Web instrumentation restores the runtime and creates the single
   // onboarding conversation after its session machinery is ready.
   console.log(`[pi-paseo] ${result.reason}`);

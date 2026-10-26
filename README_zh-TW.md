@@ -635,11 +635,13 @@ Skills/MCP sharing for installed engines remains enabled. Engine installation is
 an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
 sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
-## Paseo 部署套件（0.3.3）
+## Paseo 部署套件（0.3.7）
 
-映像內建 Paseo 插件 **0.1.7**、Omnigent 插件 **0.3.12** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持已驗證的 0.10.0，設定順序為 MCP → Omnigent → Paseo，獨立設定頁為 `/paseo/setup`。
+映像內建 Paseo 插件 **0.1.9**、Omnigent 插件 **0.3.15** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
 
-Paseo 套件在建置時安裝，避免首次啟動再下載到持久磁碟。新環境只註冊一次，由 Pi Web 建立或恢復初始化對話並啟動服務；使用者在 https://app.paseo.sh 完成官方加密 relay 配對。映像不含登入憑證、容器身分或配對密鑰。
+建置時驗證並內建 **0.13.0-woow.1** 靜態 client archive（10,558,821 bytes；SHA256 `7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce`）。啟動時使用插件原本的安全安裝器，從映像中的 archive 離線展開到 `${PI_PASEO_STATE_DIR:-${PI_CODING_AGENT_DIR}/pi-paseo}/web-client/<sha256>`；有效快取直接重用，不再下載。持久磁碟約增加 28 MiB，映像保留 10.6 MB 壓縮檔；amd64/arm64 都明確安裝 `tar`、`gzip`、`flock`。
+
+新環境只註冊一次，由 Pi Web 建立或恢復初始化對話並啟動服務；升級映像管理的插件時，保留既有提供者登入、daemon 身分、設定及舊版 client 快取。映像不含登入憑證或配對密鑰。外部自行安裝的插件保留原設定，須另外升級才能使用這版 client。
 
 保留已停用、移除及外部安裝的插件；`PI_PASEO_AUTO_SETUP=false` 僅關閉新的預設註冊。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
 
