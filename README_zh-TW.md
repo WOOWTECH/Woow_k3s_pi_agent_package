@@ -606,9 +606,10 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Omnigent 部署套件（0.3.11）
+## Omnigent 部署套件（0.3.12）
 
-映像內建 `@woowtech/pi-omnigent-plugin` **0.3.20**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.11`。0.3.20 明確驗證 Paseo 0.1.10 的組合介面，並保留舊版的精確相容性檢查。
+映像內建 `@woowtech/pi-omnigent-plugin` **0.3.20**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.12`。0.3.20 明確驗證 Paseo 0.1.10 的組合介面，並保留舊版的精確相容性檢查。
+0.3.12 驗收會先從映像 index 驗證 amd64／arm64 各自的子 digest，再以不同參照拉取；0.3.11 的多架構驗收因 Docker 拒絕以同一本地 index 參照切換架構而未完成。
 
 全新資料目錄會註冊插件，建立 **Omnigent 連線設定** 對話，並在尚未操作的首頁自動開啟。填入 server URL、帳號與密碼即可設定；已有明確導覽、工作或輸入時不會搶走畫面。映像不包含登入憑證、host ID 或提供者授權，只連接容器中已安裝的引擎。外部插件與明確停用、移除狀態會保留，`PI_OMNIGENT_AUTO_SETUP=false` 可停用首次自動註冊。
 
@@ -616,7 +617,7 @@ Pi 啟動器保留 Omnigent 傳入的 `PI_CODING_AGENT_DIR`，讓各對話使用
 
 HA add-on 另有 Pi Web 0.12 與 Supervisor/local build 發行流程，請使用該 repository 的版本。Shared Runtime 會偵測已安裝的 Claude/Codex，而不在初始化對話時下載缺少的引擎；需要安裝時由管理員明確操作。
 
-## Paseo 部署套件（0.3.11）
+## Paseo 部署套件（0.3.12）
 
 映像內建 Paseo 插件 **0.1.10**、Omnigent 插件 **0.3.20** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
 
