@@ -4,8 +4,8 @@ description: pi-web + pi coding agent workstation for k3s, with an optional Clou
 type: application
 # Upgrading this chart changes pod-template labels and intentionally rolls the
 # selected release. Existing instances keep their pinned image until upgraded.
-version: 0.3.3
-appVersion: "0.3.3"
+version: 0.3.4
+appVersion: "0.3.4"
 home: https://github.com/WOOWTECH/Woow_k3s_pi_agent_package
 icon: https://raw.githubusercontent.com/WOOWTECH/Woow_k3s_pi_agent_package/main/docs/logo.svg
 sources:
