@@ -271,7 +271,7 @@ All three of the first row's targets were confirmed reachable before this policy
 
 ## Build pipeline
 
-Two workflows, two artefacts, no manual step between source and registry.
+Image construction and user-facing publication are separate. Main/tag builds publish only a unique candidate; explicit publication requires successful exact-digest image acceptance and a still-current main/tag. The independent chart workflow continues to lint and render manifests.
 
 ```mermaid
 flowchart TD
@@ -283,7 +283,12 @@ flowchart TD
     E --> F
     F --> G["assertion 1: at least 2 path-utils.js copies, then patch"]
     G --> H["assertion 2: pi resolves on PATH and pi --version exits 0"]
-    H --> I["push to ghcr.io/woowtech/woow-k3s-pi-agent<br/>tags: branch, semver, sha-short, latest on default branch"]
+    H --> I["push unique sha-full-run-attempt candidate only"]
+    I --> Q["isolated exact-digest startup, browser and restart QA"]
+    Q --> R["successful CI candidate and acceptance artifacts"]
+    R --> S["explicit publish-image dispatch"]
+    S --> T["verify current main/tag, exact run and digest"]
+    T --> U["copy tested manifest to main/latest and eligible stable aliases"]
 
     J["push touching charts/**"] --> K["chart.yml"]
     K --> L["helm lint"]
