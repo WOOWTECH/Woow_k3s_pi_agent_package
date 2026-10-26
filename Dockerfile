@@ -126,9 +126,9 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.16
-ARG PI_OMNIGENT_SHA256=82cd8adda69a98a1d4274eb3358d5bbb20195dd49b27f1d36a55ba8d6e67dabe
-ARG PI_OMNIGENT_UI_SHA256=daebb7d609b28b2776afaf11aa74cd6e9b24a02becbb20d51291f943ad63c41a
+ARG PI_OMNIGENT_VERSION=0.3.17
+ARG PI_OMNIGENT_SHA256=a15d6574bc03cdb3737b75626ccde2240afb3fc606ae8fbf1b7be6db06f8d14e
+ARG PI_OMNIGENT_UI_SHA256=b7dbee8041fe422610ac470c9751d8222a8b6e8ad31eaf89e104a7381bac96ad
 # Immutable plugin payload; lifecycle scripts never run during image build.
 RUN set -euo pipefail; \
     curl -fSL --retry 5 --retry-all-errors \
