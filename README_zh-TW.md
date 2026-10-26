@@ -606,10 +606,10 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Omnigent 部署套件（0.3.12）
+## Omnigent 部署套件（0.3.13）
 
-映像內建 `@woowtech/pi-omnigent-plugin` **0.3.20**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.12`。0.3.20 明確驗證 Paseo 0.1.10 的組合介面，並保留舊版的精確相容性檢查。
-0.3.12 驗收會先從映像 index 驗證 amd64／arm64 各自的子 digest，再以不同參照拉取；0.3.11 的多架構驗收因 Docker 拒絕以同一本地 index 參照切換架構而未完成。
+映像內建 `@woowtech/pi-omnigent-plugin` **0.3.21**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.13`。0.3.21 會短暫重查原生套件狀態，避免一次讀取失敗使已連線的設定頁誤顯示停用；明確停用仍立即生效。組合介面檔案維持 0.3.20 的版本。
+映像驗收會先從映像 index 驗證 amd64／arm64 各自的子 digest，再以不同參照拉取；0.3.11 的多架構驗收因 Docker 拒絕以同一本地 index 參照切換架構而未完成。
 
 全新資料目錄會註冊插件，建立 **Omnigent 連線設定** 對話，並在尚未操作的首頁自動開啟。填入 server URL、帳號與密碼即可設定；已有明確導覽、工作或輸入時不會搶走畫面。映像不包含登入憑證、host ID 或提供者授權，只連接容器中已安裝的引擎。外部插件與明確停用、移除狀態會保留，`PI_OMNIGENT_AUTO_SETUP=false` 可停用首次自動註冊。
 
@@ -617,13 +617,13 @@ Pi 啟動器保留 Omnigent 傳入的 `PI_CODING_AGENT_DIR`，讓各對話使用
 
 HA add-on 另有 Pi Web 0.12 與 Supervisor/local build 發行流程，請使用該 repository 的版本。Shared Runtime 會偵測已安裝的 Claude/Codex，而不在初始化對話時下載缺少的引擎；需要安裝時由管理員明確操作。
 
-## Paseo 部署套件（0.3.12）
+## Paseo 部署套件（0.3.13）
 
-映像內建 Paseo 插件 **0.1.10**、Omnigent 插件 **0.3.20** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
+映像內建 Paseo 插件 **0.1.10**、Omnigent 插件 **0.3.21** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
 
 建置時驗證並內建 **0.13.0-woow.1** 靜態 client archive（10,558,821 bytes；SHA256 `7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce`）。啟動時使用插件原本的安全安裝器，從映像中的 archive 離線展開到 `${PI_PASEO_STATE_DIR:-${PI_CODING_AGENT_DIR}/pi-paseo}/web-client/<sha256>`；有效快取直接重用，不再下載。持久磁碟約增加 28 MiB，映像保留 10.6 MB 壓縮檔；amd64/arm64 都明確安裝 `tar`、`gzip`、`flock`。
 
-Omnigent 0.3.20 保留 0.3.19 的程序復原修補：在保留明確授權、啟用狀態及相同 server／host／工作區的成功連線回條時，於重啟後恢復既有 host，包含可信紀錄所指的 PID 被其他使用者程序重用的情況；不改提供者設定、不自動送出模型訊息。首次安裝、停用或取消連線後仍須明確登入，無法確認本機程序身分時拒絕恢復。上游已知限制：取消連線後明確切換至另一 server，若仍有舊程序回條，可能回報 `HOST_PROCESS_MISMATCH`；不影響同一身分的重啟恢復，詳見插件 release 說明。
+Omnigent 0.3.21 保留 0.3.19 的程序復原修補：在保留明確授權、啟用狀態及相同 server／host／工作區的成功連線回條時，於重啟後恢復既有 host，包含可信紀錄所指的 PID 被其他使用者程序重用的情況；不改提供者設定、不自動送出模型訊息。首次安裝、停用或取消連線後仍須明確登入，無法確認本機程序身分時拒絕恢復。上游已知限制：取消連線後明確切換至另一 server，若仍有舊程序回條，可能回報 `HOST_PROCESS_MISMATCH`；不影響同一身分的重啟恢復，詳見插件 release 說明。
 
 新環境只註冊一次，由 Pi Web 建立或恢復初始化對話並啟動服務；升級映像管理的插件時，保留既有提供者登入、daemon 身分、設定及舊版 client 快取。映像不含登入憑證或配對密鑰。外部自行安裝的插件保留原設定，須另外升級才能使用這版 client。
 
