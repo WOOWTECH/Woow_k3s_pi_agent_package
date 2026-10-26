@@ -71,8 +71,10 @@ type: application
 # existing releases restart once on the next Redeploy/upgrade (data on the PVC is kept).
 # 0.1.10 = image-bundled Omnigent setup, native /omnigent page and an explicit
 # first-boot opt-out. The host kit remains the sole host supervisor when enabled.
-version: 0.1.10
-appVersion: "20261025.1200"
+# 0.1.11 = default to the human-approved 20261026.2019 PaaS image (root 0.3.13,
+# Paseo 0.1.10, Omnigent 0.3.21). Platform pins its immutable image digest.
+version: 0.1.11
+appVersion: "20261026.2019"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
   - name: WOOW PaaS Team
