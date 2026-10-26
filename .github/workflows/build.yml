@@ -6,6 +6,8 @@ on:
     paths:
       - "Dockerfile"
       - "scripts/prepare-paseo-web.mjs"
+      - "scripts/image-*.py"
+      - "scripts/accept-image.sh"
       - "rootfs/**"
       - "patches/**"
       - "tests/**"
@@ -21,7 +23,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: build-${{ github.ref }}
@@ -34,6 +35,13 @@ env:
 jobs:
   image:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      platforms: ${{ steps.platforms.outputs.value }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +65,8 @@ jobs:
           bash tests/test-shared-runtime-seed.sh
           node --test tests/omnigent-seed.test.mjs tests/paseo-seed.test.mjs
           bash tests/test-pi-session-env.sh
+          python3 -m pip install 'PyYAML==6.0.2'
+          python3 -m unittest discover -s tests -p 'test_publication_*.py'
 
       - name: Set up QEMU
         if: contains(steps.platforms.outputs.value, 'arm64')
@@ -72,29 +82,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute image tags and labels
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Name immutable candidate
+        id: candidate
+        run: python3 scripts/image-candidate.py prepare
 
-      - name: Build and push
+      - name: Build and push candidate only
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           platforms: ${{ steps.platforms.outputs.value }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.candidate.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
           build-args: |
             BUILD_VERSION=${{ github.ref_name }}
             BUILD_REF=${{ github.sha }}
@@ -107,3 +111,46 @@ jobs:
             type=gha,scope=pi-agent-amd64
           cache-to: type=gha,scope=${{ steps.platforms.outputs.scope }},mode=max
           provenance: false
+
+      - name: Record exact candidate
+        env:
+          CANDIDATE_DIGEST: ${{ steps.build.outputs.digest }}
+          CANDIDATE_PLATFORMS: ${{ steps.platforms.outputs.value }}
+        run: python3 scripts/image-candidate.py record
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-candidate-${{ github.run_attempt }}
+          path: image-candidate.json
+          if-no-files-found: error
+          retention-days: 30
+
+  acceptance:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-candidate-${{ github.run_attempt }}
+      - uses: docker/setup-qemu-action@v3
+        if: contains(needs.image.outputs.platforms, 'arm64')
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser test dependency
+        run: |
+          python3 -m pip install 'playwright==1.56.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Accept exact image in isolated containers
+        run: bash scripts/accept-image.sh image-candidate.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-acceptance-${{ github.run_attempt }}
+          path: image-acceptance.json
+          if-no-files-found: error
+          retention-days: 30
