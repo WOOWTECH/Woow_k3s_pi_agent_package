@@ -629,12 +629,14 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Omnigent deployment package (0.3.2)
+## Omnigent deployment package (0.3.4)
 
-The image includes `@woowtech/pi-omnigent-plugin` **0.3.12** and the native
+The 0.3.4 image build pins `@woowtech/pi-omnigent-plugin` **0.3.13** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
-there, never on a tenant's first boot. The default chart image is `0.3.2`.
+there, never on a tenant's first boot. The chart selects `0.3.4`.
+The plugin archive is published in [v0.3.13](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.13);
+the root image follows this repository's image validation and release workflow.
 
 A fresh data volume registers the plugin and creates **Omnigent 連線設定**.
 Open that conversation or `/omnigent` and enter the server URL, username and
@@ -658,9 +660,9 @@ Skills/MCP sharing for installed engines remains enabled. Engine installation is
 an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
 sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
-## Paseo deployment package (0.3.3)
+## Bundled Paseo integration
 
-The image bundles Paseo plugin **0.1.7**, Omnigent plugin **0.3.12**, and the locked Paseo **0.11.2** runtime. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. The standalone setup page is `/paseo/setup`.
+The 0.3.4 image build preserves the Paseo integration introduced in 0.3.3: Paseo plugin **0.1.7** and the locked Paseo **0.11.2** runtime, alongside Omnigent plugin **0.3.13**. The combined UI adapter checksum is unchanged; Omnigent 0.3.13 explicitly supports Paseo plugin 0.1.7 and 0.1.8. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. The standalone setup page is `/paseo/setup`.
 
 Paseo packages are installed during image build, not copied onto each persistent volume. First boot registers the plugin once; Pi Web then creates or resumes its setup conversation and starts the local daemon. Official Web pairing uses encrypted relay at https://app.paseo.sh. No provider credentials, daemon identity, or pairing secret is included in the image.
 
