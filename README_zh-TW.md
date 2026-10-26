@@ -606,44 +606,27 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Omnigent deployment package (0.3.2)
+## Omnigent 部署套件（0.3.11）
 
-The image includes `@woowtech/pi-omnigent-plugin` **0.3.12** and the native
-Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
-release archive and UI patch are SHA-256 verified during CI; Pi Web is built
-there, never on a tenant's first boot. The default chart image is `0.3.2`.
+映像內建 `@woowtech/pi-omnigent-plugin` **0.3.20**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.11`。0.3.20 明確驗證 Paseo 0.1.10 的組合介面，並保留舊版的精確相容性檢查。
 
-A fresh data volume registers the plugin and creates **Omnigent 連線設定**.
-Open that conversation or `/omnigent` and enter the server URL, username and
-password. No server URL, login, provider credential or host ID is included in
-the image. Only engines already installed in the container are connected.
-Existing external packages, native disable and deliberate removal are kept.
-Set `PI_OMNIGENT_AUTO_SETUP=false` to opt out before first boot. Existing engine
-logins remain per-user; model listings alone do not count as verified replies.
+全新資料目錄會註冊插件，建立 **Omnigent 連線設定** 對話，並在尚未操作的首頁自動開啟。填入 server URL、帳號與密碼即可設定；已有明確導覽、工作或輸入時不會搶走畫面。映像不包含登入憑證、host ID 或提供者授權，只連接容器中已安裝的引擎。外部插件與明確停用、移除狀態會保留，`PI_OMNIGENT_AUTO_SETUP=false` 可停用首次自動註冊。
 
-The Pi launcher preserves `PI_CODING_AGENT_DIR` supplied by Omnigent so its
-session-specific gateway catalog reaches the engine. The PaaS derivative
-continues to supply its pinned Omnigent Python runtime; the standalone k3s
-package downloads missing Omnigent dependencies through the plugin.
+Pi 啟動器保留 Omnigent 傳入的 `PI_CODING_AGENT_DIR`，讓各對話使用自己的模型目錄。PaaS 衍生映像保留鎖定的 Omnigent Python runtime；獨立 k3s 套件則由插件安裝缺少的依賴。提供者仍需要使用者自己的有效登入；能列出模型不代表已完成對話驗證。
 
-HA add-on has its own release and Pi Web 0.12 integration. Use that repository's
-version and manifest, not the k3s image, for HA Supervisor/local builds.
+HA add-on 另有 Pi Web 0.12 與 Supervisor/local build 發行流程，請使用該 repository 的版本。Shared Runtime 會偵測已安裝的 Claude/Codex，而不在初始化對話時下載缺少的引擎；需要安裝時由管理員明確操作。
 
-0.3.2 also makes the bundled Shared Runtime discover existing Claude/Codex
-executables without downloading missing ones when the setup conversation opens.
-Skills/MCP sharing for installed engines remains enabled. Engine installation is
-an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
-sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
+## Paseo 部署套件（0.3.11）
 
-## Paseo 部署套件（0.3.7）
-
-映像內建 Paseo 插件 **0.1.9**、Omnigent 插件 **0.3.16** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
+映像內建 Paseo 插件 **0.1.10**、Omnigent 插件 **0.3.20** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
 
 建置時驗證並內建 **0.13.0-woow.1** 靜態 client archive（10,558,821 bytes；SHA256 `7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce`）。啟動時使用插件原本的安全安裝器，從映像中的 archive 離線展開到 `${PI_PASEO_STATE_DIR:-${PI_CODING_AGENT_DIR}/pi-paseo}/web-client/<sha256>`；有效快取直接重用，不再下載。持久磁碟約增加 28 MiB，映像保留 10.6 MB 壓縮檔；amd64/arm64 都明確安裝 `tar`、`gzip`、`flock`。
 
-Omnigent 0.3.16 在保留明確授權、啟用狀態及相同 server／host／工作區的成功連線回條時，於重啟後恢復既有 host；不改提供者設定、不自動送出模型訊息。首次安裝、停用或取消連線後仍須明確登入，無法確認本機程序身分時拒絕恢復。上游已知限制：取消連線後明確切換至另一 server，若仍有舊程序回條，可能回報 `HOST_PROCESS_MISMATCH`；不影響同一身分的重啟恢復，詳見插件 release 說明。
+Omnigent 0.3.20 保留 0.3.19 的程序復原修補：在保留明確授權、啟用狀態及相同 server／host／工作區的成功連線回條時，於重啟後恢復既有 host，包含可信紀錄所指的 PID 被其他使用者程序重用的情況；不改提供者設定、不自動送出模型訊息。首次安裝、停用或取消連線後仍須明確登入，無法確認本機程序身分時拒絕恢復。上游已知限制：取消連線後明確切換至另一 server，若仍有舊程序回條，可能回報 `HOST_PROCESS_MISMATCH`；不影響同一身分的重啟恢復，詳見插件 release 說明。
 
 新環境只註冊一次，由 Pi Web 建立或恢復初始化對話並啟動服務；升級映像管理的插件時，保留既有提供者登入、daemon 身分、設定及舊版 client 快取。映像不含登入憑證或配對密鑰。外部自行安裝的插件保留原設定，須另外升級才能使用這版 client。
+
+Paseo 0.1.10 會保存已驗證的 daemon 程序出生資訊，並讓插件與內建 CLI 共用 Linux 程序鎖。當已驗證的舊程序消失、PID 被其他程序重用時，可恢復原服務，不會終止無關程序。執行套件修訂版為 `0.11.2-r3-6d8dbe515479`，Paseo 本體版本維持 0.11.2。新版套件尚未安裝完成時，仍可辨識並正常停止既有 r2 daemon；只更新插件而仍運行 r2 時，需在設定頁正常停止後重新啟動。缺乏可信出生紀錄的舊異常紀錄會保留，交由管理員確認。
 
 保留已停用、移除及外部安裝的插件；`PI_PASEO_AUTO_SETUP=false` 僅關閉新的預設註冊。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
 
