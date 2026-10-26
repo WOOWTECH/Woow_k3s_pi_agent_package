@@ -17,7 +17,9 @@ real-provider replies, a connected-host full VM reboot, fleet rollout, or HA Sto
 distribution. Those release-specific checks still belong in the release record.
 
 The browser runner connects directly to the private address of the owned internal
-bridge; no external route or public host port is enabled. Before using that
+bridge; no external route or public host port is enabled. The disposable browser
+fixture explicitly sets `PI_WEB_HOSTNAME=0.0.0.0` so its HTTP listener is reachable
+on that bridge; the application default stays loopback. Before using that
 address, QA requires a running container, matching owner labels on both resources,
 exactly one attached network with the expected ID, and an IPv4 address inside both
 that network's CIDR and RFC1918 space. A small credential-free control server tests

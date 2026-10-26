@@ -77,13 +77,14 @@ c=json.loads(subprocess.check_output(['docker','container','inspect',sys.argv[2]
 assert c['State']['Running']
 from pathlib import Path
 Path('image-network-control.json').write_text(json.dumps({'running':True,'directBridgeHttp':True,
-    'requestedHostPort':True,'publishedPorts':c['NetworkSettings']['Ports']},indent=2)+'\n')
+    'requestedHostPort':True,'publishedPorts':c['NetworkSettings']['Ports'],
+    'dockerServerVersion':subprocess.check_output(['docker','version','--format','{{.Server.Version}}'],timeout=10).decode().strip()},indent=2)+'\n')
 PYCONTROL
 volume=$(docker volume create --label "pi.root.qa=$owner" "$owner")
 timeout 300 docker pull --platform linux/amd64 "$image"
 id=$(docker run -d --platform linux/amd64 --label "pi.root.qa=$owner" --network "$network" \
   --memory 3g --cpus 2 --mount "type=volume,source=$volume,target=/data/pi-agent" \
-  -e VIDEO_PIPELINE_ENABLED=false "$image")
+  -e VIDEO_PIPELINE_ENABLED=false -e PI_WEB_HOSTNAME=0.0.0.0 "$image")
 containers+=("$id")
 plugin_version=$(docker exec "$id" node -p 'JSON.parse(require("fs").readFileSync("/opt/woow/pi-omnigent-plugin/package.json")).version')
 expected_version=$(sed -n 's/^ARG PI_OMNIGENT_VERSION=//p' Dockerfile)
