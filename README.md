@@ -629,13 +629,13 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Omnigent deployment package (0.3.10)
+## Omnigent deployment package (0.3.11)
 
-The 0.3.10 image build pins `@woowtech/pi-omnigent-plugin` **0.3.19** and the native
+The 0.3.11 image build pins `@woowtech/pi-omnigent-plugin` **0.3.20** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
-there, never on a tenant's first boot. The chart selects `0.3.10`.
-The plugin archive is published in [v0.3.19](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.19) and independently verified by anonymous download;
+there, never on a tenant's first boot. The chart selects `0.3.11`.
+The plugin archive is published in [v0.3.20](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.20) and independently verified by anonymous download;
 the root image follows this repository's image validation and release workflow.
 
 For a verification conversation created by the plugin, version 0.3.16 retains
@@ -643,6 +643,8 @@ the v0.3.14 behavior: it reports `NATIVE_TERMINAL_REMOVED` promptly when the req
 disappears, instead of waiting for the 120-second verification timeout. This diagnostic does not
 fix the underlying engine exit; the separate launcher guard below preserves the Omnigent session catalog. It does
 not establish that any provider or all engines can answer successfully.
+
+Version 0.3.20 explicitly verifies Paseo 0.1.10 combined UI compatibility while retaining exact adapter checks for older supported versions.
 
 Version 0.3.19 also recovers a proven stale PID after a container restart when another UID now occupies that PID. Complete kernel boot/start evidence is required, and recovery never signals the unrelated process.
 
@@ -674,11 +676,13 @@ sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
 ## Bundled Paseo integration
 
-The 0.3.10 image bundles Paseo plugin **0.1.9**, Omnigent plugin **0.3.19**, and the unchanged locked Paseo **0.11.2** runtime. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. Open `/paseo/setup` to pair with the bundled `/paseo-web/` client on the same authenticated Pi Web origin. The client fixes duplicated replies and partial replies after reconnect/refresh; it uses the existing encrypted relay. This does not change the separately deployed official `app.paseo.sh` client.
+The 0.3.11 image bundles Paseo plugin **0.1.10**, Omnigent plugin **0.3.20**, and the locked Paseo **0.11.2** runtime with revision r3. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. Open `/paseo/setup` to pair with the bundled `/paseo-web/` client on the same authenticated Pi Web origin. The client fixes duplicated replies and partial replies after reconnect/refresh; it uses the existing encrypted relay. This does not change the separately deployed official `app.paseo.sh` client.
 
 The image includes the fixed **0.13.0-woow.1** web archive (10,558,821 bytes; SHA256 `7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce`). Image build validates its checksum, source/repair commits and safe extraction through the exact bundled plugin installer. Before Pi Web starts, image-managed installations extract this local archive into `${PI_PASEO_STATE_DIR:-${PI_CODING_AGENT_DIR}/pi-paseo}/web-client/<sha256>` without network access. A valid existing cache is reused. Static files occupy approximately 28 MiB of the persistent volume; the image keeps the 10.6 MB compressed archive. `tar`, `gzip` and `flock` are explicitly installed for both supported architectures.
 
 Fresh boot registers the plugin once; Pi Web creates or resumes its setup conversation and starts the local daemon. Upgrading an image-managed installation adds the fixed client while preserving provider credentials, daemon identity, settings and older client caches. No provider credential, daemon identity or pairing secret is included in the image. Independently installed plugins remain under the operator's control; upgrade them separately to use this client.
+
+Paseo 0.1.10 records the verified daemon process birth and uses a shared Linux lock for the managed runtime and plugin recovery. It can recover a previously verified stale PID without signaling the unrelated process that now occupies that PID. The runtime revision is `0.11.2-r3-6d8dbe515479`; the underlying Paseo version stays 0.11.2. A healthy older r2 daemon remains visible and can be stopped normally even before r3 is installed. When updating only the plugin, a running r2 daemon requires an explicit normal Stop and Start. An old stale record without trustworthy birth evidence remains blocked for operator inspection.
 
 Native package disable/removal and existing external plugin installations are preserved. `PI_PASEO_AUTO_SETUP=false` opts out of new image registration; it does not remove an existing installation. Manual service Stop remains effective across restart. Use the Paseo settings page to resume. Existing services only change when explicitly upgraded.
 

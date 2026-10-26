@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { runtimeReady, runtimeDirectory } from '/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs';
+import { pathToFileURL } from 'node:url';
+import { runtimeReady, runtimeDirectory, RUNTIME_REVISION } from '/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs';
+import { withPidTransition, PID_TRANSITION_PROTOCOL } from '/opt/woow/pi-paseo-plugin/src/pid-transition.mjs';
 import { webClientStatus } from '/opt/woow/pi-paseo-plugin/src/web-client.mjs';
 const loc = { runtimeDir: '/opt/woow/pi-paseo-runtime' };
 assert.equal(runtimeReady(loc), true, 'locked Paseo runtime must be ready in the image');
@@ -12,9 +14,32 @@ const runtime = runtimeDirectory(loc);
 const cli = spawnSync(process.execPath, [path.join(runtime, 'node_modules/@getpaseo/cli/bin/paseo'), '--version'], { encoding: 'utf8', timeout: 30000 });
 assert.equal(cli.status, 0); assert.equal(cli.stdout.trim(), '0.11.2');
 const bundle = '/opt/woow/pi-paseo-plugin';
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.9');
+assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.10');
+assert.equal(RUNTIME_REVISION, '0.11.2-r3-6d8dbe515479');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
+  // Exercise the baked helper and native writers on each image architecture.
+  // This is a private PID-file fixture; it starts no daemon or provider.
+  const lockHome = path.join(temp, 'pid-writer-fixture');
+  fs.mkdirSync(lockHome, { mode: 0o700 });
+  const guard = path.join(lockHome, '.pi-paseo-pid-transition.guard');
+  await withPidTransition(lockHome, async () => {
+    const competing = spawnSync('flock', ['--exclusive', '--nonblock', '--conflict-exit-code', '73', guard, '/bin/true'], { timeout: 5000 });
+    assert.equal(competing.status, 73, 'the baked flock helper must exclude a competing writer');
+  });
+  const guardInode = fs.statSync(guard).ino;
+  for (const copy of ['dist/server/server', 'dist/src/server']) {
+    const writer = await import(pathToFileURL(path.join(runtime, 'node_modules/@getpaseo/server', copy, 'pid-lock.js')).href);
+    await writer.acquirePidLock(lockHome, '127.0.0.1:1');
+    const record = await writer.getPidLockInfo(lockHome);
+    assert.equal(record.pid, process.pid);
+    assert.equal(record.piPaseoProtocol, PID_TRANSITION_PROTOCOL);
+    await writer.updatePidLock(lockHome, { listen: '127.0.0.1:2' });
+    await writer.refreshPidLock(lockHome);
+    await writer.releasePidLock(lockHome, { ownerPid: process.pid, startedAt: record.startedAt });
+    assert.equal(fs.existsSync(path.join(lockHome, 'paseo.pid')), false);
+    assert.equal(fs.statSync(guard).ino, guardInode, 'all writers keep the same guard inode');
+  }
   const env = { ...process.env, HOME: temp, PI_AGENT_DATA_DIR: temp, PI_CODING_AGENT_DIR: temp, PI_PASEO_PLUGIN_ROOT: bundle };
   for (let boot = 0; boot < 2; boot++) {
     const result = spawnSync(process.execPath, ['/usr/local/bin/pi-paseo-seed.mjs'], { env, encoding: 'utf8', timeout: 60000 });
