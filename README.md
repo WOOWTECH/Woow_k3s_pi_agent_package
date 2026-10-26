@@ -631,11 +631,11 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
 
 ## Omnigent deployment package (0.3.9)
 
-The 0.3.9 image build pins `@woowtech/pi-omnigent-plugin` **0.3.18** and the native
+The 0.3.9 image build pins `@woowtech/pi-omnigent-plugin` **0.3.19** and the native
 Omnigent settings tab beside MCP, also available at `/omnigent`. Both the
 release archive and UI patch are SHA-256 verified during CI; Pi Web is built
 there, never on a tenant's first boot. The chart selects `0.3.9`.
-The plugin archive is published in [v0.3.18](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.18) and independently verified by anonymous download;
+The plugin archive is published in [v0.3.19](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.19) and independently verified by anonymous download;
 the root image follows this repository's image validation and release workflow.
 
 For a verification conversation created by the plugin, version 0.3.16 retains
@@ -643,6 +643,8 @@ the v0.3.14 behavior: it reports `NATIVE_TERMINAL_REMOVED` promptly when the req
 disappears, instead of waiting for the 120-second verification timeout. This diagnostic does not
 fix the underlying engine exit; the separate launcher guard below preserves the Omnigent session catalog. It does
 not establish that any provider or all engines can answer successfully.
+
+Version 0.3.19 also recovers a proven stale PID after a container restart when another UID now occupies that PID. Complete kernel boot/start evidence is required, and recovery never signals the unrelated process.
 
 Version 0.3.18 retains the 0.3.16 automatic restoration of a previously authorized host after restart only when the enabled plugin, successful connection receipt and server/host/workspace identity still match. It preserves provider settings and does not send model messages during recovery. Fresh installations and revoked/disabled/disconnected installations still require explicit login; uncertain live-process identity fails closed. The 0.3.18 runtime additionally handles a stale process receipt whose PID was reused after a full system restart, while retaining process ownership and server/workspace identity checks. This release note does not certify a particular HA VM restart; image and deployment acceptance remain separate. Known upstream limitation: explicitly switching a disconnected plugin-managed host to another server can report `HOST_PROCESS_MISMATCH` when an old process receipt remains. Same-identity restart is unaffected; see the plugin release notes.
 
@@ -672,7 +674,7 @@ sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
 ## Bundled Paseo integration
 
-The 0.3.9 image bundles Paseo plugin **0.1.9**, Omnigent plugin **0.3.18**, and the unchanged locked Paseo **0.11.2** runtime. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. Open `/paseo/setup` to pair with the bundled `/paseo-web/` client on the same authenticated Pi Web origin. The client fixes duplicated replies and partial replies after reconnect/refresh; it uses the existing encrypted relay. This does not change the separately deployed official `app.paseo.sh` client.
+The 0.3.9 image bundles Paseo plugin **0.1.9**, Omnigent plugin **0.3.19**, and the unchanged locked Paseo **0.11.2** runtime. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. Open `/paseo/setup` to pair with the bundled `/paseo-web/` client on the same authenticated Pi Web origin. The client fixes duplicated replies and partial replies after reconnect/refresh; it uses the existing encrypted relay. This does not change the separately deployed official `app.paseo.sh` client.
 
 The image includes the fixed **0.13.0-woow.1** web archive (10,558,821 bytes; SHA256 `7e7495f70f721e96e121f76bd91573150cf91aa112143d9f4d51a3fcf9dc8bce`). Image build validates its checksum, source/repair commits and safe extraction through the exact bundled plugin installer. Before Pi Web starts, image-managed installations extract this local archive into `${PI_PASEO_STATE_DIR:-${PI_CODING_AGENT_DIR}/pi-paseo}/web-client/<sha256>` without network access. A valid existing cache is reused. Static files occupy approximately 28 MiB of the persistent volume; the image keeps the 10.6 MB compressed archive. `tar`, `gzip` and `flock` are explicitly installed for both supported architectures.
 
