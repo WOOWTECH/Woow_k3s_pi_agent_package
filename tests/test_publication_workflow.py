@@ -25,6 +25,15 @@ class PublicationWorkflow(unittest.TestCase):
         upload = [s for s in qa['steps'] if s.get('uses','').startswith('actions/upload-artifact@')][0]
         self.assertNotIn('if', upload, 'a failed QA must not upload a successful acceptance receipt')
 
+    def test_failure_diagnostics_are_separate_from_the_success_receipt(self):
+        workflow = yaml.load((ROOT / '.github/workflows/build.yml').read_text(), Loader=yaml.BaseLoader)
+        uploads = [s for s in workflow['jobs']['acceptance']['steps']
+                   if s.get('uses','').startswith('actions/upload-artifact@')]
+        diagnostic = next(s for s in uploads if s.get('if') == 'always()')
+        self.assertIn('image-qa-diagnostics.json', diagnostic['with']['path'])
+        self.assertIn('image-network-control.json', diagnostic['with']['path'])
+        self.assertNotIn('image-acceptance.json', diagnostic['with']['path'])
+
     def test_tag_publication_is_explicit_serialized_and_only_from_main(self):
         workflow = yaml.load((ROOT / '.github/workflows/publish-image.yml').read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(list(workflow['on']), ['workflow_dispatch'])

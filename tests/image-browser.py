@@ -1,5 +1,6 @@
 """Fresh browser contexts; no credentials, clicks, model calls, or history export."""
 import hashlib
+import ipaddress
 import json
 from pathlib import Path
 import re
@@ -10,11 +11,19 @@ from urllib.parse import urlparse, parse_qs
 from playwright.sync_api import sync_playwright
 
 base, version, phase, output = sys.argv[1:]
-assert re.fullmatch(r'http://127\.0\.0\.1:\d+', base)
+parsed_base = urlparse(base)
+assert parsed_base.scheme == 'http' and parsed_base.port and not parsed_base.username and not parsed_base.password
+assert not parsed_base.path and not parsed_base.query and not parsed_base.fragment
+address = ipaddress.IPv4Address(parsed_base.hostname)
+assert address == ipaddress.ip_address('127.0.0.1') or any(
+    address in ipaddress.ip_network(n) for n in ('10.0.0.0/8','172.16.0.0/12','192.168.0.0/16'))
 
 
 def get(path):
-    with urllib.request.urlopen(base + path, timeout=5) as response:
+    # Cold status includes parallel engine version probes (each bounded to 5s).
+    # Keep the request bounded without racing that legitimate probe deadline.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(base + path, timeout=30 if path == '/api/omnigent' else 5) as response:
         return json.load(response)
 
 
