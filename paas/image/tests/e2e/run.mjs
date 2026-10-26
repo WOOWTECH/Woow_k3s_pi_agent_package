@@ -47,6 +47,10 @@ try {
     await pw.api("PUT", "/api/models-config", config.json);
     check("S0", "mask without an existing key is dropped", !Object.hasOwn(saved().providers.missing, "apiKey"), "mask persisted");
   }
+  // Load the list route first: Next caches its duplicated json-response module.
+  // A detail-only patch can then be bypassed even though its anchors all pass.
+  const list = await pw.api("GET", "/api/sessions?summary=1");
+  check("S1", "session list loads before detail history", list.status === 200, list.status);
   // ---------- S1 wrong key: conversation error text (AI-PI-002-2) + #1461 (AI-PI-002-1) ----------
   writeModels(pw.dataDir, prov.port, "bad-key");
   let r = await pw.api("POST", "/api/agent/new", { cwd: pw.cwd, type: "ensure_session", provider: "fake", modelId: "m1" });

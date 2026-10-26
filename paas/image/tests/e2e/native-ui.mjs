@@ -6,12 +6,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { startPiWeb } from "./lib.mjs";
+import { contract } from "../managed-web-contract.mjs";
 
 const piWebDir = resolve(process.argv[2] || "/usr/local/lib/node_modules/@agegr/pi-web");
 const pluginDir = resolve(process.argv[3] || process.env.PI_OMNIGENT_PLUGIN_ROOT || "/opt/woow/pi-omnigent-plugin");
 const manifest = JSON.parse(readFileSync(join(pluginDir, "package.json"), "utf8"));
 assert.equal(manifest.name, "@woowtech/pi-omnigent-plugin");
-assert.equal(manifest.version, "0.3.11");
+assert.equal(manifest.version, contract.omnigentVersion);
 const root = mkdtempSync(join(tmpdir(), "pi-native-ui-"));
 const data = join(root, "data"), home = join(data, "home"), state = join(data, "omnigent-plugin");
 mkdirSync(home, { recursive: true });
@@ -37,7 +38,7 @@ try {
   assert.equal(view.headers.get("cache-control"), "no-store");
   assert.equal(view.json.installed, true);
   assert.equal(view.json.active, true);
-  assert.equal(view.json.version, "0.3.11");
+  assert.equal(view.json.version, contract.omnigentVersion);
   assert.equal(view.json.server, null);
   assert.equal(view.json.loginConfirmed, false);
   assert.equal(view.json.host.connected, false);

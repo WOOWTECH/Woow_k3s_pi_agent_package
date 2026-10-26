@@ -1,12 +1,62 @@
 # pi-agent image
 
+## Paseo 0.1.10 / Omnigent 0.3.21 PaaS 候選準備（2026-10-26）
+
+成品契約已更新為 Paseo **0.1.10**、Omnigent **0.3.21** 與修正版 web
+**0.13.0-woow.1**。完整 JSON response overlay（PR434）由 canonical main
+保留；正式 BASE 已固定在 root **0.3.13** 經雙架構驗收的公開 digest。
+這份來源契約不能代替 PaaS 候選映像驗收或人類批准。
+
+`20261026.1000`、`20261026.1100`、`20261026.1200` 均不得 promote。
+1200 的 managed-web／launcher PASS 是歷史局部證據，不能清除其已知重啟缺陷；
+核准 issue431 已關閉。新版本須使用未用過的候選 tag、同 source/digest 的完整
+驗收與新封緘核准 issue；只有合法人類核可才可進入既有 phase2。
+
+`tests/e2e/paseo-recovery.mjs` 在 uid1000、無網路且由 tini 收屍的獨立容器驗證映像內 r3：
+先核對固定 lockfile、ready receipt、兩份官方 PID writer 與 transition helper
+的發布 SHA256，再啟動真實 daemon。測試包括健康出生證明、受控舊 birth receipt
+加上存活外來 sentinel 的復原、身分／登入／配對保留、未知舊 proof 拒絕、停用、
+兩個獨立程序並行冷啟動只產生一個 supervisor。測試只改私有 QA record，
+不複製或修補 runtime、不下載套件、不呼叫模型，不宣稱強制真實核心 PID 重用或 OOM。
+PR layer、full_overlay 及 phase1 candidate push 前均執行；完整 overlay／候選映像
+另確認 Claude Code、Codex、Pi 指令可執行。phase2 promotion 不變。
+
+`tests/managed-web-contract.json` 固定插件版本、靜態發布包 SHA256、source 與
+repair commit。`tests/e2e/managed-web.mjs` 以 uid 1000 執行 root 提供的
+`/usr/local/bin/pi-paseo-web-seed.mjs`，讀取映像內
+`/opt/woow/pi-paseo-web/client.tar.gz`，在獨立 HOME 種入快取，然後啟動套過
+PaaS 補丁的真實 production Pi Web。驗證項目包含：
+
+- production manifest 與實際 `/paseo-web` route 檔案，不能只有 source code。
+- 未登入的 HTML、build metadata、JS/CSS 與 deep link 都導向登入；已登入的
+  回應逐一比對發布包內容，避免把 Pi Web fallback HTML 誤認為 Paseo。
+- uid 1000 的離線快取、HEAD、缺少資產、隱藏檔與 Host 防護。
+- 移除插件後入口不再提供內容；重啟後不重新下載，登入與快取仍可用。
+
+此測試不啟動 Paseo daemon、不讀操作者帳號、不配對遠端，也不送模型請求。
+測試用本地覆寫可指定 `PASEO_WEB_SEED_MODULE` 與 `PASEO_WEB_ARCHIVE`；CI 成品
+驗證不提供這些覆寫，因此必須真的包含 root 的離線檔案。PR test layer、完整
+overlay smoke 與正式 candidate push 前都執行同一測試。Omnigent 原生 smoke
+同樣從上述契約讀取版本，避免重編後仍以舊版常數放行。
+
+`tests/image-launcher.py` 另在最終衍生映像以 uid 1000 執行未修改的
+`/usr/local/bin/pi`：明確指定 Omnigent session 目錄與未指定兩種情境，驗證選定目錄、
+含空白／空字串的 CLI 參數與 metadata hook 單次執行。PATH observer 只攔最終 CLI
+以免送出模型請求；metadata hook 仍執行原始檔。輸出 command resolution、launcher／
+CLI／hook SHA256，讓 parent 收入 candidate receipt。既有 launcher generator 與
+legacy/current/idempotence 測試保持原樣；本機 fixture 通過不能代替最終映像證據。
+
+這些檢查只提供技術證據；既有簽章 approval issue、人類核可與 promote 流程
+未改動。完整 candidate image 成品測試、正式 registry 讀回與
+chart／platform pin 仍由發布協調者依序完成。
+
 供 PaaS 平台 cloud service 使用的 **pi coding agent（pi-web）** image。
 
 - Registry：`jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}`（tag = UTC `YYYYMMDD.HHMM`，走候選 tag → 核可 → promote）
 - 平台側 **pin image digest**；chart 為 `woow-paas-charts` 的 `charts/pi-agent`。
 - 上游：`WOOWTECH/Woow_k3s_pi_agent_package`（Gitea 鏡像 `woow-paas/Woow_k3s_pi_agent_package`），其 GitHub Actions 發佈 `ghcr.io/woowtech/woow-k3s-pi-agent:<semver>`。本 image **以 digest 消費上游**，不重建 pi-web。
 
-## 這顆 image 改了什麼（相對上游 0.3.2 native Omnigent UI）
+## 這顆 image 改了什麼（相對上游 0.3.13 native Omnigent / Paseo UI）
 
 | # | 改動 | 為什麼 |
 |---|---|---|
@@ -69,22 +119,26 @@ Pi Web OAuth route 傳入 `getDeviceId`。UUID 由 SDK `SettingsManager.getOrCre
 - `tests/e2e/run.mjs <pi-web 目錄> [--baseline]`：啟動**真的** pi-web（Next.js 編譯後的伺服器）＋假的 OpenAI 相容供應商（只收一把金鑰，其他回 LiteLLM 形狀的 401），逐項驗證：401 提示（SSE、重新載入、context 三處）、磁碟原文不變、存檔後同一個開著的對話立即用新金鑰（#1461）、小對話 compact 回 409、空金鑰提示、SIGKILL 殺掉整個程序群組後重開補「已中斷」結果、60 秒保護。`--baseline` 對**未打 patch** 的樹跑同一組場景，斷言原本的缺陷都會重現（證明場景有效）。PR gate：`.gitea/workflows/test-pi-agent-patches.yml`（`tests/patches.Dockerfile`，建在 Dockerfile 的 `BASE` 上）；候選 image 另在 `build-pi-agent-image.yml` 以 uid 1000 再跑一次。
 - 本機：`npm install --prefix /tmp/pw @agegr/pi-web@0.10.0`，複製一份後依 Dockerfile 順序套 patch，再 `node tests/e2e/run.mjs /tmp/pw-patched/node_modules/@agegr/pi-web`。
 
-## 0.3.2 native UI overlay 相容性
+## 0.3.13 native UI overlay 相容性
 
-本次 PaaS `20261025.1200` 的 root 基準固定為 `v0.3.2`、source commit
-`c9b31b4995cb246bdf2b4975c8d8a5095f3a02f9`。正式 base pin 為該版本的
-官方 multiarch index digest
-`sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6`；
-amd64 / arm64 公開拉取與來源 revision 已核對，不追蹤 root `main`、`latest` 或另案 0.3.3。
-既有完整 overlay 驗證使用 discovery-only 0.3.1 candidate；0.3.2 的 seed
-腳本修正不改 Pi Web compiled files 或 bundled plugin。最終 digest 更新後
-仍須通過 PR gate 與 phase1 成品檢查，才建立待真人核准的候選映像。
-本次建置不改既有租戶 image pin，也不回退已上線的更新版本。
+PaaS image 的 root 基準固定為 `v0.3.13`、source revision
+`eccb64afa99ff2b643c25281cdfb87fbf14dbad7`，以公開的雙架構 index
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.13@sha256:dbcb61b2378fd01fbf440e0eef39e220f0a2091caa21b09d37781e2ed33d9997`
+消費。[tag CI](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40381020075)
+已通過 amd64／arm64 成品驗收；[受控發布](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40390641743)
+完成後，`0.3.13`、`0.3`、`0`、`main`、`latest` 的匿名讀回均指向同一 digest。
+
+Root 包含 Paseo plugin 0.1.10、Omnigent plugin 0.3.21 與修正版離線 web bundle。
+PaaS overlay 經 PR gate 與 `test-pi-agent-patches.yml` 的 `full_overlay=true`
+驗證後，仍須通過新 candidate 的成品檢查與該次專用的人工核准，才可 promote。
+本次來源更新不變更既有租戶 image pin，也不追蹤 root `main` 或 `latest`。
 
 父映像包含 Pi Web 0.10.0、Next 16.4.3、Pi SDK 1.4.0 與
-`pi-omnigent-plugin` 0.3.11。PaaS 以 `patch-pi-web.mjs` 一次預檢所有路由、
-語法檢查完成後才寫入。Session chunk 依唯一 session-open 錨點定位，不再
-依賴 webpack 的 `6429.js` 編號；缺少或出現多份匹配仍使 build 失敗。
+`pi-omnigent-plugin` 0.3.21。PaaS 以 `patch-pi-web.mjs` 一次預檢所有路由、
+語法檢查完成後才寫入。Session 模組可能分別出現在 API 與 startup
+instrumentation 的 chunk；overlay 依 session-open 錨點找出所有副本並逐一
+套用，不依賴 webpack chunk 編號。找不到模組或單一檔案內錨點重複時，
+仍使 build 失敗；所有輸出通過語法預檢後才寫入。
 原有隱私遮罩、錯誤提示、model runtime refresh、工具中斷修復與 OAuth
 安裝 UUID 行為均保留。
 
@@ -99,7 +153,7 @@ LiteLLM metadata enrichment；補丁同時接受舊 root 形狀、可重複套�
 - `python3 -B pi-agent/tests/patch-pi-context-window-launcher.test.py`
 - `python3 -B pi-agent/tests/sync-litellm-model-metadata.test.py`
 - `node pi-agent/tests/compiled-overlay-live.mjs <pi-web-dir>`：對實際 compiled tree
-  驗證 chunk 改名、預檢失敗不留下半套補丁、重複套用。
+  驗證多份 session 模組、chunk 改名、預檢失敗不留下半套補丁、重複套用。
 - `node pi-agent/tests/e2e/run.mjs <pi-web-dir> [--baseline]`：真實 HTTP/SSE、
   GET/PUT 金鑰 round trip、同一 session 更新 key、compact、上傳、重啟復原。
 - `node pi-agent/tests/e2e/native-ui.mjs <pi-web-dir> [plugin-dir]`：隔離 HOME，

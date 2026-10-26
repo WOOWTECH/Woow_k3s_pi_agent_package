@@ -6,6 +6,7 @@ COPY patch-*.mjs patch-pi-context-window-launcher.py sync-litellm-model-metadata
 COPY sync-litellm-model-metadata.py /opt/woow/pi-agent/context-window/sync-litellm-model-metadata.py
 COPY tests/ /opt/patches/tests/
 RUN python3 -B /opt/patches/tests/patch-pi-context-window-launcher.test.py \
+    && python3 -B /opt/patches/tests/image-launcher.test.py \
     && python3 -B /opt/patches/tests/sync-litellm-model-metadata.test.py \
     && python3 /opt/patches/patch-pi-context-window-launcher.py /usr/local/bin/pi \
     && python3 /opt/patches/patch-pi-context-window-launcher.py /usr/local/bin/pi \
@@ -16,3 +17,8 @@ RUN python3 -B /opt/patches/tests/patch-pi-context-window-launcher.test.py \
     && node /opt/patches/tests/device-id-live.mjs "${PI_WEB_DIR}" \
     && HOME=/tmp/e2e-home node /opt/patches/tests/e2e/run.mjs "${PI_WEB_DIR}" \
     && HOME=/tmp/e2e-home node /opt/patches/tests/e2e/native-ui.mjs "${PI_WEB_DIR}"
+
+# Exercise the actual protected client route as the PaaS runtime identity, not root.
+USER 1000:1000
+RUN HOME=/tmp/managed-web-home node /opt/patches/tests/e2e/managed-web.mjs "${PI_WEB_DIR}"
+RUN python3 -B /opt/patches/tests/image-launcher.py

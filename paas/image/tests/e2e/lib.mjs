@@ -73,7 +73,7 @@ export function writeModels(dataDir, providerPort, apiKey, extra = {}) {
 }
 
 // Start `pi-web` from piWebDir (the @agegr/pi-web package directory) with an isolated agent dir.
-export async function startPiWeb(piWebDir, { env = {}, root: reuseRoot } = {}) {
+export async function startPiWeb(piWebDir, { env = {}, root: reuseRoot, readyPath = "/api/home" } = {}) {
   const root = reuseRoot || mkdtempSync(join(tmpdir(), "pi-e2e-"));
   const dataDir = join(root, "data");
   const home = join(dataDir, "home");
@@ -82,7 +82,9 @@ export async function startPiWeb(piWebDir, { env = {}, root: reuseRoot } = {}) {
   const port = await freePort();
   // Never inherit the operator's active Omnigent/Codex/Claude account paths.
   const isolatedEnv = { ...process.env, OMNIGENT_CONFIG_HOME: join(home, ".omnigent"), OMNIGENT_DATA_DIR: join(home, ".omnigent"),
-    PI_OMNIGENT_STATE_DIR: join(dataDir, "omnigent-plugin"), CODEX_HOME: join(home, ".codex"), CLAUDE_CONFIG_DIR: join(home, ".claude") };
+    PI_OMNIGENT_STATE_DIR: join(dataDir, "omnigent-plugin"), CODEX_HOME: join(home, ".codex"), CLAUDE_CONFIG_DIR: join(home, ".claude"),
+    PI_PASEO_STATE_DIR: join(dataDir, "pi-paseo"), PI_PASEO_CWD: home,
+    PI_PASEO_RUNTIME_DIR: join(root, "paseo-runtime"), PI_PASEO_PORT: String(await freePort()), PI_WEB_PASSWORD: "" };
   const child = spawn(process.execPath, [join(piWebDir, "bin", "pi-web.js"), "--port", String(port), "--hostname", "127.0.0.1"], {
     cwd: home,
     env: { ...isolatedEnv, HOME: home, PI_CODING_AGENT_DIR: dataDir, PI_TELEMETRY: "0", PI_SKIP_VERSION_CHECK: "1", PI_WEB_NO_OPEN: "1", PI_WEB_HOSTNAME: "127.0.0.1", PORT: String(port), NODE_ENV: "production", ...env },
@@ -96,7 +98,7 @@ export async function startPiWeb(piWebDir, { env = {}, root: reuseRoot } = {}) {
   const t0 = Date.now();
   for (;;) {
     if (child.exitCode !== null) throw new Error("pi-web exited early:\n" + log);
-    try { const r = await fetch(base + "/api/home", { headers: { host: `127.0.0.1:${port}` } }); if (r.ok) break; } catch { /* not up yet */ }
+    try { const r = await fetch(base + readyPath, { headers: { host: `127.0.0.1:${port}` } }); if (r.ok) break; } catch { /* not up yet */ }
     if (Date.now() - t0 > 90000) { child.kill("SIGKILL"); throw new Error("pi-web did not start in 90s:\n" + log); }
     await sleep(500);
   }

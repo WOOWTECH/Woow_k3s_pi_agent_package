@@ -26,7 +26,7 @@
 #      keep keys and known_hosts across restarts (they ignore $HOME and read /etc/passwd)
 # Chart: woow-paas-charts charts/pi-agent (loopback pi-web behind an nginx basic-auth
 # sidecar). Registry: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}.
-ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.2@sha256:927a947bb7ae4898ff72f46b1d3b88306b2ceba0c89965a74114c27aab2a27b6
+ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.13@sha256:dbcb61b2378fd01fbf440e0eef39e220f0a2091caa21b09d37781e2ed33d9997
 FROM ${BASE}
 
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web
@@ -49,6 +49,7 @@ COPY patch-*.mjs /opt/patches/
 COPY tests/ /opt/patches/tests/
 RUN node --test /opt/patches/tests/*.test.mjs \
     && python3 -B /opt/patches/tests/patch-pi-context-window-launcher.test.py \
+    && python3 -B /opt/patches/tests/image-launcher.test.py \
     && python3 -B /opt/patches/tests/sync-litellm-model-metadata.test.py \
     && node /opt/patches/tests/compiled-overlay-live.mjs "${PI_WEB_DIR}" \
     && node /opt/patches/patch-pi-web.mjs "${PI_WEB_DIR}" \
