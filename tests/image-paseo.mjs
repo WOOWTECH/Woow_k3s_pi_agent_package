@@ -14,7 +14,7 @@ const runtime = runtimeDirectory(loc);
 const cli = spawnSync(process.execPath, [path.join(runtime, 'node_modules/@getpaseo/cli/bin/paseo'), '--version'], { encoding: 'utf8', timeout: 30000 });
 assert.equal(cli.status, 0); assert.equal(cli.stdout.trim(), '0.11.2');
 const bundle = '/opt/woow/pi-paseo-plugin';
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.11');
+assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.12');
 assert.equal(RUNTIME_REVISION, '0.11.2-r3-6d8dbe515479');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {

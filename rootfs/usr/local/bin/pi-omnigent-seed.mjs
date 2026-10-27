@@ -80,9 +80,8 @@ async function main() {
   const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_OMNIGENT_AUTO_SETUP !== 'false' });
   if (process.env.PI_OMNIGENT_SEED_ONLY !== '1' && result.active) {
     const web = await import(pathToFileURL(path.join(bundle, 'src/web.mjs')).href);
-    // Complete registration and the visible conversation before the server reads
-    // its session index. launch-web starts background preparation after listening.
-    await web.ensureOnboarding();
+    // Prepare the launcher without creating a setup conversation. Binding is
+    // available only from Settings → Omnigent after Pi Web starts.
     const host = await web.installHost();
     if (!['installed', 'composable-wrapper'].includes(host.status)) throw Error('web launcher unavailable');
   }
