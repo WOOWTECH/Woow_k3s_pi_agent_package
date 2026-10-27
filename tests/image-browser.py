@@ -41,7 +41,9 @@ while True:
 deadline = time.monotonic() + 60
 while True:
     try:
-        sessions = get('/api/sessions?summary=1').get('sessions', [])
+        # Pi Web 0.10 returns a detailsPending skeleton for summary=1 on a
+        # cold server. The full listing hydrates the saved session name.
+        sessions = get('/api/sessions').get('sessions', [])
     except (OSError, ValueError):
         sessions = []
     matches = [row for row in sessions if row.get('name') == 'Omnigent 連線設定']
