@@ -107,7 +107,10 @@ python3 - "$receipt" <<'PY'
 import json,sys
 from pathlib import Path
 c=json.load(open(sys.argv[1]));first=json.load(open('image-browser-first.json'));again=json.load(open('image-browser-restart.json'))
-assert first['passed'] and again['passed'] and first['sessionHash']==again['sessionHash']
+assert first['passed'] and again['passed']
+assert len(first['views']) == len(again['views']) == 2
+assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['settingsBindingVisible']
+           and view['modelRequests'] == 0 for phase in (first, again) for view in phase['views'])
 checks=['startup:'+p for p in c['platforms']]+['first-home-desktop','first-home-mobile','restart-persistence']
 Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')
 print('PASS exact-image startup, desktop/mobile first home and persistent-volume restart')
