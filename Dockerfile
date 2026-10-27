@@ -126,9 +126,9 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.22
-ARG PI_OMNIGENT_SHA256=1869897c7cd8791530b451e0d8de6a929f6d4953f1d9f04cede986ec041e6321
-ARG PI_OMNIGENT_UI_SHA256=dbc975578efa5069eb77fe0a5a8d5768d62022fc9fe62f84eb9cfca762f3ef10
+ARG PI_OMNIGENT_VERSION=0.3.25
+ARG PI_OMNIGENT_SHA256=a659c0593572dd898d6994e8836cb96af34d58ee59cd417ae51914fa3aa5a983
+ARG PI_OMNIGENT_UI_SHA256=34b5ea739229a64a0025f7499873cc828de57977d15e787e69cef6db0b1d90ce
 # Immutable plugin payload; lifecycle scripts never run during image build.
 RUN set -euo pipefail; \
     curl -fSL --retry 5 --retry-all-errors \
@@ -140,8 +140,8 @@ RUN set -euo pipefail; \
     rm /tmp/omnigent-plugin.tgz
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
-ARG PI_PASEO_VERSION=0.1.11
-ARG PI_PASEO_SHA256=1664351cd413e6f1edb1b545d294f7ed4db106e7373ea6abb9806e6a3c57c226
+ARG PI_PASEO_VERSION=0.1.12
+ARG PI_PASEO_SHA256=35eb66d3674d913cfa8e0adb795c6bd1c62ea6819fef29f3fb3757e0d9aa9b17
 RUN set -euo pipefail; \
     curl -fSL --retry 5 --retry-all-errors \
       "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v${PI_PASEO_VERSION}/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz" -o /tmp/paseo-plugin.tgz; \
