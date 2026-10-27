@@ -629,9 +629,9 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Omnigent setup conversation (0.3.18)
+## Settings-only Omnigent binding (0.3.19)
 
-The image pins [Omnigent plugin 0.3.27](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.27). A fresh installation creates one saved Omnigent setup conversation. It directs users to Settings for the server URL, account and masked password; no model call is made. The conversation is reused after restart. The image and Helm Chart default are 0.3.18. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
+The image pins [Omnigent plugin 0.3.28](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.28). A fresh installation binds only through Settings → Omnigent; neither startup nor restart creates or opens a setup conversation. Legacy conversation metadata is ignored without deleting user data. Root image 0.3.18 (plugin 0.3.27) is superseded because it created a setup conversation on first start. The image and Helm Chart default are 0.3.19. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
 
 ## Pi model catalog refresh (0.3.17)
 

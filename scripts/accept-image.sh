@@ -110,11 +110,9 @@ c=json.load(open(sys.argv[1]));first=json.load(open('image-browser-first.json'))
 assert first['passed'] and again['passed']
 assert len(first['views']) == len(again['views']) == 2
 assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['settingsBindingVisible']
-           and view['setupConversationCount'] == 1 and view['modelRequests'] == 0
+           and view['setupConversationCount'] == 0 and view['modelRequests'] == 0
            for phase in (first, again) for view in phase['views'])
-ids={view['setupConversationSha256'] for phase in (first,again) for view in phase['views']}
-assert len(ids)==1, 'setup conversation changed across restart or browser viewport'
-checks=['startup:'+p for p in c['platforms']]+['first-home-desktop','first-home-mobile','setup-conversation-once','restart-persistence']
+checks=['startup:'+p for p in c['platforms']]+['first-home-desktop','first-home-mobile','restart-persistence']
 Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')
 print('PASS exact-image startup, desktop/mobile first home and persistent-volume restart')
 PY
