@@ -606,6 +606,10 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## Paseo 配對更新（0.3.14）
+
+0.3.14 映像固定 [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) 與 Omnigent 0.3.22。Pi Web 的配對確認頁位於 `/paseo-web/welcome`，頁面導覽時可保留私有配對資訊；Omnigent 合併介面也會將舊版 Paseo 配對連結導向該頁。Pi 的 `auth.json` 若為空白，診斷會正確顯示缺少憑證。各租戶仍須登入自己的 Claude Code、Codex 和 Pi 提供者，才能驗證模型對話。PaaS 映像與 Chart 另行定版。
+
 ## Omnigent 部署套件（0.3.13）
 
 映像內建 `@woowtech/pi-omnigent-plugin` **0.3.21**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.13`。0.3.21 會短暫重查原生套件狀態，避免一次讀取失敗使已連線的設定頁誤顯示停用；明確停用仍立即生效。組合介面檔案維持 0.3.20 的版本。
