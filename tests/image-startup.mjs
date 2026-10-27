@@ -26,5 +26,5 @@ try {
   assert.ok(!fs.existsSync(path.join(temporary, '.omnigent/config.yaml')), 'no host identity or login is distributed');
   const root = spawnSync(process.execPath, ['/usr/local/bin/pi-omnigent-seed.mjs', '--resolve-root'], { env, encoding: 'utf8', timeout: 30000 });
   assert.equal(root.status, 0); assert.equal(root.stdout, '/opt/woow/pi-omnigent-plugin');
-  console.log('[build] real SDK settings-only registration and repeat boot OK');
+  console.log('[build] real SDK registration and one saved setup conversation across repeat boot OK');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
