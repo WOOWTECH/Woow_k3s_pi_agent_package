@@ -53,8 +53,8 @@ fi
 # removal, and starts its watcher without creating a chat session or prompt.
 /usr/local/bin/pi-shared-runtime-seed.sh
 
-# Seed once before package discovery. Registration and service preparation do
-# not create conversations; both integrations are configured from Settings.
+# Seed once before package discovery. Omnigent creates one saved setup
+# conversation with no credentials; account entry stays in Settings.
 node /usr/local/bin/pi-paseo-seed.mjs || log "Paseo setup needs attention in Plugins"
 node /usr/local/bin/pi-omnigent-seed.mjs || log "Omnigent setup needs attention in Plugins"
 if omnigent_root=$(node /usr/local/bin/pi-omnigent-seed.mjs --resolve-root); then
