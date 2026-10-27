@@ -65,3 +65,9 @@ test('a home project disable choice wins over a new global image default', t => 
   fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ packages: [{ source: f.bundle, extensions: [] }] }));
   assert.equal(seed(f).active, false); assert.equal(fs.existsSync(f.settings), false);
 });
+test('the image seed never creates or opens a setup conversation', () => {
+  const source = fs.readFileSync(new URL('../rootfs/usr/local/bin/pi-omnigent-seed.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /ensureOnboarding|readOnboarding/);
+  const start = fs.readFileSync(new URL('../rootfs/usr/local/bin/pi-web-start.sh', import.meta.url), 'utf8');
+  assert.doesNotMatch(start, /ensureOnboarding|onboarding/i);
+});

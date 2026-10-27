@@ -14,17 +14,12 @@ try {
   };
   run(); run();
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(temporary, 'settings.json'))).packages, ['/opt/woow/pi-omnigent-plugin']);
-  const onboarding = JSON.parse(fs.readFileSync(path.join(temporary, 'omnigent-plugin/onboarding.json'), 'utf8'));
-  assert.equal(typeof onboarding.sessionId, 'string');
-  assert.ok(onboarding.sessionFile.startsWith(path.join(temporary, 'sessions') + path.sep));
-  assert.ok(fs.existsSync(onboarding.sessionFile), 'startup must save a discoverable setup conversation');
+  assert.equal(fs.existsSync(path.join(temporary, 'omnigent-plugin/onboarding.json')), false, 'startup must not create onboarding state');
   const sessionsDir = path.join(temporary, 'sessions');
   const sessions = fs.existsSync(sessionsDir) ? fs.readdirSync(sessionsDir, { recursive: true }).filter(file => file.endsWith('.jsonl')) : [];
-  assert.equal(sessions.length, 1, 'repeated startup must keep exactly one setup conversation');
-  assert.ok(onboarding.sessionFile.endsWith(sessions[0]));
-  assert.ok(fs.readFileSync(onboarding.sessionFile, 'utf8').includes('Omnigent 連線設定'));
+  assert.equal(sessions.length, 0, 'startup must not create a conversation');
   assert.ok(!fs.existsSync(path.join(temporary, '.omnigent/config.yaml')), 'no host identity or login is distributed');
   const root = spawnSync(process.execPath, ['/usr/local/bin/pi-omnigent-seed.mjs', '--resolve-root'], { env, encoding: 'utf8', timeout: 30000 });
   assert.equal(root.status, 0); assert.equal(root.stdout, '/opt/woow/pi-omnigent-plugin');
-  console.log('[build] real SDK registration and one saved setup conversation across repeat boot OK');
+  console.log('[build] real SDK settings-only registration and repeat boot OK');
 } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
