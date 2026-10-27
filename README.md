@@ -629,9 +629,9 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Paseo pairing update (0.3.14)
+## Paseo pairing update (0.3.15)
 
-The 0.3.14 image pins [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) and Omnigent 0.3.22. The paired Pi Web client opens the host confirmation at `/paseo-web/welcome`, which preserves the private offer fragment across navigation. The combined Omnigent adapter also redirects older managed Paseo pairing links to that route. An empty Pi `auth.json` is reported as missing credentials; each tenant still signs in to its own Claude Code, Codex, and Pi providers before model conversations can be verified. The PaaS image and Chart are versioned separately from this base image.
+The 0.3.15 image and matching Helm chart pin [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) and Omnigent 0.3.22. The paired Pi Web client opens the host confirmation at `/paseo-web/welcome`, which preserves the private offer fragment across navigation. The combined Omnigent adapter also redirects older managed Paseo pairing links to that route. An empty Pi `auth.json` is reported as missing credentials; each tenant still signs in to its own Claude Code, Codex, and Pi providers before model conversations can be verified. The PaaS image and Chart are versioned separately from this base image.
 
 ## Omnigent deployment package (0.3.13)
 
