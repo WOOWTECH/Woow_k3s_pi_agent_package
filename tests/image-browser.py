@@ -71,6 +71,9 @@ with sync_playwright() as pw:
                 assert 'onboardingUrl' not in view
                 assert not model_requests
                 page.goto(base + '/?cwd=%2Fdata%2Fpi-agent%2Fhome&settings=plugins', wait_until='domcontentloaded')
+                paseo_tab = page.get_by_role('button', name='Paseo', exact=True)
+                paseo_tab.wait_for(state='visible', timeout=15000)
+                paseo_tab.click()
                 page.get_by_role('region', name='Paseo 連線設定').wait_for(state='visible', timeout=20000)
                 assert 'session' not in parse_qs(urlparse(page.url).query)
                 assert not model_requests
