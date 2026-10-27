@@ -68,8 +68,8 @@ async function main() {
   const bundle = process.env.PI_PASEO_PLUGIN_ROOT || '/opt/woow/pi-paseo-plugin';
   const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_PASEO_AUTO_SETUP !== 'false' });
   if (result.active) await seedWebClient({ bundle });
-  // Native Pi Web instrumentation restores the runtime and creates the single
-  // onboarding conversation after its session machinery is ready.
+  // Native Pi Web instrumentation restores the runtime. Pairing stays in
+  // Settings and does not create or open a conversation.
   console.log(`[pi-paseo] ${result.reason}`);
 }
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
