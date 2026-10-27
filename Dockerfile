@@ -141,7 +141,7 @@ RUN set -euo pipefail; \
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
 ARG PI_PASEO_VERSION=0.1.11
-ARG PI_PASEO_SHA256=c14d0808dc19118c341cf523a35728b7903926e882f1a10fd6ab6fee7cb28202
+ARG PI_PASEO_SHA256=1664351cd413e6f1edb1b545d294f7ed4db106e7373ea6abb9806e6a3c57c226
 RUN set -euo pipefail; \
     curl -fSL --retry 5 --retry-all-errors \
       "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v${PI_PASEO_VERSION}/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz" -o /tmp/paseo-plugin.tgz; \
