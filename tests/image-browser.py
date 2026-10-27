@@ -1,4 +1,5 @@
-"""Fresh browser contexts verify Settings-only pairing without model calls."""
+"""Fresh browser contexts verify one saved setup conversation and Settings binding."""
+import hashlib
 import ipaddress
 import json
 from pathlib import Path
@@ -37,6 +38,20 @@ while True:
             raise RuntimeError('image did not become ready within 150 seconds') from None
         time.sleep(0.5)
 
+deadline = time.monotonic() + 60
+while True:
+    try:
+        sessions = get('/api/sessions?summary=1').get('sessions', [])
+    except (OSError, ValueError):
+        sessions = []
+    matches = [row for row in sessions if row.get('name') == 'Omnigent 連線設定']
+    if len(matches) == 1 and isinstance(matches[0].get('id'), str):
+        setup_digest = hashlib.sha256(matches[0]['id'].encode()).hexdigest()
+        break
+    if time.monotonic() >= deadline:
+        raise AssertionError('exactly one saved Omnigent setup conversation was not visible')
+    time.sleep(0.5)
+
 views = []
 with sync_playwright() as pw:
     browser = pw.chromium.launch(headless=True, args=['--no-sandbox', '--disable-dev-shm-usage'])
@@ -56,6 +71,13 @@ with sync_playwright() as pw:
             try:
                 page.goto(base + '/', wait_until='domcontentloaded', timeout=30000)
                 page.wait_for_timeout(1500)
+                if page.get_by_text('Omnigent 連線設定', exact=True).count() == 0:
+                    page.reload(wait_until='domcontentloaded')
+                if mobile:
+                    show_sidebar = page.get_by_role('button', name='Show sidebar', exact=True)
+                    if show_sidebar.is_visible():
+                        show_sidebar.click()
+                page.get_by_text('Omnigent 連線設定', exact=True).first.wait_for(state='visible', timeout=15000)
                 assert 'session' not in parse_qs(urlparse(page.url).query), 'home must not open a setup conversation'
                 assert page.get_by_role('button', name=re.compile('Paseo', re.I)).count() == 0, 'home must not show a Paseo shortcut'
                 assert page.get_by_role('link', name=re.compile('Paseo', re.I)).count() == 0, 'home must not show a Paseo link'
@@ -84,6 +106,7 @@ with sync_playwright() as pw:
                 assert not model_requests
                 views.append({'viewport':'mobile' if mobile else 'desktop','homeUnchanged':True,
                               'paseoShortcutAbsent':True,'settingsBindingVisible':True,
+                              'setupConversationSha256':setup_digest,'setupConversationCount':1,
                               'modelRequests':0,'pairingClicks':0})
                 print(json.dumps({'viewport':views[-1]['viewport'],'passed':True}), flush=True)
             finally:
