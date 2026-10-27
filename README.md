@@ -629,6 +629,10 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Pi model catalog refresh (0.3.17)
+
+The image pins [Omnigent plugin 0.3.26](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.26). After an independent Pi provider login, the Omnigent model catalog refreshes an empty authenticated Pi cache on the next catalog or verification request. The image and Helm Chart default are 0.3.17. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
+
 ## Settings-only Paseo pairing (0.3.16)
 
 The image pins Paseo 0.1.12 and Omnigent 0.3.25. Installation and restart prepare their background services without creating or opening a setup conversation. Paseo pairing is a button in Settings → Paseo; Omnigent binding remains in Settings → Omnigent. The chat homepage has no Paseo shortcut. Existing sessions, provider credentials and pairing state are preserved. The root Helm chart defaults to image 0.3.16; tenants with an explicit image tag must opt into it.
