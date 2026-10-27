@@ -629,9 +629,13 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Omnigent setup conversation (0.3.18)
+
+The image pins [Omnigent plugin 0.3.27](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.27). A fresh installation creates one saved Omnigent setup conversation. It directs users to Settings for the server URL, account and masked password; no model call is made. The conversation is reused after restart. The image and Helm Chart default are 0.3.18. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
+
 ## Pi model catalog refresh (0.3.17)
 
-The image pins [Omnigent plugin 0.3.26](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.26). After an independent Pi provider login, the Omnigent model catalog refreshes an empty authenticated Pi cache on the next catalog or verification request. The image and Helm Chart default are 0.3.17. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
+Version 0.3.17 pinned [Omnigent plugin 0.3.26](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.26). After an independent Pi provider login, the Omnigent model catalog refreshes an empty authenticated Pi cache on the next catalog or verification request.
 
 ## Settings-only Paseo pairing (0.3.16)
 

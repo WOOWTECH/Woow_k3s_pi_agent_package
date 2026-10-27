@@ -606,9 +606,13 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## Omnigent 設定對話（0.3.18）
+
+映像固定使用 [Omnigent 插件 0.3.27](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.27)。新安裝會建立一個已保存的 Omnigent 設定對話，指引使用者到 Settings 輸入網址、帳號及遮罩密碼；建立對話不呼叫模型，重新啟動沿用同一筆。映像及 Helm Chart 預設版為 0.3.18；已明確固定舊映像的租戶須自行升級，原有登入與配對資料保留在租戶磁碟。
+
 ## Pi 模型清單更新（0.3.17）
 
-映像固定使用 [Omnigent 插件 0.3.26](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.26)。Pi 供應商完成獨立登入後，若已授權的模型快取仍為空，下一次讀取 Omnigent 模型清單或驗證時會自動更新。映像及 Helm Chart 預設版為 0.3.17；已明確固定舊映像的租戶須自行升級，原有登入與配對資料保留在租戶磁碟。
+0.3.17 固定使用 [Omnigent 插件 0.3.26](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.26)。Pi 供應商完成獨立登入後，若已授權的模型快取仍為空，下一次讀取 Omnigent 模型清單或驗證時會自動更新。
 
 ## Paseo 僅於設定頁配對（0.3.16）
 
