@@ -606,6 +606,12 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## 全新安裝（沒有任何對話）的修正（0.3.20）
+
+映像固定使用 [Omnigent 插件 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) 與 [Paseo 插件 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13)。綁定仍只在 Settings → Omnigent。全新磁碟（沒有對話、也沒選專案）原本有三個問題，現已修正：Settings → Paseo 會回 404、無法產生配對連結（現在改由伺服器自己決定的目錄載入；客戶端指定的目錄仍必須是 Pi Web 已服務的）；首頁完全沒提 Omnigent（現在第三步以純文字指向 Settings → Omnigent，不是按鈕或連結，也不開啟對話）；Paseo 設定分頁在手機與小視窗無法捲動。映像驗收現在會在全新磁碟上、桌面與手機寬度、重啟前後都檢查這三項。
+
+升級注意：Omnigent 插件原本固定在 git 來源的部署，改用本映像內建的插件路徑後，需要在 Settings → Omnigent 重新登入一次（已在既有租戶觀察到：面板顯示「Complete server setup」，主機連線仍是 Online，Omnigent 網頁端不受影響；登入前引擎模型清單是空的）。全新安裝不受影響，因為插件來源本來就是內建路徑。
+
 ## Omnigent 僅於設定頁綁定（0.3.19）
 
 映像固定使用 [Omnigent 插件 0.3.28](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.28)。新安裝只在 Settings → Omnigent 綁定；啟動和重新啟動都不建立或開啟設定對話。舊版對話的中繼資料會被忽略，使用者資料仍保留。0.3.18（插件 0.3.27）會在首次啟動建立設定對話，已由 0.3.19 取代。映像及 Helm Chart 預設版為 0.3.19；已明確固定舊映像的租戶須自行升級，原有登入與配對資料保留在租戶磁碟。
