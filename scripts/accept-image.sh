@@ -111,6 +111,7 @@ assert first['passed'] and again['passed']
 assert len(first['views']) == len(again['views']) == 2
 assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['settingsBindingVisible']
            and view['setupConversationCount'] == 0 and view['modelRequests'] == 0
+           and view['firstScreenOmnigentStep'] and view['paseoStatusWithoutProject'] == 200
            for phase in (first, again) for view in phase['views'])
 checks=['startup:'+p for p in c['platforms']]+['first-home-desktop','first-home-mobile','restart-persistence']
 Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')

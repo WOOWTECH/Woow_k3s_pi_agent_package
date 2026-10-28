@@ -1,4 +1,4 @@
-"""Fresh browser contexts verify Settings-only pairing without model calls."""
+"""Fresh browser contexts verify Settings-only pairing and the no-conversation first run without model calls."""
 import ipaddress
 import json
 from pathlib import Path
@@ -72,6 +72,35 @@ with sync_playwright() as pw:
                 assert view['active'] and view['version'] == version and view['loginConfirmed'] is False and view['server'] is None
                 assert 'onboardingUrl' not in view
                 assert not model_requests
+                # A brand-new volume has no conversation and no picked project. The first screen must point at
+                # Settings > Omnigent, and Settings > Paseo must load from the server's own fallback directory
+                # (the cwd-bearing navigation below registers home as a project and would hide a 404 here).
+                page.goto(base + '/', wait_until='domcontentloaded', timeout=30000)
+                page.get_by_text('Get Started', exact=True).wait_for(state='visible', timeout=20000)
+                steps = ' '.join(page.get_by_text('Get Started', exact=True).locator('xpath=..').inner_text().split())
+                assert re.search(r'3\.\s*Open Settings at the bottom, then choose Omnigent', steps), f'first screen has no Omnigent step: {steps!r}'
+                assert not get('/api/sessions').get('sessions'), 'a fresh volume must have no conversation'
+                dialog = page.locator('.settings-dialog-surface')
+                def is_paseo_status(response):
+                    return urlparse(response.url).path == '/api/plugin-paseo' and response.request.method == 'GET'
+                # The panel asks for its status the moment it mounts, and the first answer can be slow while the
+                # Paseo service is still starting: wait for that request instead of sleeping a fixed time.
+                page.goto(base + '/omnigent', wait_until='domcontentloaded', timeout=30000)
+                dialog.wait_for(state='visible', timeout=20000)
+                picker = dialog.locator('select.settings-mobile-section-picker')
+                with page.expect_response(is_paseo_status, timeout=60000) as first_read:
+                    if picker.count() and picker.is_visible():
+                        picker.select_option('paseo')
+                    else:
+                        dialog.get_by_role('button', name='Paseo', exact=True).click()
+                read = first_read.value
+                assert not parse_qs(urlparse(read.url).query).get('cwd') and read.status == 200, \
+                    f'Settings > Paseo with no project must read status 200 without a directory: {read.status} {read.url}'
+                panel = page.get_by_role('region', name='Paseo 連線設定')
+                panel.wait_for(state='visible', timeout=20000)
+                assert '請先在插件設定安裝 Paseo' not in panel.inner_text(), 'Paseo panel shows the not-found message'
+                assert not get('/api/sessions').get('sessions'), 'opening Settings must not create a conversation'
+                assert not model_requests
                 page.goto(base + '/?cwd=%2Fdata%2Fpi-agent%2Fhome&settings=plugins', wait_until='domcontentloaded')
                 if mobile:
                     section_picker = page.locator('select.settings-mobile-section-picker')
@@ -86,7 +115,8 @@ with sync_playwright() as pw:
                 assert not model_requests
                 views.append({'viewport':'mobile' if mobile else 'desktop','homeUnchanged':True,
                               'paseoShortcutAbsent':True,'settingsBindingVisible':True,
-                              'setupConversationCount':0,'modelRequests':0,'pairingClicks':0})
+                              'setupConversationCount':0,'modelRequests':0,'pairingClicks':0,
+                              'firstScreenOmnigentStep':True,'paseoStatusWithoutProject':200})
                 print(json.dumps({'viewport':views[-1]['viewport'],'passed':True}), flush=True)
             finally:
                 context.close()

@@ -629,6 +629,10 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Fresh install with no conversation (0.3.20)
+
+The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) and [Paseo plugin 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13). Binding still happens only in Settings → Omnigent. On a brand-new volume (no conversation, no project picked) three things were wrong and are fixed: Settings → Paseo answered 404 and could not generate a pairing link (it now loads from the server's own fallback directory; a directory named by the client is still refused unless Pi Web serves it); the first screen never mentioned Omnigent (a plain-text third step now points to Settings → Omnigent; it is not a button or link and opens no conversation); and the Paseo settings section could not scroll on phones and short windows. Image acceptance now checks all three on a fresh volume, at desktop and phone widths, before and after a restart.
+
 ## Settings-only Omnigent binding (0.3.19)
 
 The image pins [Omnigent plugin 0.3.28](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.28). A fresh installation binds only through Settings → Omnigent; neither startup nor restart creates or opens a setup conversation. Legacy conversation metadata is ignored without deleting user data. Root image 0.3.18 (plugin 0.3.27) is superseded because it created a setup conversation on first start. The image and Helm Chart default are 0.3.19. Existing tenant image pins require an explicit upgrade; provider credentials and pairing state stay on their tenant volume.
