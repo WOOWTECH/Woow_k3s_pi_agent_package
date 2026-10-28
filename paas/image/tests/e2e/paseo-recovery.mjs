@@ -91,7 +91,7 @@ try {
   assert.equal(fs.statSync(proofFile).mode & 0o777, 0o600);
   assert.equal(fs.statSync(loc.paseoHome).mode & 0o777, 0o700);
   checks.push("baked-r3-unchanged", "actual-kernel-birth-proof", "private-proof-and-home", "single-supervisor");
-  const pair = await runtime.pair(); assert.match(pair.url, /^\/paseo-web\/#/);
+  const pair = await runtime.pair(); assert.match(pair.url, /^\/paseo-web\/welcome#offer=/);
   const privateFiles = ["pairing.private.json"].map(name => join(loc.stateDir, name));
   privateFiles.push(join(loc.paseoHome, "server-id"));
   const privateHashes = privateFiles.map(hashFile);

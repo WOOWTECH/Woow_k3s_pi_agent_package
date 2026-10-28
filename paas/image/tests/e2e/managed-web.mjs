@@ -101,7 +101,7 @@ try {
     request.on("error", reject);
   });
   assert.equal(untrustedStatus, 403);
-  assert.equal(managedPairUrl("https://app.paseo.sh/#synthetic-test-only"), "/paseo-web/#synthetic-test-only");
+  assert.equal(managedPairUrl("https://app.paseo.sh/#synthetic-test-only"), "/paseo-web/welcome#synthetic-test-only");
   settings([]);
   assert.equal((await get("/paseo-web/", headers)).status, 404, "removed/disabled package cannot expose its cached client");
   await pw.stop(); pw = null;

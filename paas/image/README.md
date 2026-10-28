@@ -1,11 +1,59 @@
 # pi-agent image
 
-## Paseo 0.1.10 / Omnigent 0.3.21 PaaS 候選準備（2026-10-26）
+## Root 0.3.20：Paseo 0.1.13／Omnigent 0.3.29（2026-10-28）
 
-成品契約已更新為 Paseo **0.1.10**、Omnigent **0.3.21** 與修正版 web
+PaaS 衍生映像的 root 基底改為
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.20@sha256:19a50724cc64b3337781003c56811edf1297618a98efa9ee171b358523acccc6`（雙架構 index，
+source revision `54bf005c29bc42e201bc8c8f82ed7a834fdc4f40`）。內含 Paseo **0.1.13**、
+Omnigent **0.3.29**；修正版 web 仍是 **0.13.0-woow.1**，`tests/managed-web-contract.json`
+已同步。相對 root 0.3.17（Omnigent 0.3.26），使用者看得到的差異只有三項：
+
+1. **Paseo 設定頁在零對話時可用。** 全新資料卷、還沒開過任何對話或專案時，
+   `GET /api/plugin-paseo` 不再回 404（原本面板顯示「Paseo 不可用」）。未指定專案時，
+   路由改用 `PI_PASEO_CWD`、否則 `$HOME` 當工作目錄（目錄必須存在）；
+   明確要求某個專案路徑時，仍須是 Pi Web 已服務的根目錄。
+2. **首頁 Get Started 多一行指引**（英／簡中／繁中）。繁中是「3. 開啟底部的「設定」，然後選擇
+   「Omnigent」，把這台主機連到 Omnigent 伺服器」。綁定入口仍然只有 Settings → Omnigent：
+   不建立設定對話、不自動開視窗（`tests/e2e/native-ui.mjs` 的「不建立」斷言原封不動）。
+3. **手機版「設定 → Paseo」可以捲動**，內容左右留 16px 以上邊距，
+   「產生配對連結」「儲存設定」兩顆按鈕都摸得到。
+
+這版 root 內含的 Omnigent 外掛是 0.3.29（≥0.3.28，不建立設定對話），符合下一節的釘版條件。
+
+上游證據（皆為 GitHub Actions）：
+
+- main 候選（amd64）與 exact-image 驗收：[run 40682726949](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40682726949)
+- `v0.3.20` 標籤建置（amd64＋arm64）與 exact-image 驗收：[run 40684135613](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40684135613)；
+  驗收腳本新增「全新資料卷：Paseo 狀態在沒有專案時回 200」與「首頁第 3 步指引」兩項
+- 受控發布（`0.3.20`／`0.3`／`0`／`main`／`latest` 同一 digest）：[run 40689585884](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40689585884)
+- 外掛 release：[pi-paseo-plugin v0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13)、
+  [pi-omnigent-plugin v0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29)
+
+**既有租戶升級須知。** Redeploy 只換映像，不會換 Pi 設定裡指向 git 舊 tag 的外掛
+（例如 `git:…pi-omnigent-plugin@v0.3.23`）；要改指內建的 `/opt/woow/pi-omnigent-plugin`
+才會用到新版。外掛來源一改，Omnigent 外掛會要求**重新登入一次**（Settings → Omnigent 輸入
+帳號密碼；主機連線與引擎模型不受影響）。外掛來源本來就是內建路徑的租戶
+（映像 1105 起新開通的）只換映像時**不需要重新登入**：2026-10-28 以 1105 啟動、登入後原地換成
+root 0.3.20 候選映像實測，外掛 0.3.26→0.3.29，`loginConfirmed` 仍為 true、伺服器不變
+（此測試的暫時 Pod 沒有 chart 的 host supervisor，主機連線的重連由 chart 負責，
+PaaS 衍生候選映像上會再複驗）。
+
+## Paseo 0.1.12 / Omnigent 0.3.26 PaaS 候選準備（2026-10-27，歷史紀錄；現行基底見上節）
+
+成品契約已更新為 Paseo **0.1.12**、Omnigent **0.3.26** 與修正版 web
 **0.13.0-woow.1**。完整 JSON response overlay（PR434）由 canonical main
-保留；正式 BASE 已固定在 root **0.3.13** 經雙架構驗收的公開 digest。
+保留；正式 BASE 固定在 root **0.3.17** 經雙架構驗收的 immutable digest。
 這份來源契約不能代替 PaaS 候選映像驗收或人類批准。
+
+Omnigent 與 Paseo 都只在 Pi Web 的 Settings 頁綁定：啟動、安裝與重啟不建立也不自動開啟
+任何設定對話，首頁與右上角沒有額外入口（`tests/e2e/native-ui.mjs` 以映像 seed 兩次、
+Pi Web 啟動、開 Settings 與重啟逐步斷言）。2026-10-27 的正式映像為 `20261027.1105`（Chart 0.1.15）。
+
+**`20261027.1347`（root 0.3.18／Omnigent 0.3.27）已被 promote，但不得被任何 chart 或平台範本釘用，
+也不得以它為基底再建。** 它在初次安裝時會自動建立一筆「Omnigent 連線設定」對話，與負責人
+2026-10-27「只在設定頁綁定、不建立設定對話」的決定相反（root 0.3.18 的 seed 多了一行
+`ensureOnboarding()`）。改用更新的 root 之前，其內含的 Omnigent 外掛必須是不建立設定對話的版本
+（≤0.3.26 或 ≥0.3.28），且 `native-ui.mjs` 的斷言須維持「不建立」。
 
 `20261026.1000`、`20261026.1100`、`20261026.1200` 均不得 promote。
 1200 的 managed-web／launcher PASS 是歷史局部證據，不能清除其已知重啟缺陷；
@@ -56,7 +104,7 @@ chart／platform pin 仍由發布協調者依序完成。
 - 平台側 **pin image digest**；chart 為 `woow-paas-charts` 的 `charts/pi-agent`。
 - 上游：`WOOWTECH/Woow_k3s_pi_agent_package`（Gitea 鏡像 `woow-paas/Woow_k3s_pi_agent_package`），其 GitHub Actions 發佈 `ghcr.io/woowtech/woow-k3s-pi-agent:<semver>`。本 image **以 digest 消費上游**，不重建 pi-web。
 
-## 這顆 image 改了什麼（相對上游 0.3.13 native Omnigent / Paseo UI）
+## 這顆 image 改了什麼（相對上游 native Omnigent / Paseo UI）
 
 | # | 改動 | 為什麼 |
 |---|---|---|
@@ -119,22 +167,46 @@ Pi Web OAuth route 傳入 `getDeviceId`。UUID 由 SDK `SettingsManager.getOrCre
 - `tests/e2e/run.mjs <pi-web 目錄> [--baseline]`：啟動**真的** pi-web（Next.js 編譯後的伺服器）＋假的 OpenAI 相容供應商（只收一把金鑰，其他回 LiteLLM 形狀的 401），逐項驗證：401 提示（SSE、重新載入、context 三處）、磁碟原文不變、存檔後同一個開著的對話立即用新金鑰（#1461）、小對話 compact 回 409、空金鑰提示、SIGKILL 殺掉整個程序群組後重開補「已中斷」結果、60 秒保護。`--baseline` 對**未打 patch** 的樹跑同一組場景，斷言原本的缺陷都會重現（證明場景有效）。PR gate：`.gitea/workflows/test-pi-agent-patches.yml`（`tests/patches.Dockerfile`，建在 Dockerfile 的 `BASE` 上）；候選 image 另在 `build-pi-agent-image.yml` 以 uid 1000 再跑一次。
 - 本機：`npm install --prefix /tmp/pw @agegr/pi-web@0.10.0`，複製一份後依 Dockerfile 順序套 patch，再 `node tests/e2e/run.mjs /tmp/pw-patched/node_modules/@agegr/pi-web`。
 
-## 0.3.13 native UI overlay 相容性
+## 0.3.17 Omnigent 更新的上游驗收
 
-PaaS image 的 root 基準固定為 `v0.3.13`、source revision
-`eccb64afa99ff2b643c25281cdfb87fbf14dbad7`，以公開的雙架構 index
-`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.13@sha256:dbcb61b2378fd01fbf440e0eef39e220f0a2091caa21b09d37781e2ed33d9997`
-消費。[tag CI](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40381020075)
-已通過 amd64／arm64 成品驗收；[受控發布](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40390641743)
-完成後，`0.3.13`、`0.3`、`0`、`main`、`latest` 的匿名讀回均指向同一 digest。
+PaaS 衍生映像使用 root source revision `17e818aa83937be738e9ce7ba983a691e033a61e`，
+以 `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.17@sha256:8f4100559fa09fc4c7412bf8aabec1c70fe9d273ff9883b8b9e6f42fa89b64eb`
+固定雙架構基底。root 內含 Omnigent **0.3.26**；原生 Pi 登入後模型目錄為空時，
+插件會限次更新並重新查詢。
+[上游候選與驗收](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40487378788)
+通過 amd64／arm64 啟動、首次桌面及手機首頁、重啟持久性；
+[受控發布](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40492103744)
+把相同 digest 發布至 `0.3.17`、`0.3`、`0`、`main`、`latest`。
+PaaS 衍生映像仍須完成自身的 overlay、候選成品與人工核可流程。
 
-Root 包含 Paseo plugin 0.1.10、Omnigent plugin 0.3.21 與修正版離線 web bundle。
+## 0.3.16 設定頁整合與成品驗收（歷史紀錄）
+
+PaaS 的 root 基底使用 source revision `d2d9551daced90eea73d82cfa5f8c2fc1c34dbeb`，
+精確釘在 `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.16@sha256:2045fac5f8e4a97401464b4421658348a6197ce39df696fc648fdffec6023b3d`。
+[tag CI](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40458740240)
+驗證 amd64／arm64 啟動，首次及重啟後的桌面與手機首頁均無 Paseo 捷徑或自動配對對話；
+「設定 → Paseo」綁定入口可見，沒有模型請求或配對點擊。
+root 內含 Paseo **0.1.12**、Omnigent **0.3.25**。
+PaaS 衍生映像的非 root、CLI、managed Paseo Web、離線恢復已經以完整 overlay
+[預檢](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/30262)；
+新 JCR 候選仍需在同一正式 BASE 上重跑完整驗收，並取得該次專屬的人類核准。
+
+## 0.3.15 native UI overlay 相容性（歷史紀錄）
+
+前一版 PaaS image 的 root 基準固定為 `v0.3.15`、source revision
+`ebf58077dfbc56559470f21936e3d21bd8e04a87`，以公開的雙架構 index
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.15@sha256:c6cc5812c760e1fa9253c3c8b4947df7fe58bd0ac26a19ec85b8988260d133dc`
+消費。[tag CI](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40428650001)
+已通過 amd64／arm64 成品驗收；[受控發布](https://github.com/WOOWTECH/Woow_k3s_pi_agent_package/actions/runs/40434965883)
+完成後，`0.3.15`、`0.3`、`0`、`main`、`latest` 的匿名讀回均指向同一 digest。
+
+該版 root 包含 Paseo plugin 0.1.11、Omnigent plugin 0.3.22 與修正版離線 web bundle。
 PaaS overlay 經 PR gate 與 `test-pi-agent-patches.yml` 的 `full_overlay=true`
 驗證後，仍須通過新 candidate 的成品檢查與該次專用的人工核准，才可 promote。
 本次來源更新不變更既有租戶 image pin，也不追蹤 root `main` 或 `latest`。
 
-父映像包含 Pi Web 0.10.0、Next 16.4.3、Pi SDK 1.4.0 與
-`pi-omnigent-plugin` 0.3.21。PaaS 以 `patch-pi-web.mjs` 一次預檢所有路由、
+該版父映像包含 Pi Web 0.10.0、Next 16.4.3、Pi SDK 1.4.0 與
+`pi-omnigent-plugin` 0.3.22。PaaS 以 `patch-pi-web.mjs` 一次預檢所有路由、
 語法檢查完成後才寫入。Session 模組可能分別出現在 API 與 startup
 instrumentation 的 chunk；overlay 依 session-open 錨點找出所有副本並逐一
 套用，不依賴 webpack chunk 編號。找不到模組或單一檔案內錨點重複時，
@@ -157,7 +229,8 @@ LiteLLM metadata enrichment；補丁同時接受舊 root 形狀、可重複套�
 - `node pi-agent/tests/e2e/run.mjs <pi-web-dir> [--baseline]`：真實 HTTP/SSE、
   GET/PUT 金鑰 round trip、同一 session 更新 key、compact、上傳、重啟復原。
 - `node pi-agent/tests/e2e/native-ui.mjs <pi-web-dir> [plugin-dir]`：隔離 HOME，
-  建立唯一 setup conversation、檢查 active plugin、全新安裝仍要求 server/account、
+  執行映像 seed 兩次、啟動／重啟 Pi Web 與開 Settings，逐步斷言不建立 setup conversation
+  或 onboarding 資料；檢查 active plugin、全新安裝仍要求 server/account、
   拒絕缺少登入欄位與跨站操作、確認 `/omnigent` 頁面存在。沒有遠端登入或模型請求。
 
 PR gate 與正式候選 image 使用相同補丁入口；成品測試以 uid 1000 再跑。

@@ -73,8 +73,32 @@ type: application
 # first-boot opt-out. The host kit remains the sole host supervisor when enabled.
 # 0.1.11 = default to the human-approved 20261026.2019 PaaS image (root 0.3.13,
 # Paseo 0.1.10, Omnigent 0.3.21). Platform pins its immutable image digest.
-version: 0.1.11
-appVersion: "20261026.2019"
+# 0.1.12 = prepare default 20261027.0210 PaaS image (root 0.3.15,
+# Paseo 0.1.11, Omnigent 0.3.22). Publish only after the candidate image
+# passes its independent acceptance and a human approves the formal JCR tag.
+# The platform will pin the approved image digest independently.
+# 0.1.13 = settings-only plugin registration (root 0.3.16, Paseo 0.1.12,
+# Omnigent 0.3.25) and new 20261027.0638 PaaS candidate. This aligns Paseo
+# and its settings-only flow with HA add-on 0.15.12. PaaS needs Omnigent 0.3.25
+# for its combined Pi Web adapter; HA uses 0.3.24 with its own bridge. Publish only after
+# the exact JCR candidate passes full acceptance and its own human approval.
+# The platform must pin the promoted tag@sha256 separately.
+# 0.1.14 = correct Helm install notes for the settings-only Omnigent binding.
+# No workload template or image change from 0.1.13.
+# 0.1.15 = promote the 20261027.1105 image (root 0.3.17, Paseo 0.1.12,
+# Omnigent 0.3.26). Omnigent performs a bounded native `pi update --models`
+# after an independent openai-codex login so the Pi model picker recovers without
+# copying conversations or provider tokens. The settings-only binding flow remains
+# unchanged. Publish only after the exact JCR candidate receives human approval.
+# 0.1.16 = promote the 20261028.1328 image (root 0.3.20, Paseo 0.1.13,
+# Omnigent 0.3.29). A fresh install with zero conversations now loads the Paseo
+# settings panel (GET /api/plugin-paseo no longer answers 404), the first screen
+# lists "Settings -> Omnigent" as step 3, and Settings -> Paseo scrolls on phones.
+# Omnigent is still bound only from Settings (no setup conversation is created).
+# No workload template change from 0.1.15. The platform must pin the promoted
+# tag@sha256 (sha256:9a45d8ea...) separately.
+version: 0.1.16
+appVersion: "20261028.1328"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
   - name: WOOW PaaS Team
