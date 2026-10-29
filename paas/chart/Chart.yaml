@@ -97,8 +97,15 @@ type: application
 # Omnigent is still bound only from Settings (no setup conversation is created).
 # No workload template change from 0.1.15. The platform must pin the promoted
 # tag@sha256 (sha256:9a45d8ea...) separately.
-version: 0.1.16
-appVersion: "20261028.1328"
+# 0.1.17 = promote the 20261029.0606 image (root 0.3.21, Paseo 0.1.14,
+# Omnigent 0.3.29). A container restart or a plugin-source swap no longer
+# switches Paseo off (only a real disable in Settings, or Pi disabling the
+# package, does), and an empty provider model list is refreshed once after
+# login. Omnigent is still bound only from Settings (no setup conversation).
+# No workload template change from 0.1.16. The platform must pin the promoted
+# tag@sha256 (sha256:7997f1db...) separately.
+version: 0.1.17
+appVersion: "20261029.0606"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
   - name: WOOW PaaS Team
