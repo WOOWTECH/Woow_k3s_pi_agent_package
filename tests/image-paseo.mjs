@@ -15,7 +15,7 @@ const cli = spawnSync(process.execPath, [path.join(runtime, 'node_modules/@getpa
 assert.equal(cli.status, 0); assert.equal(cli.stdout.trim(), '0.11.2');
 const bundle = '/opt/woow/pi-paseo-plugin';
 // Keep in step with `ARG PI_PASEO_VERSION` in the Dockerfile; a mismatch fails the image build here.
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.13');
+assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.14');
 assert.equal(RUNTIME_REVISION, '0.11.2-r3-6d8dbe515479');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
