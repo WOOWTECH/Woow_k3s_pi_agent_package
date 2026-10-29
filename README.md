@@ -629,6 +629,10 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Paseo keeps your setting across restarts (0.3.21)
+
+The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) and [Paseo plugin 0.1.14](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.14). Binding still happens only in Settings → Omnigent; no setup conversation is created or opened. Two fixes ride in the Paseo plugin: a plain stop of the Paseo supervisor (container restart, or a supervisor takeover after the plugin source changed) no longer persists "disabled", so a restart cannot switch Paseo off any more (only a real disable in Settings or Pi disabling the package does); and an empty or error-cached provider model catalog is refreshed once after login, so a fresh login lists its models without a restart.
+
 ## Fresh install with no conversation (0.3.20)
 
 The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) and [Paseo plugin 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13). Binding still happens only in Settings → Omnigent. On a brand-new volume (no conversation, no project picked) three things were wrong and are fixed: Settings → Paseo answered 404 and could not generate a pairing link (it now loads from the server's own fallback directory; a directory named by the client is still refused unless Pi Web serves it); the first screen never mentioned Omnigent (a plain-text third step now points to Settings → Omnigent; it is not a button or link and opens no conversation); and the Paseo settings section could not scroll on phones and short windows. Image acceptance now checks all three on a fresh volume, at desktop and phone widths, before and after a restart.

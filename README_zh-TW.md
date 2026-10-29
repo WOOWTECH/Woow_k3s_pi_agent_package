@@ -606,6 +606,10 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## Paseo 重啟後保留使用者設定（0.3.21）
+
+映像固定使用 [Omnigent 插件 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) 與 [Paseo 插件 0.1.14](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.14)。綁定仍只在 Settings → Omnigent，不建立或開啟設定對話。Paseo 插件有兩項修正：Paseo supervisor 只是被停止（容器重啟，或外掛來源改變後由新的 supervisor 接手）時不再把「停用」寫成持久狀態，所以重啟不會再把 Paseo 關掉（只有使用者在設定頁真的停用、或 Pi 停用該套件才會）；供應商模型清單為空或快取到錯誤時，登入後會重整一次，新登入不必重啟就看得到模型。
+
 ## 全新安裝（沒有任何對話）的修正（0.3.20）
 
 映像固定使用 [Omnigent 插件 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) 與 [Paseo 插件 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13)。綁定仍只在 Settings → Omnigent。全新磁碟（沒有對話、也沒選專案）原本有三個問題，現已修正：Settings → Paseo 會回 404、無法產生配對連結（現在改由伺服器自己決定的目錄載入；客戶端指定的目錄仍必須是 Pi Web 已服務的）；首頁完全沒提 Omnigent（現在第三步以純文字指向 Settings → Omnigent，不是按鈕或連結，也不開啟對話）；Paseo 設定分頁在手機與小視窗無法捲動。映像驗收現在會在全新磁碟上、桌面與手機寬度、重啟前後都檢查這三項。
