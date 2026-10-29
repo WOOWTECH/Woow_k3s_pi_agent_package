@@ -26,7 +26,7 @@
 #      keep keys and known_hosts across restarts (they ignore $HOME and read /etc/passwd)
 # Chart: woow-paas-charts charts/pi-agent (loopback pi-web behind an nginx basic-auth
 # sidecar). Registry: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}.
-ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.20@sha256:19a50724cc64b3337781003c56811edf1297618a98efa9ee171b358523acccc6
+ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.21@sha256:ce0895df04c00885a85638e59b44b3cc852ec92bff75d99ead0f0efdeb46bb34
 FROM ${BASE}
 
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web

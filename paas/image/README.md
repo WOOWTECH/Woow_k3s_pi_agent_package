@@ -1,6 +1,23 @@
 # pi-agent image
 
-## Root 0.3.20：Paseo 0.1.13／Omnigent 0.3.29（2026-10-28）
+## Root 0.3.21：Paseo 0.1.14／Omnigent 0.3.29（2026-10-29）
+
+PaaS 衍生映像的 root 基底改為
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.21@sha256:ce0895df04c00885a85638e59b44b3cc852ec92bff75d99ead0f0efdeb46bb34`（雙架構 index，
+source revision `eba7b0925bc45799ff69916016480f48d9426401`）。內含 Paseo **0.1.14**、Omnigent **0.3.29**；
+修正版 web 仍是 **0.13.0-woow.1**，`tests/managed-web-contract.json` 的 `paseoVersion` 已同步，Omnigent 外掛版本不變。
+相對 root 0.3.20，使用者看得到的差異有兩項（都在 Paseo 外掛 0.1.14）：
+
+1. **重啟不會再把 Paseo 關掉。** 以前 Paseo supervisor 只是被停止（容器重啟，或外掛來源改變後由新的 supervisor
+   接手）就會把「停用」寫成持久狀態，要有人再啟用才會恢復；現在只有使用者在設定頁真的停用、或 Pi 停用該套件才會停用，
+   被取代的舊 supervisor 不再動它。
+2. **供應商模型清單為空或快取到錯誤時，登入後重整一次**，新登入不必重啟就看得到模型。
+
+`host/adapter.patch` 與 Omnigent 組合補丁的雜湊與 0.3.20 相同，所以本層補丁與 e2e 不動。外掛來源路徑不變的租戶
+（`/opt/woow/pi-paseo-plugin`）只換映像即可，Omnigent 登入與主機連線不受影響（2026-10-29 對 6 台租戶 1105→1328
+實測登入保留，換 Paseo 版本是同一種只換映像的升級）。
+
+## Root 0.3.20（歷史紀錄；現行基底見上節）：Paseo 0.1.13／Omnigent 0.3.29（2026-10-28）
 
 PaaS 衍生映像的 root 基底改為
 `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.20@sha256:19a50724cc64b3337781003c56811edf1297618a98efa9ee171b358523acccc6`（雙架構 index，
