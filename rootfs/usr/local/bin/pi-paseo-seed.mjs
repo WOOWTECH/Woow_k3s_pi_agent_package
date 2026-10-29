@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // Register the image bundle once; credentials and host identity never come from
 // the image. Explicit disable/removal and an externally installed package win.
+// An official GitHub git pin is moved to the bundle before Pi Web starts (see
+// pi-plugin-pin-migration.mjs), so no old supervisor sees the source switch.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { seedWebClient } from './pi-paseo-web-seed.mjs';
+import { officialGitPin, planPinMigration, applyPinMigration, recordMigration } from './pi-plugin-pin-migration.mjs';
 
 const name = '@woowtech/pi-paseo';
 const sourceOf = item => typeof item === 'string' ? item : item?.source;
@@ -29,14 +32,14 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
   if (pkg?.name !== name) throw Error('image bundle missing or invalid');
   const file = path.join(agentDir, 'settings.json');
   const markerFile = path.join(agentDir, 'pi-paseo', 'image-seed.json');
-  const settings = read(file, {});
+  let settings = read(file, {});
   if (!settings || typeof settings !== 'object' || Array.isArray(settings) ||
       ('packages' in settings && !Array.isArray(settings.packages))) throw Error('invalid Pi settings');
-  const packages = settings.packages || [];
   const matches = (item, base) => {
     const source = sourceOf(item);
     if (typeof source !== 'string') return false;
     if (source === bundle || /(?:^|[/:])pi-paseo-plugin(?:\.git)?(?:@[^/]*)?\/?$/i.test(source)
+        || officialGitPin(source, 'pi-paseo-plugin')
         || source === `npm:${name}` || source.startsWith(`npm:${name}@`)) return true;
     if (!source.includes(':')) return read(path.resolve(base, source, 'package.json'), null)?.name === name;
     return false;
@@ -46,12 +49,27 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
       || ('packages' in project && !Array.isArray(project.packages))) throw Error('invalid project settings');
   // A project-level choice has precedence over the global image default.
   const projectEntry = (project.packages || []).find(item => matches(item, home));
-  const entry = projectEntry || packages.find(item => matches(item, agentDir));
+  let entry = projectEntry || (settings.packages || []).find(item => matches(item, agentDir));
   const marker = read(markerFile, null);
   if (!seedEnabled) return { active: false, reason: 'image-setup-disabled' };
+  const plan = planPinMigration({ packages: settings.packages || [], repository: 'pi-paseo-plugin', name, bundle, version: pkg.version,
+    agentDir, isPlugin: item => matches(item, agentDir), projectOverride: Boolean(projectEntry) });
+  const migration = applyPinMigration({ agentDir, file, settings, plan, write });
+  const migrated = migration.run.changed.length > 0;
+  if (migrated) {
+    settings = migration.settings;
+    entry = settings.packages.find(item => matches(item, agentDir));
+  }
+  const packages = settings.packages || [];
+  // A missing receipt must not keep the offline web client from being prepared.
+  try {
+    recordMigration({ file: path.join(agentDir, 'pi-paseo', 'image-migration.json'), run: migration.run,
+      plugin: name, bundle, version: pkg.version, read, write });
+  } catch { console.error('[pi-paseo] image migration receipt could not be written'); }
   if (entry) {
-    if (!marker) write(markerFile, { schema: 1, mode: sourceOf(entry) === bundle ? 'managed' : 'external', source: sourceOf(entry) });
-    return { active: !projectEntry && sourceOf(entry) === bundle && !disabled(entry), reason: disabled(entry) ? 'disabled' : 'existing', source: sourceOf(entry) };
+    if (!marker || migrated) write(markerFile, { schema: 1, mode: sourceOf(entry) === bundle ? 'managed' : 'external', source: sourceOf(entry) });
+    return { active: !projectEntry && sourceOf(entry) === bundle && !disabled(entry),
+      reason: disabled(entry) ? 'disabled' : migrated ? 'migrated' : 'existing', source: sourceOf(entry) };
   }
   if (marker) return { active: false, reason: 'user-removed' };
   if (exists(path.join(agentDir, 'pi-paseo/state.json'))) {

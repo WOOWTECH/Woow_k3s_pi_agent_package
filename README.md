@@ -629,6 +629,18 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Official plugin git pins move to the bundled plugins at startup (next release)
+
+Before Pi Web starts, the image rewrites a Pi `settings.json` package entry that pins the official GitHub repository (`github.com/WOOWTECH/pi-omnigent-plugin` or `github.com/WOOWTECH/pi-paseo-plugin`, in any git form Pi accepts) to the plugin copy in the image (`/opt/woow/pi-omnigent-plugin`, `/opt/woow/pi-paseo-plugin`). No old plugin copy is running yet, so the switch is not seen as the plugin being removed: Omnigent keeps its sign-in and engine checks, and Paseo keeps its setting. Upgrading such a volume no longer asks for another sign-in in Settings → Omnigent.
+
+- Left as they are and listed in the receipt with the reason: a disabled entry (`"extensions": []`), a release tag newer than the image's plugin, a branch, commit or untagged pin whose cloned copy is not older than the image's plugin (or cannot be read), a plugin that the home project's `.pi/settings.json` also lists, and two entries for the same plugin.
+- Never touched: forks and other repositories, local checkouts and npm sources.
+- `settings.json` is copied once to `settings.json.pre-image-migration.bak`; a later migration never overwrites that copy. Every change (old and new source) and every entry left as it is (with the reason) is appended to `omnigent-plugin/image-migration.json` or `pi-paseo/image-migration.json`. Credentials in a git URL are masked there. A boot with nothing new to record writes nothing.
+- When the image's Omnigent plugin is the active one and `omnigent-plugin/host.json` still starts a Pi Web copy that an older plugin built on the volume (`~/.local/share/pi-omnigent-web/…` or `~/.local/share/pi-paseo/…`), or a path that no longer exists, its `realWeb` is set to the image's `/usr/local/bin/pi-web` (`host.json` is copied once to `host.json.pre-image-migration.bak`). The old copy stays on disk. Other launchers, and the Shared Runtime's own `shared-runtime/host.json`, are not changed.
+- `PI_OMNIGENT_AUTO_SETUP=false` and `PI_PASEO_AUTO_SETUP=false` also turn this rewrite off.
+
+The bundled Paseo runtime no longer ships the musl build of the Claude SDK binary next to the glibc build. Its lockfile has no `libc` field, so `npm ci` installed both; the SDK starts the glibc build first, so the musl copy (about 230 MiB per architecture) never ran. The image build now fails if the glibc binary is missing or a musl copy remains.
+
 ## Paseo keeps your setting across restarts (0.3.21)
 
 The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) and [Paseo plugin 0.1.14](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.14). Binding still happens only in Settings → Omnigent; no setup conversation is created or opened. Two fixes ride in the Paseo plugin: a plain stop of the Paseo supervisor (container restart, or a supervisor takeover after the plugin source changed) no longer persists "disabled", so a restart cannot switch Paseo off any more (only a real disable in Settings or Pi disabling the package does); and an empty or error-cached provider model catalog is refreshed once after login, so a fresh login lists its models without a restart.
@@ -637,7 +649,7 @@ The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-
 
 The image pins [Omnigent plugin 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) and [Paseo plugin 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13). Binding still happens only in Settings → Omnigent. On a brand-new volume (no conversation, no project picked) three things were wrong and are fixed: Settings → Paseo answered 404 and could not generate a pairing link (it now loads from the server's own fallback directory; a directory named by the client is still refused unless Pi Web serves it); the first screen never mentioned Omnigent (a plain-text third step now points to Settings → Omnigent; it is not a button or link and opens no conversation); and the Paseo settings section could not scroll on phones and short windows. Image acceptance now checks all three on a fresh volume, at desktop and phone widths, before and after a restart.
 
-Upgrade note: a deployment whose Omnigent plugin was pinned to a git source and moves to this image's bundled plugin path is asked to sign in once more in Settings → Omnigent (observed on an existing tenant: the panel shows "Complete server setup" while the host stays Online, and the Omnigent web app is unaffected; the engine model lists stay empty until that sign-in). Fresh installations are not affected because the plugin source is already the bundled path.
+Upgrade note: when an Omnigent plugin pinned to a git source is switched to this image's bundled plugin path while Pi Web is running, the plugin asks for one more sign-in in Settings → Omnigent. Only Pi Web's Settings → Omnigent panel is affected: it shows "Complete server setup", and its per-engine model lists stay empty until that sign-in, because the panel reads the model catalog only after a confirmed sign-in. The host stays Online and the Omnigent web app is unaffected (observed on an existing tenant). Fresh installations are not affected because the plugin source is already the bundled path. From the next image release an official git pin is switched at startup, before Pi Web runs, and no sign-in is needed (see "Official plugin git pins move to the bundled plugins at startup").
 
 ## Settings-only Omnigent binding (0.3.19)
 
@@ -681,7 +693,7 @@ A fresh data volume registers the plugin and creates **Omnigent 連線設定**.
 On an untouched homepage Pi Web opens this conversation automatically. Enter the server URL, username and
 password. No server URL, login, provider credential or host ID is included in
 the image. Only engines already installed in the container are connected.
-Existing external packages, native disable and deliberate removal are kept.
+Existing external packages, native disable and deliberate removal are kept; an official GitHub git pin moves to the bundled plugin at startup (see "Official plugin git pins move to the bundled plugins at startup").
 Plugin 0.3.17 adds automatic first-home selection of the saved pending setup conversation. It preserves explicit navigation, remembered work and user input; an untouched homepage waits at most 30 seconds for late setup metadata. This image prebuilds the matching UI. Existing installations that update only the plugin must run official `pi-omnigent install-ui` and restart Pi Web to load the new compiled UI.
 
 Set `PI_OMNIGENT_AUTO_SETUP=false` to opt out before first boot. Existing engine
@@ -711,6 +723,6 @@ Fresh boot registers the plugin once; Pi Web creates or resumes its setup conver
 
 Paseo 0.1.10 records the verified daemon process birth and uses a shared Linux lock for the managed runtime and plugin recovery. It can recover a previously verified stale PID without signaling the unrelated process that now occupies that PID. The runtime revision is `0.11.2-r3-6d8dbe515479`; the underlying Paseo version stays 0.11.2. A healthy older r2 daemon remains visible and can be stopped normally even before r3 is installed. When updating only the plugin, a running r2 daemon requires an explicit normal Stop and Start. An old stale record without trustworthy birth evidence remains blocked for operator inspection.
 
-Native package disable/removal and existing external plugin installations are preserved. `PI_PASEO_AUTO_SETUP=false` opts out of new image registration; it does not remove an existing installation. Manual service Stop remains effective across restart. Use the Paseo settings page to resume. Existing services only change when explicitly upgraded.
+Native package disable/removal and existing external plugin installations are preserved; an official GitHub git pin moves to the bundled plugin at startup (see "Official plugin git pins move to the bundled plugins at startup"). `PI_PASEO_AUTO_SETUP=false` opts out of new image registration and of that move; it does not remove an existing installation. Manual service Stop remains effective across restart. Use the Paseo settings page to resume. Existing services only change when explicitly upgraded.
 
 The PaaS overlay supplies its existing Claude Code/Codex tools and Omnigent gateway; each tenant still needs valid provider login or gateway access. A bundled runtime does not prove a provider can answer. The HA package uses a separate ingress adapter for Pi Web 0.12.

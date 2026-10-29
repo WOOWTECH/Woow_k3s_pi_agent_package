@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 // Register the image bundle once; credentials and host identity never come from
 // the image. Explicit disable/removal and an externally installed package win.
+// An official GitHub git pin is moved to the bundle before Pi Web starts (see
+// pi-plugin-pin-migration.mjs), so an image upgrade keeps the existing login.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { officialGitPin, planPinMigration, applyPinMigration, recordMigration, backupOnce } from './pi-plugin-pin-migration.mjs';
 
 const name = '@woowtech/pi-omnigent-plugin';
+const nativePiWeb = '/usr/local/bin/pi-web';
+// Pi Web copies that older plugin installers built on the volume. This image
+// already ships Pi Web with the native Omnigent and Paseo settings pages.
+const volumeCopies = ['.local/share/pi-omnigent-web', '.local/share/pi-paseo'];
 const sourceOf = item => typeof item === 'string' ? item : item?.source;
 const disabled = item => typeof item === 'object' && Array.isArray(item.extensions) && !item.extensions.length;
 const exists = file => fs.existsSync(file);
@@ -23,19 +30,41 @@ function write(file, value) {
     fs.renameSync(temporary, file);
   } finally { fs.rmSync(temporary, { force: true }); }
 }
-export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), seedEnabled = true }) {
+function executable(file) {
+  try { fs.accessSync(file, fs.constants.X_OK); return fs.statSync(file).isFile(); } catch { return false; }
+}
+// The plugin launcher keeps starting host.json's realWeb. When that is a Pi Web
+// copy left on the volume (or a path that no longer exists), point it at the
+// image's Pi Web; the copy itself stays on disk. Other launchers are kept.
+function repairLauncher({ stateDir, home, nativeWeb }) {
+  const file = path.join(stateDir, 'host.json');
+  let host;
+  try { host = read(file, null); } catch { return null; }
+  if (!host || typeof host !== 'object' || typeof host.realWeb !== 'string' || host.realWeb === nativeWeb) return null;
+  const real = file => { try { return fs.realpathSync(file); } catch { return path.resolve(file); } };
+  const targets = [path.resolve(host.realWeb), real(host.realWeb)];
+  const roots = volumeCopies.flatMap(directory => [path.resolve(home, directory), path.join(real(home), directory)]);
+  const copy = targets.some(target => roots.some(root => target.startsWith(root + path.sep)));
+  const reason = copy ? 'volume-ui-copy' : !exists(host.realWeb) ? 'missing' : null;
+  if (!reason || !executable(nativeWeb)) return null;
+  backupOnce(file, `${file}.pre-image-migration.bak`);
+  write(file, { ...host, realWeb: nativeWeb });
+  return { file, field: 'realWeb', from: host.realWeb, to: nativeWeb, reason };
+}
+export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), seedEnabled = true,
+  stateDir = path.join(agentDir, 'omnigent-plugin'), nativeWeb = nativePiWeb }) {
   const pkg = read(path.join(bundle, 'package.json'), null);
   if (pkg?.name !== name) throw Error('image bundle missing or invalid');
   const file = path.join(agentDir, 'settings.json');
   const markerFile = path.join(agentDir, 'omnigent-plugin', 'image-seed.json');
-  const settings = read(file, {});
+  let settings = read(file, {});
   if (!settings || typeof settings !== 'object' || Array.isArray(settings) ||
       ('packages' in settings && !Array.isArray(settings.packages))) throw Error('invalid Pi settings');
-  const packages = settings.packages || [];
   const matches = (item, base) => {
     const source = sourceOf(item);
     if (typeof source !== 'string') return false;
     if (source === bundle || /(?:^|[/:])pi-omnigent-plugin(?:\.git)?(?:@[^/]*)?\/?$/i.test(source)
+        || officialGitPin(source, 'pi-omnigent-plugin')
         || source === `npm:${name}` || source.startsWith(`npm:${name}@`)) return true;
     if (!source.includes(':')) return read(path.resolve(base, source, 'package.json'), null)?.name === name;
     return false;
@@ -45,12 +74,29 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
       || ('packages' in project && !Array.isArray(project.packages))) throw Error('invalid project settings');
   // A project-level choice has precedence over the global image default.
   const projectEntry = (project.packages || []).find(item => matches(item, home));
-  const entry = projectEntry || packages.find(item => matches(item, agentDir));
+  let entry = projectEntry || (settings.packages || []).find(item => matches(item, agentDir));
   const marker = read(markerFile, null);
   if (!seedEnabled) return { active: false, reason: 'image-setup-disabled' };
+  const plan = planPinMigration({ packages: settings.packages || [], repository: 'pi-omnigent-plugin', name, bundle, version: pkg.version,
+    agentDir, isPlugin: item => matches(item, agentDir), projectOverride: Boolean(projectEntry) });
+  const migration = applyPinMigration({ agentDir, file, settings, plan, write });
+  const migrated = migration.run.changed.length > 0;
+  if (migrated) {
+    settings = migration.settings;
+    entry = settings.packages.find(item => matches(item, agentDir));
+  }
+  const packages = settings.packages || [];
   if (entry) {
-    if (!marker) write(markerFile, { schema: 1, mode: sourceOf(entry) === bundle ? 'managed' : 'external', source: sourceOf(entry) });
-    return { active: !projectEntry && sourceOf(entry) === bundle && !disabled(entry), reason: disabled(entry) ? 'disabled' : 'existing', source: sourceOf(entry) };
+    if (!marker || migrated) write(markerFile, { schema: 1, mode: sourceOf(entry) === bundle ? 'managed' : 'external', source: sourceOf(entry) });
+    const active = !projectEntry && sourceOf(entry) === bundle && !disabled(entry);
+    // Bookkeeping after the switch must not stop main() from rewriting the launcher.
+    let launcher = null;
+    if (active) try { launcher = repairLauncher({ stateDir, home, nativeWeb }); } catch {}
+    try {
+      recordMigration({ file: path.join(agentDir, 'omnigent-plugin', 'image-migration.json'),
+        run: { ...migration.run, ...(launcher ? { launcher } : {}) }, plugin: name, bundle, version: pkg.version, read, write });
+    } catch { console.error('[pi-omnigent] image migration receipt could not be written'); }
+    return { active, reason: disabled(entry) ? 'disabled' : migrated ? 'migrated' : 'existing', source: sourceOf(entry) };
   }
   if (marker) return { active: false, reason: 'user-removed' };
   if (exists(path.join(agentDir, 'omnigent-plugin/state.json'))) {
@@ -77,7 +123,8 @@ async function main() {
     process.stdout.write(entry?.installedPath || bundle);
     return;
   }
-  const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_OMNIGENT_AUTO_SETUP !== 'false' });
+  const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_OMNIGENT_AUTO_SETUP !== 'false',
+    stateDir: process.env.PI_OMNIGENT_STATE_DIR || path.join(agentDir, 'omnigent-plugin') });
   if (process.env.PI_OMNIGENT_SEED_ONLY !== '1' && result.active) {
     const web = await import(pathToFileURL(path.join(bundle, 'src/web.mjs')).href);
     // Prepare the launcher without creating a setup conversation. Binding is

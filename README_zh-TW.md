@@ -606,6 +606,18 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## 開機時把官方插件的 git 釘選改成映像內建版本（下一版）
+
+Pi Web 啟動前，映像會把 Pi `settings.json` 裡指向官方 GitHub repo（`github.com/WOOWTECH/pi-omnigent-plugin` 或 `github.com/WOOWTECH/pi-paseo-plugin`，Pi 接受的各種 git 寫法都算）的套件項目，改成映像內建的插件（`/opt/woow/pi-omnigent-plugin`、`/opt/woow/pi-paseo-plugin`）。這時還沒有任何舊插件在執行，所以這次切換不會被當成「插件被移除」：Omnigent 保留登入與引擎驗證結果，Paseo 保留使用者設定。這類資料卷升級後，不必再到 Settings → Omnigent 重新登入。
+
+- 維持原樣、並在收據寫明原因：已停用的項目（`"extensions": []`）、比映像內建版本新的 release tag、分支／commit／沒有 ref 的釘選且已 clone 的副本不比內建版本舊（或讀不到版本）、home 專案的 `.pi/settings.json` 也列了同一個插件、同一個插件有兩個項目。
+- 完全不碰：fork 與其他 repo、本機路徑、npm 來源。
+- `settings.json` 只備份一次，存成 `settings.json.pre-image-migration.bak`，之後的遷移不會覆蓋它。每一筆改動（舊來源與新來源）與每一筆維持原樣的項目（含原因）會附加到 `omnigent-plugin/image-migration.json` 或 `pi-paseo/image-migration.json`；git 網址裡的帳密會遮蔽。沒有新內容可記的開機不寫任何檔案。
+- 映像內建的 Omnigent 插件是生效中的插件，而 `omnigent-plugin/host.json` 仍會啟動舊插件在資料卷上建的 Pi Web 副本（`~/.local/share/pi-omnigent-web/…` 或 `~/.local/share/pi-paseo/…`），或指向已不存在的路徑時，`realWeb` 會改成映像的 `/usr/local/bin/pi-web`（`host.json` 只備份一次，存成 `host.json.pre-image-migration.bak`）。舊副本仍留在磁碟上。其他啟動器、以及 Shared Runtime 自己的 `shared-runtime/host.json` 都不會改。
+- `PI_OMNIGENT_AUTO_SETUP=false`、`PI_PASEO_AUTO_SETUP=false` 也會關掉這項改寫。
+
+內建的 Paseo runtime 不再於 glibc 版旁邊多帶 musl 版的 Claude SDK 執行檔。它的 lockfile 沒有 `libc` 欄位，所以 `npm ci` 會兩版都裝；SDK 先啟動 glibc 版，musl 版（每個架構約 230 MiB）從來不會執行。現在若缺少 glibc 執行檔或仍留有 musl 版，映像建置會失敗。
+
 ## Paseo 重啟後保留使用者設定（0.3.21）
 
 映像固定使用 [Omnigent 插件 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) 與 [Paseo 插件 0.1.14](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.14)。綁定仍只在 Settings → Omnigent，不建立或開啟設定對話。Paseo 插件有兩項修正：Paseo supervisor 只是被停止（容器重啟，或外掛來源改變後由新的 supervisor 接手）時不再把「停用」寫成持久狀態，所以重啟不會再把 Paseo 關掉（只有使用者在設定頁真的停用、或 Pi 停用該套件才會）；供應商模型清單為空或快取到錯誤時，登入後會重整一次，新登入不必重啟就看得到模型。
@@ -614,7 +626,7 @@ EOF
 
 映像固定使用 [Omnigent 插件 0.3.29](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.29) 與 [Paseo 插件 0.1.13](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.13)。綁定仍只在 Settings → Omnigent。全新磁碟（沒有對話、也沒選專案）原本有三個問題，現已修正：Settings → Paseo 會回 404、無法產生配對連結（現在改由伺服器自己決定的目錄載入；客戶端指定的目錄仍必須是 Pi Web 已服務的）；首頁完全沒提 Omnigent（現在第三步以純文字指向 Settings → Omnigent，不是按鈕或連結，也不開啟對話）；Paseo 設定分頁在手機與小視窗無法捲動。映像驗收現在會在全新磁碟上、桌面與手機寬度、重啟前後都檢查這三項。
 
-升級注意：Omnigent 插件原本固定在 git 來源的部署，改用本映像內建的插件路徑後，需要在 Settings → Omnigent 重新登入一次（已在既有租戶觀察到：面板顯示「Complete server setup」，主機連線仍是 Online，Omnigent 網頁端不受影響；登入前引擎模型清單是空的）。全新安裝不受影響，因為插件來源本來就是內建路徑。
+升級注意：Pi Web 執行中把固定在 git 來源的 Omnigent 插件改成本映像內建的插件路徑時，插件會要求在 Settings → Omnigent 再登入一次。受影響的只有 Pi Web 的 Settings → Omnigent 面板：它顯示「Complete server setup」，而且在重新登入前，各引擎的模型清單是空的，因為面板要確認登入後才會讀取模型目錄。主機仍是 Online，Omnigent 網頁端不受影響（已在既有租戶觀察到）。全新安裝不受影響，因為插件來源本來就是內建路徑。從下一版映像起，官方 git 釘選會在 Pi Web 啟動前於開機時切換，不必重新登入（見「開機時把官方插件的 git 釘選改成映像內建版本」）。
 
 ## Omnigent 僅於設定頁綁定（0.3.19）
 
@@ -637,7 +649,7 @@ EOF
 映像內建 `@woowtech/pi-omnigent-plugin` **0.3.21**，並於 MCP 右側加入 Omnigent 設定頁，也可從 `/omnigent` 開啟。建置時會驗證公開套件與介面 patch 的 SHA-256；預設 chart 選用 `0.3.13`。0.3.21 會短暫重查原生套件狀態，避免一次讀取失敗使已連線的設定頁誤顯示停用；明確停用仍立即生效。組合介面檔案維持 0.3.20 的版本。
 映像驗收會先從映像 index 驗證 amd64／arm64 各自的子 digest，再以不同參照拉取；0.3.11 的多架構驗收因 Docker 拒絕以同一本地 index 參照切換架構而未完成。
 
-全新資料目錄會註冊插件，建立 **Omnigent 連線設定** 對話，並在尚未操作的首頁自動開啟。填入 server URL、帳號與密碼即可設定；已有明確導覽、工作或輸入時不會搶走畫面。映像不包含登入憑證、host ID 或提供者授權，只連接容器中已安裝的引擎。外部插件與明確停用、移除狀態會保留，`PI_OMNIGENT_AUTO_SETUP=false` 可停用首次自動註冊。
+全新資料目錄會註冊插件，建立 **Omnigent 連線設定** 對話，並在尚未操作的首頁自動開啟。填入 server URL、帳號與密碼即可設定；已有明確導覽、工作或輸入時不會搶走畫面。映像不包含登入憑證、host ID 或提供者授權，只連接容器中已安裝的引擎。外部插件與明確停用、移除狀態會保留；官方 GitHub 的 git 釘選會在開機時改成內建插件（見「開機時把官方插件的 git 釘選改成映像內建版本」）。`PI_OMNIGENT_AUTO_SETUP=false` 可停用首次自動註冊與這項改寫。
 
 Pi 啟動器保留 Omnigent 傳入的 `PI_CODING_AGENT_DIR`，讓各對話使用自己的模型目錄。PaaS 衍生映像保留鎖定的 Omnigent Python runtime；獨立 k3s 套件則由插件安裝缺少的依賴。提供者仍需要使用者自己的有效登入；能列出模型不代表已完成對話驗證。
 
@@ -655,6 +667,6 @@ Omnigent 0.3.21 保留 0.3.19 的程序復原修補：在保留明確授權、�
 
 Paseo 0.1.10 會保存已驗證的 daemon 程序出生資訊，並讓插件與內建 CLI 共用 Linux 程序鎖。當已驗證的舊程序消失、PID 被其他程序重用時，可恢復原服務，不會終止無關程序。執行套件修訂版為 `0.11.2-r3-6d8dbe515479`，Paseo 本體版本維持 0.11.2。新版套件尚未安裝完成時，仍可辨識並正常停止既有 r2 daemon；只更新插件而仍運行 r2 時，需在設定頁正常停止後重新啟動。缺乏可信出生紀錄的舊異常紀錄會保留，交由管理員確認。
 
-保留已停用、移除及外部安裝的插件；`PI_PASEO_AUTO_SETUP=false` 僅關閉新的預設註冊。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
+保留已停用、移除及外部安裝的插件；官方 GitHub 的 git 釘選會在開機時改成內建插件（見「開機時把官方插件的 git 釘選改成映像內建版本」）。`PI_PASEO_AUTO_SETUP=false` 會關閉新的預設註冊與這項改寫。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
 
 PaaS 沿用既有 Claude Code、Codex 與 Omnigent gateway；提供者仍需有效登入或 gateway 權限。預裝套件不等於對話驗證通過。HA 套件另以 ingress 整合其 Pi Web 0.12。
