@@ -606,7 +606,15 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## 開機時把官方插件的 git 釘選改成映像內建版本（下一版）
+## Omnigent 0.3.30 與 Paseo 0.1.15（0.3.22）
+
+映像固定使用 [Omnigent 插件 0.3.30](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.30) 與 [Paseo 插件 0.1.15](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.15)，並在 Pi Web 啟動前把官方插件的 git 釘選改成映像內建版本（見下一節）。
+
+- **Omnigent 0.3.30**：換插件來源（git 釘選、映像內建、npm）時保留已核准的登入；設定 → Omnigent 會顯示每個問題代碼的原因與下一步（主機被別的帳號佔用時，先請你用擁有它的帳號登入，`reset-id` 留到最後）；啟動器記錄的 Pi Web 不見時，自動改用可用的 `pi-web`；這個映像已有原生設定頁，`install-ui` 會略過、不影響 Paseo 安裝；新增 `pi-omnigent doctor [--fix]` 與 `pi-omnigent connect --password-stdin`。
+- **Paseo 0.1.15**：換插件來源後 Paseo 不會再被關掉（重啟的情況 0.1.14 已修好）。
+- Paseo runtime 不再帶用不到的 musl 版 Claude SDK。
+
+## 開機時把官方插件的 git 釘選改成映像內建版本（0.3.22）
 
 Pi Web 啟動前，映像會把 Pi `settings.json` 裡指向官方 GitHub repo（`github.com/WOOWTECH/pi-omnigent-plugin` 或 `github.com/WOOWTECH/pi-paseo-plugin`，寫法限下列幾種）的套件項目，改成映像內建的插件（`/opt/woow/pi-omnigent-plugin`、`/opt/woow/pi-paseo-plugin`）。這時還沒有任何舊插件在執行，所以這次切換不會被當成「插件被移除」：Omnigent 保留登入與引擎驗證結果，Paseo 保留使用者設定。這類資料卷升級後，不必再到 Settings → Omnigent 重新登入。
 

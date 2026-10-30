@@ -629,7 +629,15 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Official plugin git pins move to the bundled plugins at startup (next release)
+## Omnigent 0.3.30 and Paseo 0.1.15 (0.3.22)
+
+The image pins [Omnigent plugin 0.3.30](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.30) and [Paseo plugin 0.1.15](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.15), and moves official plugin git pins to the bundled plugins before Pi Web starts (next section).
+
+- **Omnigent 0.3.30**: switching the plugin source (git pin, bundled copy, npm) keeps the approved sign-in; Settings → Omnigent shows the reason and the next step for each issue code (a host owned by another account asks you to sign in with that account first; `reset-id` is the last resort); a launcher whose recorded Pi Web is gone falls back to a working `pi-web`; `install-ui` steps aside on this image's native settings page without breaking Paseo's install; new `pi-omnigent doctor [--fix]` and `pi-omnigent connect --password-stdin`.
+- **Paseo 0.1.15**: a plugin source switch no longer leaves Paseo switched off (0.1.14 already covered restarts).
+- The Paseo runtime no longer ships the unused musl Claude SDK binaries.
+
+## Official plugin git pins move to the bundled plugins at startup (0.3.22)
 
 Before Pi Web starts, the image rewrites a Pi `settings.json` package entry that pins the official GitHub repository (`github.com/WOOWTECH/pi-omnigent-plugin` or `github.com/WOOWTECH/pi-paseo-plugin`, in one of the spellings listed below) to the plugin copy in the image (`/opt/woow/pi-omnigent-plugin`, `/opt/woow/pi-paseo-plugin`). No old plugin copy is running yet, so the switch is not seen as the plugin being removed: Omnigent keeps its sign-in and engine checks, and Paseo keeps its setting. Upgrading such a volume no longer asks for another sign-in in Settings → Omnigent.
 
