@@ -151,6 +151,15 @@ RUN set -euo pipefail; \
     node -e 'const p=require("/opt/woow/pi-paseo-plugin/package.json"); if(p.name!=="@woowtech/pi-paseo" || p.version!==process.argv[1]) throw Error("unexpected Paseo release")' "${PI_PASEO_VERSION}"; \
     PASEO_RUNTIME=$(node --input-type=module -e 'import {prepareRuntimeManifest} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; console.log(prepareRuntimeManifest({runtimeDir:"/opt/woow/pi-paseo-runtime"}))'); \
     npm ci --prefix "$PASEO_RUNTIME" --omit=dev --no-audit --no-fund; \
+    # The runtime lockfile records only os/cpu for the Claude SDK binaries, so npm
+    # installs the musl build next to the glibc one (~230 MiB per architecture).
+    # The SDK tries the glibc build first; on this Debian image musl never runs.
+    # Same removal as the HA add-on's patches/build-paseo.mjs.
+    node -e 'if (!process.report.getReport().header.glibcVersionRuntime) throw Error("Paseo runtime expects glibc")'; \
+    CLAUDE_SDK="$PASEO_RUNTIME/node_modules/@anthropic-ai/claude-agent-sdk-linux-$(node -p process.arch)"; \
+    test -f "$CLAUDE_SDK/claude"; \
+    rm -rf "$CLAUDE_SDK-musl"; \
+    test -z "$(find "$PASEO_RUNTIME/node_modules/@anthropic-ai" -mindepth 1 -maxdepth 1 -name '*-musl' -print -quit)"; \
     test "$(node "$PASEO_RUNTIME/node_modules/@getpaseo/cli/bin/paseo" --version)" = 0.11.2; \
     node --input-type=module -e 'import {markRuntimeReady} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; markRuntimeReady({runtimeDir:"/opt/woow/pi-paseo-runtime"})'; \
     rm /tmp/paseo-plugin.tgz
@@ -348,7 +357,7 @@ COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 # Preserve repository-relative imports for the same real offline suite in local QA and image builds.
 COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
-COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs /opt/woow/rootfs/usr/local/bin/
+COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/
 
 RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/pi-web-start.sh \

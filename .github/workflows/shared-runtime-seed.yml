@@ -8,6 +8,8 @@ on:
       - "rootfs/usr/local/bin/pi-omnigent-seed.mjs"
       - "rootfs/usr/local/bin/pi-paseo-seed.mjs"
       - "rootfs/usr/local/bin/pi-paseo-web-seed.mjs"
+      - "rootfs/usr/local/bin/pi-plugin-pin-migration.mjs"
+      - "tests/plugin-pin-migration.test.mjs"
       - "tests/paseo-seed.test.mjs"
       - "rootfs/usr/local/bin/pi"
       - "tests/omnigent-seed.test.mjs"
@@ -26,6 +28,8 @@ on:
       - "rootfs/usr/local/bin/pi-omnigent-seed.mjs"
       - "rootfs/usr/local/bin/pi-paseo-seed.mjs"
       - "rootfs/usr/local/bin/pi-paseo-web-seed.mjs"
+      - "rootfs/usr/local/bin/pi-plugin-pin-migration.mjs"
+      - "tests/plugin-pin-migration.test.mjs"
       - "tests/paseo-seed.test.mjs"
       - "rootfs/usr/local/bin/pi"
       - "tests/omnigent-seed.test.mjs"
@@ -48,5 +52,5 @@ jobs:
       - run: |
           bash tests/test-shared-runtime-seed.sh
           bash tests/test-profile-posix.sh
-          node --test tests/omnigent-seed.test.mjs tests/paseo-seed.test.mjs
+          node --test tests/omnigent-seed.test.mjs tests/paseo-seed.test.mjs tests/plugin-pin-migration.test.mjs
           bash tests/test-pi-session-env.sh

@@ -55,10 +55,12 @@ test('corrupt archive fails closed without publishing a ready client or changing
   assert.equal(webClientStatus(f).ready, false); assert.equal(fs.readFileSync(retained, 'utf8'), '{"phase":"stopped"}');
   assert.deepEqual(fs.readdirSync(path.join(f.stateDir, 'web-client')), []);
 });
-test('real startup seeds custom locations offline, keeps disabled/removed/external choices untouched', t => {
-  for (const mode of ['fresh', 'managed-upgrade', 'disabled', 'removed', 'external', 'opt-out']) {
+test('real startup seeds custom locations offline, moves an older official pin, keeps other choices untouched', t => {
+  const entries = { external: 'git:github.com/example/pi-paseo-plugin@v0.1.8', 'official-pin': 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.8',
+    'newer-pin': 'git:github.com/WOOWTECH/pi-paseo-plugin@v99.0.0', disabled: { source: bundle, extensions: [] } };
+  for (const mode of ['fresh', 'managed-upgrade', 'disabled', 'removed', 'external', 'official-pin', 'newer-pin', 'opt-out']) {
     const f = fixture(t), settings = path.join(f.agentDir, 'settings.json');
-    const entry = mode === 'external' ? 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.8' : mode === 'disabled' ? { source: bundle, extensions: [] } : bundle;
+    const entry = entries[mode] || bundle;
     if (mode !== 'fresh' && mode !== 'opt-out') fs.writeFileSync(settings, JSON.stringify({ model: 'operator-choice', packages: mode === 'removed' ? [] : [entry] }));
     if (mode === 'removed') { fs.mkdirSync(path.join(f.agentDir, 'pi-paseo')); fs.writeFileSync(path.join(f.agentDir, 'pi-paseo/image-seed.json'), '{}'); }
     const trap = path.join(f.root, 'no-network.mjs'); fs.writeFileSync(trap, 'globalThis.fetch = () => {throw Error("unexpected runtime network");};');
@@ -69,9 +71,11 @@ test('real startup seeds custom locations offline, keeps disabled/removed/extern
       ...identity, encoding: 'utf8', timeout: 60000,
     });
     assert.equal(result.status, 0, `${mode}: ${result.stderr}`);
-    assert.equal(webClientStatus(f).ready, ['fresh', 'managed-upgrade'].includes(mode), mode);
+    assert.equal(webClientStatus(f).ready, ['fresh', 'managed-upgrade', 'official-pin'].includes(mode), mode);
     assert.equal(fs.existsSync(path.join(f.stateDir, 'daemon')), false, 'seeding must not create an identity');
-    if (mode === 'managed-upgrade') assert.equal(JSON.parse(fs.readFileSync(settings)).model, 'operator-choice');
+    if (['managed-upgrade', 'official-pin'].includes(mode)) assert.equal(JSON.parse(fs.readFileSync(settings)).model, 'operator-choice');
+    if (mode === 'official-pin') assert.deepEqual(JSON.parse(fs.readFileSync(settings)).packages, [bundle], 'an older official pin moves to the bundle');
+    if (['external', 'newer-pin'].includes(mode)) assert.deepEqual(JSON.parse(fs.readFileSync(settings)).packages, [entry], mode);
   }
 });
 test('archive symlinks and redirected destination directories are rejected', async t => {

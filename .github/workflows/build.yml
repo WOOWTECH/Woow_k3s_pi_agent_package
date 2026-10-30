@@ -63,7 +63,7 @@ jobs:
         run: |
           bash tests/test-profile-posix.sh
           bash tests/test-shared-runtime-seed.sh
-          node --test tests/omnigent-seed.test.mjs tests/paseo-seed.test.mjs
+          node --test tests/omnigent-seed.test.mjs tests/paseo-seed.test.mjs tests/plugin-pin-migration.test.mjs
           bash tests/test-pi-session-env.sh
           python3 -m pip install 'PyYAML==6.0.2'
           python3 -m unittest discover -s tests -p 'test_publication_*.py'
