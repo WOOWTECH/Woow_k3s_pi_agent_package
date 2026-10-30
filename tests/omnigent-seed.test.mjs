@@ -174,6 +174,25 @@ test('a launcher that installHost already replaced keeps the switch', async t =>
   assert.deepEqual(f.read(), { packages: [f.bundle] });
   assert.deepEqual(receiptOf(f).runs.map(run => run.status), [undefined]);
 });
+test('a launcher that starts the bundle through its real path also keeps the switch', async t => {
+  const f = fixture(t, '0.3.29'), home = path.join(f.agentDir, 'home'), alias = path.join(path.dirname(f.bundle), 'bundle-alias');
+  fs.symlinkSync(f.bundle, alias); f.write({ packages: [official] });
+  // installHost() records the bundle as resolved, so a symlinked PI_OMNIGENT_PLUGIN_ROOT must still match.
+  const installHost = async () => {
+    fs.mkdirSync(path.join(home, '.local/bin'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.local/bin/pi-web'), `#!/usr/bin/env node\nconst cli=${JSON.stringify(path.join(fs.realpathSync(f.bundle), 'bin/cli.mjs'))};\n`);
+    throw Error('host.json could not be written');
+  };
+  await assert.rejects(boot({ ...f, bundle: alias, home, installHost }), { message: 'Pi Web launcher not ready (launcher-error); inspect the plugin in Pi Web' });
+  assert.deepEqual(f.read(), { packages: [alias] });
+});
+test('a seed-only run registers but never moves a pin it cannot back with the launcher', async t => {
+  const f = fixture(t, '0.3.29'), original = JSON.stringify({ packages: [official] }); fs.writeFileSync(f.settings, original);
+  const result = await boot({ ...f, installHost: async () => { throw Error('never called'); }, prepareLauncher: false });
+  assert.equal(result.reason, 'existing');
+  assert.equal(fs.readFileSync(f.settings, 'utf8'), original);
+  assert.equal(fs.existsSync(backupOf(f)), false);
+});
 test('an unwritable marker does not stop the switch or the launcher', async t => {
   const f = fixture(t, '0.3.29'); f.write({ packages: [official] });
   const rename = fs.renameSync;

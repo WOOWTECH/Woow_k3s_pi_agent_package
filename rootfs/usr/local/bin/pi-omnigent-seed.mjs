@@ -61,7 +61,7 @@ function repairLauncher({ stateDir, home, nativeWeb }) {
   return { file, field: 'realWeb', from: host.realWeb, to: nativeWeb, reason };
 }
 export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), seedEnabled = true,
-  stateDir = path.join(agentDir, 'omnigent-plugin'), nativeWeb = nativePiWeb }) {
+  stateDir = path.join(agentDir, 'omnigent-plugin'), nativeWeb = nativePiWeb, migratePins = true }) {
   const pkg = read(path.join(bundle, 'package.json'), null);
   if (pkg?.name !== name) throw Error('image bundle missing or invalid');
   const file = path.join(agentDir, 'settings.json');
@@ -90,7 +90,7 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
   // The marker only records the first image setup; like the receipt it must not stop the boot.
   const mark = value => { try { write(markerFile, value); } catch { console.error('[pi-omnigent] image seed marker could not be written'); } };
   const plan = planPinMigration({ packages: settings.packages || [], repository: 'pi-omnigent-plugin', name, bundle, version: pkg.version,
-    agentDir, isPlugin: item => matches(item, agentDir), projectOverride: Boolean(projectEntry) });
+    agentDir, isPlugin: item => matches(item, agentDir), projectOverride: Boolean(projectEntry), skip: !migratePins });
   const migration = applyPinMigration({ agentDir, file, settings, original, plan, write });
   const migrated = migration.run.changed.length > 0;
   // settings.json now lists the bundle. If this boot cannot finish, the bytes read
@@ -131,15 +131,20 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
 // installHost() can fail after it replaced ~/.local/bin/pi-web; such a launcher
 // already starts the bundle, which must then stay registered.
 function launchesBundle(home, bundle) {
-  try { return fs.readFileSync(path.join(home, '.local/bin/pi-web'), 'utf8').includes(JSON.stringify(path.join(bundle, 'bin/cli.mjs'))); }
-  catch { return false; }
+  try {
+    const launcher = fs.readFileSync(path.join(home, '.local/bin/pi-web'), 'utf8');
+    // The launcher records the bundle as installHost() resolved it, so a symlinked
+    // PI_OMNIGENT_PLUGIN_ROOT must also match its real path.
+    return [bundle, fs.realpathSync(bundle)].some(root => launcher.includes(JSON.stringify(path.join(root, 'bin/cli.mjs'))));
+  } catch { return false; }
 }
 /** seed(), then the Pi Web launcher. pi-web-start.sh runs ~/.local/bin/pi-web
  *  even when this fails. If a pin was moved on this boot and that launcher still
  *  starts the old plugin, the old copy would find itself unregistered and reset
  *  the Omnigent sign-in, so the exact old settings.json is put back first. */
 export async function boot({ installHost, prepareLauncher = true, ...options }) {
-  const result = seed(options);
+  // Pins move only when this boot also switches the launcher (and can put them back).
+  const result = seed({ ...options, migratePins: prepareLauncher });
   if (!prepareLauncher || !result.active) return result;
   let status;
   try { status = (await installHost())?.status; } catch {}

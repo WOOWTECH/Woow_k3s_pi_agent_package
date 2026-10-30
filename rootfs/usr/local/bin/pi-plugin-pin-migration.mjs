@@ -78,10 +78,15 @@ function pinVersion(pin, agentDir, name) {
   } catch { return null; }
 }
 
-export function planPinMigration({ packages, repository, name, bundle, version, agentDir, isPlugin, projectOverride = false }) {
+export function planPinMigration({ packages, repository, name, bundle, version, agentDir, isPlugin, projectOverride = false, skip: seedOnly = false }) {
   const plan = { packages: [...packages], changed: [], skipped: [] };
   const pins = packages.map((item, index) => ({ item, index, pin: officialGitPin(sourceOf(item), repository) })).filter(entry => entry.pin);
   if (!pins.length) return plan;
+  // A seed-only run does not switch the launcher, so it must not move pins either.
+  if (seedOnly) {
+    for (const { item } of pins) plan.skipped.push({ file: 'settings.json', source: redactSource(sourceOf(item)), reason: 'seed-only' });
+    return plan;
+  }
   const entries = packages.filter(item => {
     if (officialGitPin(sourceOf(item), repository)) return true;
     try { return isPlugin(item); } catch { return false; }
