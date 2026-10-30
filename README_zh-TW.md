@@ -608,11 +608,13 @@ EOF
 
 ## 開機時把官方插件的 git 釘選改成映像內建版本（下一版）
 
-Pi Web 啟動前，映像會把 Pi `settings.json` 裡指向官方 GitHub repo（`github.com/WOOWTECH/pi-omnigent-plugin` 或 `github.com/WOOWTECH/pi-paseo-plugin`，Pi 接受的各種 git 寫法都算）的套件項目，改成映像內建的插件（`/opt/woow/pi-omnigent-plugin`、`/opt/woow/pi-paseo-plugin`）。這時還沒有任何舊插件在執行，所以這次切換不會被當成「插件被移除」：Omnigent 保留登入與引擎驗證結果，Paseo 保留使用者設定。這類資料卷升級後，不必再到 Settings → Omnigent 重新登入。
+Pi Web 啟動前，映像會把 Pi `settings.json` 裡指向官方 GitHub repo（`github.com/WOOWTECH/pi-omnigent-plugin` 或 `github.com/WOOWTECH/pi-paseo-plugin`，寫法限下列幾種）的套件項目，改成映像內建的插件（`/opt/woow/pi-omnigent-plugin`、`/opt/woow/pi-paseo-plugin`）。這時還沒有任何舊插件在執行，所以這次切換不會被當成「插件被移除」：Omnigent 保留登入與引擎驗證結果，Paseo 保留使用者設定。這類資料卷升級後，不必再到 Settings → Omnigent 重新登入。
 
+- 認得的寫法：`git:github.com/WOOWTECH/<插件>`、`git:git@github.com:WOOWTECH/<插件>`，以及 `github.com/WOOWTECH/<插件>` 的 `https://`、`http://`、`ssh://`、`git://` 網址（前面加不加 `git:`、有沒有 `user@` 都可以）；後面都可以接 `.git`、`/` 與 `@<ref>` 或 `#<ref>`。主機、擁有者與 repo 名稱不分大小寫。其他寫法，例如 `git:WOOWTECH/<插件>`、`www.github.com`、`/tree/<ref>` 網址或帶連接埠的網址，都不認得、維持原樣。
 - 維持原樣、並在收據寫明原因：已停用的項目（`"extensions": []`）、比映像內建版本新的 release tag、分支／commit／沒有 ref 的釘選且已 clone 的副本不比內建版本舊（或讀不到版本）、home 專案的 `.pi/settings.json` 也列了同一個插件、同一個插件有兩個項目。
 - 完全不碰：fork 與其他 repo、本機路徑、npm 來源。
-- `settings.json` 只備份一次，存成 `settings.json.pre-image-migration.bak`，之後的遷移不會覆蓋它。每一筆改動（舊來源與新來源）與每一筆維持原樣的項目（含原因）會附加到 `omnigent-plugin/image-migration.json` 或 `pi-paseo/image-migration.json`；git 網址裡的帳密會遮蔽。沒有新內容可記的開機不寫任何檔案。
+- 第一次遷移前，`settings.json` 會備份成 `settings.json.pre-image-migration.bak`。備份先寫到暫存檔、寫完才出現，不會是半份；之後兩個插件的遷移都不會取代它，所以它存的是第一次遷移前的設定，不是最近一次遷移前的。每一筆改動（舊來源與新來源）與每一筆維持原樣的項目（含原因）會附加到 `omnigent-plugin/image-migration.json` 或 `pi-paseo/image-migration.json`；git 網址裡的帳密在這裡與 `image-seed.json` 都會遮蔽。沒有新內容可記的開機不寫任何檔案。
+- 搬動 Omnigent 釘選的那次開機若無法把映像的 Pi Web 啟動器裝好（插件回報 `conflict`、`host-unavailable`，或直接失敗），Pi Web 可能仍經由舊插件的啟動器啟動，而那份舊插件會發現自己沒有註冊、把登入重設。所以 seed 會在 Pi Web 啟動前，把 `settings.json` 寫回該次開機前的原始位元組，在收據附加一筆 `rolled-back`（含原因代碼 `launcher-conflict`、`launcher-host-unavailable`、`launcher-error` 與被復原的改動），並以錯誤結束；下次開機會再試。seed 改寫 `settings.json` 後才失敗時也一樣復原，原因代碼是 `seed-error`（Paseo 也是）。寫不回去時，收據記 `rollback-failed`，日誌也會照實寫。`host.json` 的修正（下一項）會保留。
 - 映像內建的 Omnigent 插件是生效中的插件，而 `omnigent-plugin/host.json` 仍會啟動舊插件在資料卷上建的 Pi Web 副本（`~/.local/share/pi-omnigent-web/…` 或 `~/.local/share/pi-paseo/…`），或指向已不存在的路徑時，`realWeb` 會改成映像的 `/usr/local/bin/pi-web`（`host.json` 只備份一次，存成 `host.json.pre-image-migration.bak`）。舊副本仍留在磁碟上。其他啟動器、以及 Shared Runtime 自己的 `shared-runtime/host.json` 都不會改。
 - `PI_OMNIGENT_AUTO_SETUP=false`、`PI_PASEO_AUTO_SETUP=false` 也會關掉這項改寫。
 

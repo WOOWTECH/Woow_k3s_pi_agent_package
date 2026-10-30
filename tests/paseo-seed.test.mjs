@@ -72,6 +72,35 @@ test('Paseo and Omnigent migrations on one boot share a single backup of the ori
   const omniReceipt = JSON.parse(fs.readFileSync(path.join(f.agentDir, 'omnigent-plugin/image-migration.json')));
   assert.equal(omniReceipt.runs[0].backup.created, false);
 });
+test('an unwritable marker does not stop the switch or the offline client', t => {
+  const f = fixture(t, '0.1.14'); f.write({ packages: [official] });
+  const rename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from, to) => { if (String(to).endsWith('image-seed.json')) throw Error('EIO'); return rename(from, to); });
+  const errors = t.mock.method(console, 'error', () => {});
+  const result = seed(f);
+  assert.equal(result.reason, 'migrated'); assert.equal(result.active, true, 'main() still prepares the offline client');
+  assert.deepEqual(f.read(), { packages: [f.bundle] }); assert.equal(receiptOf(f).runs.length, 1);
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments[0]), ['[pi-paseo] image seed marker could not be written']);
+});
+test('a seed that fails after the switch puts the old bytes back', t => {
+  const f = fixture(t, '0.1.14'), original = JSON.stringify({ packages: [official] }); fs.writeFileSync(f.settings, original);
+  // An unexpected failure after settings.json was written: the marker fails and so does the log line about it.
+  const rename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from, to) => { if (String(to).endsWith('image-seed.json')) throw Error('EIO'); return rename(from, to); });
+  t.mock.method(console, 'error', () => { throw Error('log sink closed'); });
+  assert.throws(() => seed(f), { message: 'setup could not complete (seed-error); settings.json put back to the official git pin (see pi-paseo/image-migration.json)' });
+  assert.equal(fs.readFileSync(f.settings, 'utf8'), original);
+  const runs = receiptOf(f).runs;
+  assert.deepEqual(runs.map(run => run.status), [undefined, 'rolled-back']); assert.deepEqual(runs[1].changes, runs[0].changed);
+});
+test('credentials in a git URL never reach the receipt or the marker', t => {
+  for (const source of ['  https://someone:not-a-real-token@github.com/WOOWTECH/pi-paseo-plugin@v0.1.9', ' git:https://someone:not-a-real-token@github.com/WOOWTECH/pi-paseo-plugin@v9.0.0']) {
+    const f = fixture(t, '0.1.14'); f.write({ packages: [source] }); seed(f);
+    for (const file of ['pi-paseo/image-migration.json', 'pi-paseo/image-seed.json']) {
+      assert.doesNotMatch(fs.readFileSync(path.join(f.agentDir, file), 'utf8'), /not-a-real-token|someone/, `${file}: ${source}`);
+    }
+  }
+});
 test('operator opt-out leaves an official pin untouched', t => {
   const f = fixture(t, '0.1.14'); f.write({ packages: [official] });
   assert.equal(seed({ ...f, seedEnabled: false }).reason, 'image-setup-disabled');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { seed } from '../rootfs/usr/local/bin/pi-omnigent-seed.mjs';
+import { seed, boot } from '../rootfs/usr/local/bin/pi-omnigent-seed.mjs';
 function fixture(t, version = '0.3.11') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-image-seed-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -99,7 +99,7 @@ test('a branch or commit pin compares the copy Pi already cloned', t => {
     else assert.equal(run.skipped[0].reason, installed === '0.3.29' ? 'not-older-than-image' : 'newer-than-image');
   }
 });
-test('every Pi git form of the official repository moves; look-alikes do not', t => {
+test('the documented git forms of the official repository move; look-alikes do not', t => {
   for (const source of ['git:github.com/WOOWTECH/pi-omnigent-plugin@v0.3.1', 'git:git@github.com:WOOWTECH/pi-omnigent-plugin.git@v0.3.1',
     'https://github.com/woowtech/pi-omnigent-plugin@v0.3.1', 'ssh://git@github.com/WOOWTECH/pi-omnigent-plugin.git#v0.3.1']) {
     const f = fixture(t, '0.3.29'); f.write({ packages: [source] });
@@ -111,11 +111,17 @@ test('every Pi git form of the official repository moves; look-alikes do not', t
     assert.equal(f.read().packages[0], source, source); assert.equal(fs.existsSync(backupOf(f)), false);
   }
 });
-test('credentials in a git URL never reach the receipt', t => {
-  const f = fixture(t, '0.3.29'); f.write({ packages: ['git:https://someone:not-a-real-token@github.com/WOOWTECH/pi-omnigent-plugin@v0.3.1'] });
-  assert.equal(seed(f).reason, 'migrated');
-  const text = fs.readFileSync(path.join(f.agentDir, 'omnigent-plugin/image-migration.json'), 'utf8');
-  assert.doesNotMatch(text, /not-a-real-token|someone/); assert.match(text, /\*\*\*@github\.com/);
+test('credentials in a git URL never reach the receipt or the marker', t => {
+  for (const source of ['git:https://someone:not-a-real-token@github.com/WOOWTECH/pi-omnigent-plugin@v0.3.1',
+    '  https://someone:not-a-real-token@github.com/WOOWTECH/pi-omnigent-plugin@v0.3.1', '\tgit: https://someone:not-a-real-token@github.com/WOOWTECH/pi-omnigent-plugin@v9.0.0']) {
+    const f = fixture(t, '0.3.29'); f.write({ packages: [source] });
+    assert.equal(seed(f).reason, source.includes('v9.0.0') ? 'existing' : 'migrated', source);
+    for (const file of ['omnigent-plugin/image-migration.json', 'omnigent-plugin/image-seed.json']) {
+      const text = fs.readFileSync(path.join(f.agentDir, file), 'utf8');
+      assert.doesNotMatch(text, /not-a-real-token|someone/, `${file}: ${source}`);
+    }
+    assert.match(fs.readFileSync(path.join(f.agentDir, 'omnigent-plugin/image-migration.json'), 'utf8'), /\*\*\*@github\.com/);
+  }
 });
 test('an unwritable receipt does not stop the switch or the launcher preparation', t => {
   const f = fixture(t, '0.3.29'); f.write({ packages: [official] });
@@ -124,6 +130,73 @@ test('an unwritable receipt does not stop the switch or the launcher preparation
   const result = seed(f);
   assert.equal(result.active, true); assert.equal(result.reason, 'migrated');
   assert.deepEqual(f.read(), { packages: [f.bundle] }); assert.equal(fs.readFileSync(target, 'utf8'), '{}');
+});
+const installed = async () => ({ status: 'installed' });
+test('a pin moved on this boot is put back, byte for byte, when the Pi Web launcher is not ready', async t => {
+  const failures = [[async () => ({ status: 'conflict' }), 'launcher-conflict'], [async () => ({ status: 'host-unavailable' }), 'launcher-host-unavailable'],
+    // A launcher left by an interrupted boot under the same PID makes the plugin's `wx` write throw.
+    [async () => { throw Object.assign(Error("EEXIST: file already exists, open '.local/bin/pi-web.7.tmp'"), { code: 'EEXIST' }); }, 'launcher-error'],
+    [async () => ({ status: 'Unexpected Status!' }), 'launcher-error'], [async () => undefined, 'launcher-error']];
+  for (const [installHost, reason] of failures) {
+    const f = fixture(t, '0.3.29'), original = `{\n    "model": "user-choice",\n    "packages": [${JSON.stringify(official)}]\n}`;
+    fs.writeFileSync(f.settings, original);
+    await assert.rejects(boot({ ...f, installHost }),
+      { message: `Pi Web launcher not ready (${reason}); settings.json put back to the official git pin (see omnigent-plugin/image-migration.json)` });
+    assert.equal(fs.readFileSync(f.settings, 'utf8'), original, reason);
+    assert.equal(fs.readFileSync(backupOf(f), 'utf8'), original);
+    const runs = receiptOf(f).runs;
+    assert.deepEqual(runs.map(run => run.status), [undefined, 'rolled-back']);
+    assert.equal(runs[0].changed[0].from, official); assert.equal(runs[1].reason, reason); assert.deepEqual(runs[1].changes, runs[0].changed);
+    assert.deepEqual(fs.readdirSync(f.agentDir).filter(name => name.endsWith('.tmp')), []);
+    // The next boot tries again and, with a ready launcher, keeps the switch.
+    assert.equal((await boot({ ...f, installHost: installed })).reason, 'migrated');
+    assert.deepEqual(f.read(), { model: 'user-choice', packages: [f.bundle] });
+    assert.equal(receiptOf(f).runs.length, 3); assert.equal(receiptOf(f).runs[2].backup.created, false);
+  }
+});
+test('a launcher problem without a switch on this boot leaves settings.json alone', async t => {
+  const f = fixture(t, '0.3.29'); f.write({ packages: [f.bundle] }); const before = fs.readFileSync(f.settings, 'utf8');
+  await assert.rejects(boot({ ...f, installHost: async () => ({ status: 'conflict' }) }),
+    { message: 'Pi Web launcher not ready (launcher-conflict); inspect the plugin in Pi Web' });
+  assert.equal(fs.readFileSync(f.settings, 'utf8'), before);
+  assert.equal(fs.existsSync(path.join(f.agentDir, 'omnigent-plugin/image-migration.json')), false);
+  assert.equal((await boot({ ...f, installHost: async () => ({ status: 'composable-wrapper' }) })).reason, 'existing');
+  assert.equal((await boot({ ...f, installHost: async () => { throw Error('never called'); }, prepareLauncher: false })).reason, 'existing');
+});
+test('a launcher that installHost already replaced keeps the switch', async t => {
+  const f = fixture(t, '0.3.29'), home = path.join(f.agentDir, 'home'); f.write({ packages: [official] });
+  const installHost = async () => {
+    fs.mkdirSync(path.join(home, '.local/bin'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.local/bin/pi-web'), `#!/usr/bin/env node\n// pi-omnigent-plugin web launcher\nconst cli=${JSON.stringify(path.join(f.bundle, 'bin/cli.mjs'))};\n`);
+    throw Error('host.json could not be written');
+  };
+  await assert.rejects(boot({ ...f, home, installHost }), { message: 'Pi Web launcher not ready (launcher-error); inspect the plugin in Pi Web' });
+  assert.deepEqual(f.read(), { packages: [f.bundle] });
+  assert.deepEqual(receiptOf(f).runs.map(run => run.status), [undefined]);
+});
+test('an unwritable marker does not stop the switch or the launcher', async t => {
+  const f = fixture(t, '0.3.29'); f.write({ packages: [official] });
+  const rename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from, to) => {
+    if (String(to).endsWith('image-seed.json')) throw Object.assign(Error('EIO: i/o error'), { code: 'EIO' });
+    return rename(from, to);
+  });
+  const errors = t.mock.method(console, 'error', () => {});
+  assert.equal((await boot({ ...f, installHost: installed })).reason, 'migrated');
+  assert.deepEqual(f.read(), { packages: [f.bundle] }); assert.equal(receiptOf(f).runs.length, 1);
+  assert.equal(fs.existsSync(path.join(f.agentDir, 'omnigent-plugin/image-seed.json')), false);
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments[0]), ['[pi-omnigent] image seed marker could not be written']);
+});
+test('a seed that fails after the switch puts the old bytes back', t => {
+  const f = fixture(t, '0.3.29'), original = JSON.stringify({ packages: [official] }); fs.writeFileSync(f.settings, original);
+  // An unexpected failure after settings.json was written: the marker fails and so does the log line about it.
+  const rename = fs.renameSync;
+  t.mock.method(fs, 'renameSync', (from, to) => { if (String(to).endsWith('image-seed.json')) throw Error('EIO'); return rename(from, to); });
+  t.mock.method(console, 'error', () => { throw Error('log sink closed'); });
+  assert.throws(() => seed(f), { message: 'setup could not complete (seed-error); settings.json put back to the official git pin (see omnigent-plugin/image-migration.json)' });
+  assert.equal(fs.readFileSync(f.settings, 'utf8'), original);
+  const [run] = receiptOf(f).runs;
+  assert.deepEqual([run.status, run.reason, run.changes[0].from, run.changes[0].to], ['rolled-back', 'seed-error', official, f.bundle]);
 });
 test('a project-level choice keeps the global official pin as it is', t => {
   const f = fixture(t, '0.3.29'); f.write({ packages: [official] });

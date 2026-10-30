@@ -63,7 +63,9 @@ try {
   console.log('[build] pinned Paseo runtime, native routes and repeat registration OK');
 } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 // An official git pin moves to the bundle before Pi Web starts, once, with a
-// backup and a receipt, and the offline client is ready on that same boot.
+// backup and a receipt. The checks below run after the migration boot and a
+// repeat boot (one receipt run, offline client ready); paseo-web-offline.mjs
+// checks the client right after a single migration boot.
 const upgrade = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-upgrade-'));
 try {
   const pin = 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.9';
@@ -77,6 +79,6 @@ try {
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(upgrade, 'settings.json.pre-image-migration.bak'))).packages, [pin]);
   const receipt = JSON.parse(fs.readFileSync(path.join(upgrade, 'pi-paseo/image-migration.json')));
   assert.equal(receipt.runs.length, 1); assert.equal(receipt.runs[0].changed[0].from, pin);
-  assert.equal(webClientStatus({ stateDir: path.join(upgrade, 'pi-paseo') }).ready, true, 'offline client must be ready on the migration boot');
+  assert.equal(webClientStatus({ stateDir: path.join(upgrade, 'pi-paseo') }).ready, true, 'offline client must be ready after the migration and repeat boots');
   console.log('[build] official Paseo git pin moved to the image bundle; offline client ready');
 } finally { fs.rmSync(upgrade, { recursive: true, force: true }); }

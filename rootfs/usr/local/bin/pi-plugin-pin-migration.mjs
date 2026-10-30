@@ -2,18 +2,42 @@
 // Pi Web starts. No old plugin copy is running at that point, so the switch is
 // not observed as an off/on cycle and the plugin keeps its consent and pairing.
 // Disabled entries, refs newer than the bundle, project-level choices and every
-// other source (forks, local checkouts) are left exactly as they are.
+// other source (forks, local checkouts) are left exactly as they are. A seed
+// that cannot finish the boot puts the exact old settings.json bytes back.
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 export const SETTINGS_BACKUP = 'settings.json.pre-image-migration.bak';
 const RELEASE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const sourceOf = item => typeof item === 'string' ? item : item?.source;
 const disabled = item => typeof item === 'object' && Array.isArray(item.extensions) && !item.extensions.length;
-// A receipt must not copy credentials that a git URL may carry.
-const redact = source => source.replace(/^((?:git:\s*)?(?:https?|ssh|git):\/\/)[^@/]+@/i, '$1***@');
+// A fresh name per write: a file left by an interrupted boot (container PIDs
+// repeat) never blocks this write or passes for its result.
+const temporaryFor = file => `${file}.${process.pid}.${randomUUID()}.tmp`;
 
-/** Pi's git forms (`git:` shorthand or an explicit protocol URL) for github.com/WOOWTECH/<repository>. */
+/** A receipt or marker must not copy credentials that a git URL may carry. officialGitPin()
+ *  matches the trimmed text, so the user information of the trimmed URL is masked. */
+export const redactSource = source => source.trim().replace(/^((?:git:\s*)?[a-z][a-z0-9+.-]*:\/\/)[^/]*@/i, '$1***@');
+
+/** Pi settings and the exact bytes they were parsed from, kept so a boot can put them back. */
+export function readSettings(file) {
+  if (!fs.existsSync(file)) return { settings: {}, original: null };
+  if (fs.lstatSync(file).isSymbolicLink()) throw Error('metadata must not be a symlink');
+  const original = fs.readFileSync(file);
+  return { settings: JSON.parse(original.toString('utf8')), original };
+}
+
+/** Replace a file with exact bytes: a complete temporary copy is renamed over it. */
+function replaceFile(file, bytes) {
+  const temporary = temporaryFor(file);
+  try {
+    fs.writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+    fs.renameSync(temporary, file);
+  } finally { fs.rmSync(temporary, { force: true }); }
+}
+
+/** Git forms (`git:` shorthand or an explicit protocol URL) for github.com/WOOWTECH/<repository>; see the README for the list. */
 export function officialGitPin(source, repository) {
   if (typeof source !== 'string') return null;
   let value = source.trim();
@@ -63,7 +87,7 @@ export function planPinMigration({ packages, repository, name, bundle, version, 
     try { return isPlugin(item); } catch { return false; }
   }).length;
   for (const { item, index, pin } of pins) {
-    const source = redact(sourceOf(item));
+    const source = redactSource(sourceOf(item));
     const skip = reason => plan.skipped.push({ file: 'settings.json', source, reason });
     if (projectOverride) { skip('project-setting'); continue; }
     if (disabled(item)) { skip('disabled'); continue; }
@@ -78,27 +102,52 @@ export function planPinMigration({ packages, repository, name, bundle, version, 
   return plan;
 }
 
-/** Copy a file once; an existing backup (from either plugin's migration) is never replaced. */
-export function backupOnce(file, backup) {
-  try { fs.writeFileSync(backup, fs.readFileSync(file), { flag: 'wx', mode: 0o600 }); return true; }
-  catch (error) { if (error.code === 'EEXIST') return false; throw error; }
+/** Keep the settings from before the first migration. The copy is complete before it
+ *  appears (temporary file, then link), and unlike rename() the link fails instead of
+ *  replacing a backup, so a later migration of either plugin never overwrites it. */
+export function backupOnce(file, backup, bytes = fs.readFileSync(file)) {
+  const temporary = temporaryFor(backup);
+  try {
+    fs.writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+    try { fs.linkSync(temporary, backup); }
+    catch (error) {
+      if (error.code === 'EEXIST') return false;
+      // A volume without hard links: the seeds run one after the other, so look, then rename.
+      try { fs.lstatSync(backup); return false; } catch {}
+      fs.renameSync(temporary, backup);
+    }
+    return true;
+  } finally { fs.rmSync(temporary, { force: true }); }
 }
 
-/** Rewrite settings.json only when the plan changes an entry; returns the settings Pi will read. */
-export function applyPinMigration({ agentDir, file, settings, plan, write }) {
+/** Rewrite settings.json only when the plan changes an entry; returns the settings Pi will read.
+ *  `original` is the bytes the plan was made from (see readSettings); the backup copies them. */
+export function applyPinMigration({ agentDir, file, settings, original, plan, write }) {
   if (!plan.changed.length) return { settings, run: { changed: [], skipped: plan.skipped } };
-  const created = backupOnce(file, path.join(agentDir, SETTINGS_BACKUP));
+  const created = backupOnce(file, path.join(agentDir, SETTINGS_BACKUP), original ?? fs.readFileSync(file));
   const next = { ...settings, packages: plan.packages };
   write(file, next);
   return { settings: next, run: { changed: plan.changed, skipped: plan.skipped, backup: { file: SETTINGS_BACKUP, created } } };
 }
 
-/** Append a run to the receipt only when something changed or the skipped list differs from the last run. */
+/** Append a run to the receipt only when something changed, a switch was undone, or the skipped list differs from the last run. */
 export function recordMigration({ file, run, plugin, bundle, version, read, write }) {
   const previous = read(file, null);
   const runs = Array.isArray(previous?.runs) ? previous.runs : [];
-  if (!run.changed.length && !run.launcher
+  if (!run.status && !run.changed.length && !run.launcher
       && (!run.skipped.length || JSON.stringify(runs.at(-1)?.skipped) === JSON.stringify(run.skipped))) return false;
   write(file, { schema: 1, plugin, runs: [...runs, { at: new Date().toISOString(), bundle, version, ...run }].slice(-20) });
   return true;
+}
+
+/** Put back the exact settings.json bytes this boot replaced and record a `rolled-back` (or
+ *  `rollback-failed`) run with the reason code and the changes it undid. Never throws;
+ *  returns whether settings.json was put back. */
+export function undoPinMigration({ file, original, reason, changes, receipt, plugin, bundle, version, read, write }) {
+  let restored = true;
+  try { replaceFile(file, original); } catch { restored = false; }
+  try {
+    recordMigration({ file: receipt, run: { status: restored ? 'rolled-back' : 'rollback-failed', reason, changes }, plugin, bundle, version, read, write });
+  } catch {} // the seed's log line still says what happened
+  return restored;
 }
