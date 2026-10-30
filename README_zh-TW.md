@@ -606,6 +606,13 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## Omnigent 0.3.31（0.3.23）
+
+映像固定使用 [Omnigent 插件 0.3.31](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.31)；Paseo 0.1.15 與 Pi Web 補丁不變。
+
+- **設定 → Omnigent 打開更快**（之前在正式租戶實測約 4 秒）：引擎版本檢查的快取由 15 秒改為 10 分鐘（換掉或移除引擎仍會立刻重新檢查）；已登入時，狀態與模型清單同時讀取，不再一前一後。
+- Pi 模型清單為空時仍會執行 `pi update --models`，但頁面最多等 5 秒；刷新在背景完成，下次讀取就看得到模型。
+
 ## Omnigent 0.3.30 與 Paseo 0.1.15（0.3.22）
 
 映像固定使用 [Omnigent 插件 0.3.30](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.30) 與 [Paseo 插件 0.1.15](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.15)，並在 Pi Web 啟動前把官方插件的 git 釘選改成映像內建版本（見下一節）。

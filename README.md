@@ -629,6 +629,13 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Omnigent 0.3.31 (0.3.23)
+
+The image pins [Omnigent plugin 0.3.31](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.31); Paseo 0.1.15 and the Pi Web patches are unchanged.
+
+- **Settings → Omnigent opens faster** (measured about 4 s before on a production tenant): engine version probes are cached for 10 minutes instead of 15 s (a replaced or removed engine is still probed at once), and when you are signed in the status and the model catalog are read at the same time instead of one after the other.
+- An empty Pi model list still triggers `pi update --models`, but the page waits at most 5 s for it; the refresh finishes in the background and the next read shows the models.
+
 ## Omnigent 0.3.30 and Paseo 0.1.15 (0.3.22)
 
 The image pins [Omnigent plugin 0.3.30](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.30) and [Paseo plugin 0.1.15](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.15), and moves official plugin git pins to the bundled plugins before Pi Web starts (next section).
