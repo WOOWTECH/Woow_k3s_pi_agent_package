@@ -20,7 +20,7 @@ assert.ok(fs.statSync(path.join(claudeSdk, `claude-agent-sdk-linux-${process.arc
 assert.deepEqual(fs.readdirSync(claudeSdk).filter(name => name.endsWith('-musl')), [], 'the unused musl Claude SDK must not ship');
 const bundle = '/opt/woow/pi-paseo-plugin';
 // Keep in step with `ARG PI_PASEO_VERSION` in the Dockerfile; a mismatch fails the image build here.
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.14');
+assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.15');
 assert.equal(RUNTIME_REVISION, '0.11.2-r3-6d8dbe515479');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
