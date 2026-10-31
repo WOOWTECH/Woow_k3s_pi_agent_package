@@ -611,7 +611,7 @@ EOF
 映像內建官方 **Claude Code 2.1.296** 與 **Codex 0.162.1**（amd64、arm64），用這個映像建立的 Pi Agent 都能在 Pi Web 終端直接執行 `claude`、`codex`。
 - **版本鎖定：** 版本與完整性雜湊來自 `cli-runtime/{claude,codex}/package-lock.json`，和 Home Assistant add-on 的鎖檔逐位元組相同。安裝在 `/opt/pi-clis/{claude,codex}`（各自一層），連結為 `/usr/local/bin/claude`、`/usr/local/bin/codex`；用不到的 musl 版 Claude 已移除。
 - **共享：** 內建的 shared runtime 開機時會找到兩個 CLI，把 Pi 的技能（在 `~/.claude/skills`、`~/.codex/skills`、`~/.agents/skills` 建符號連結）與 Pi Web 的全域 MCP（在 `~/.claude.json`、`~/.codex/config.toml` 加一個 `pi_shared_runtime`）共享給它們。
-- **驗收：** `tests/image-cli-sharing.mjs` 在離線的一次性驗收容器裡證明這件事，內容包括版本、Claude 與 Codex 看得到 Pi 的技能、兩個 CLI 都列出這條橋接，以及透過它呼叫 Pi Web 全域 MCP 工具有正確回應。
+- **驗收：** `tests/image-cli-sharing.mjs` 在離線的一次性驗收容器裡證明這件事，內容包括版本、Claude 與 Codex 看得到 Pi 的技能、兩個 CLI 都列出這條橋接，透過它呼叫 Pi Web 全域 MCP 工具有正確回應，以及 Claude、Codex、Pi 三方同時呼叫也都成功。
 - **登入：** 兩個 CLI 仍要各自完成官方登入（`claude auth login`、`codex login`）。不複製任何提供者 token，租戶開機時也不下載任何東西。
 - **大小：** 每個架構約多 680 MB（未壓縮；Claude 246 MB、Codex 432 MB）。
 - **PaaS：** PaaS 衍生映像不再自行安裝一份，改用這裡的 CLI。

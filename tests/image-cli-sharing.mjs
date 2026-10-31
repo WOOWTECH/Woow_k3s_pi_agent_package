@@ -126,7 +126,34 @@ readline.createInterface({ input: process.stdin }).on('line', line => {
     assert.ok(text.includes(MARKER), `global MCP call through the bridge returned: ${text.slice(0, 200) || JSON.stringify(answer.error)}`);
   } finally { mcp.close(); }
 
-  console.log(`[accept] Claude Code ${pinned('claude')} and Codex ${pinned('codex')} share Pi skills and global MCP OK`);
+  // 6. Claude Code, Codex and Pi use the shared MCP servers at the same time. Each CLI starts its own
+  // bridge (a Pi SDK session with Pi Web's MCP adapter, the same code path Pi uses), so three bridge
+  // processes call the same global MCP tool concurrently while `claude mcp list` health-checks the bridge.
+  assert.ok(fs.readFileSync(path.join(home, '.codex/config.toml'), 'utf8').includes(bridge.args?.[0] || 'bridge.mjs'),
+    'Codex must start the same bridge as Claude');
+  const parallel = ['claude', 'codex', 'pi'].map(() => rpcClient(bridge.command, bridge.args || [], { ...env, ...(bridge.env || {}) }));
+  try {
+    await Promise.all(parallel.map(client => client.call('initialize',
+      { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'pi-image-acceptance', version: '1' } }, 180_000)));
+    parallel.forEach(client => client.notify('notifications/initialized'));
+    const health = new Promise(resolve => {
+      const child = spawn('claude', ['mcp', 'list'], { env, cwd: home, stdio: ['ignore', 'pipe', 'pipe'] });
+      let output = ''; child.stdout.on('data', d => output += d); child.stderr.on('data', d => output += d);
+      const timer = setTimeout(() => child.kill(), 180_000);
+      child.on('close', () => { clearTimeout(timer); resolve(output); });
+    });
+    const [answers, listing] = await Promise.all([
+      Promise.all(parallel.map(client => client.call('tools/call', { name: 'pi_global_mcp', arguments: { tool: `${SERVER}_probe_echo` } }, 180_000))),
+      health,
+    ]);
+    answers.forEach((answer, index) => {
+      const text = (answer.result?.content || []).map(item => item.text).join(' ');
+      assert.ok(text.includes(MARKER), `concurrent call ${index + 1} returned: ${text.slice(0, 200) || JSON.stringify(answer.error)}`);
+    });
+    assert.match(listing, /pi_shared_runtime:.*Connected/, `claude mcp list during concurrent calls: ${listing.slice(0, 300)}`);
+  } finally { parallel.forEach(client => client.close()); }
+
+  console.log(`[accept] Claude Code ${pinned('claude')} and Codex ${pinned('codex')} share Pi skills and global MCP, also concurrently, OK`);
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
