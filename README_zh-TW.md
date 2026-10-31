@@ -606,6 +606,16 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## 預裝 Claude Code 與 Codex（0.3.24）
+
+映像內建官方 **Claude Code 2.1.296** 與 **Codex 0.162.1**（amd64、arm64），用這個映像建立的 Pi Agent 都能在 Pi Web 終端直接執行 `claude`、`codex`。
+- **版本鎖定：** 版本與完整性雜湊來自 `cli-runtime/{claude,codex}/package-lock.json`，和 Home Assistant add-on 的鎖檔逐位元組相同。安裝在 `/opt/pi-clis/{claude,codex}`（各自一層），連結為 `/usr/local/bin/claude`、`/usr/local/bin/codex`；用不到的 musl 版 Claude 已移除。
+- **共享：** 內建的 shared runtime 開機時會找到兩個 CLI，把 Pi 的技能（在 `~/.claude/skills`、`~/.codex/skills`、`~/.agents/skills` 建符號連結）與 Pi Web 的全域 MCP（在 `~/.claude.json`、`~/.codex/config.toml` 加一個 `pi_shared_runtime`）共享給它們。
+- **驗收：** `tests/image-cli-sharing.mjs` 在離線的一次性驗收容器裡證明這件事，內容包括版本、Claude 與 Codex 看得到 Pi 的技能、兩個 CLI 都列出這條橋接，以及透過它呼叫 Pi Web 全域 MCP 工具有正確回應。
+- **登入：** 兩個 CLI 仍要各自完成官方登入（`claude auth login`、`codex login`）。不複製任何提供者 token，租戶開機時也不下載任何東西。
+- **大小：** 每個架構約多 680 MB（未壓縮；Claude 246 MB、Codex 432 MB）。
+- **PaaS：** PaaS 衍生映像不再自行安裝一份，改用這裡的 CLI。
+
 ## Omnigent 0.3.31（0.3.23）
 
 映像固定使用 [Omnigent 插件 0.3.31](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.31)；Paseo 0.1.15 與 Pi Web 補丁不變。
@@ -686,4 +696,4 @@ Paseo 0.1.10 會保存已驗證的 daemon 程序出生資訊，並讓插件與�
 
 保留已停用、移除及外部安裝的插件；官方 GitHub 的 git 釘選會在開機時改成內建插件（見「開機時把官方插件的 git 釘選改成映像內建版本」）。`PI_PASEO_AUTO_SETUP=false` 會關閉新的預設註冊與這項改寫。手動停止服務後，需在 Paseo 設定頁重新啟動。現有服務維持原版本，只有明確升級才套用。
 
-PaaS 沿用既有 Claude Code、Codex 與 Omnigent gateway；提供者仍需有效登入或 gateway 權限。預裝套件不等於對話驗證通過。HA 套件另以 ingress 整合其 Pi Web 0.12。
+0.3.24 起映像本身就內建 Claude Code 與 Codex（見「預裝 Claude Code 與 Codex」），PaaS 另加 Omnigent gateway；提供者仍需有效登入或 gateway 權限。預裝套件不等於對話驗證通過。HA 套件另以 ingress 整合其 Pi Web 0.12。

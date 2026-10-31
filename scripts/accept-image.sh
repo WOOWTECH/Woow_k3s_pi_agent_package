@@ -54,11 +54,11 @@ for index in "${!platforms[@]}"; do
   timeout 300 docker pull --platform "$platform" "$platform_image"
   id=$(docker create --platform "$platform" --label "pi.root.qa=$owner" --network none \
     --memory 3g --cpus 2 --entrypoint bash "$platform_image" -ec \
-    'node /opt/woow/tests/image-startup.mjs; node /opt/woow/tests/image-engine-discovery.mjs; node /opt/woow/tests/image-paseo.mjs')
+    'node /opt/woow/tests/image-startup.mjs; node /opt/woow/tests/image-engine-discovery.mjs; node /opt/woow/tests/image-paseo.mjs; node /opt/woow/tests/image-cli-sharing.mjs')
   containers+=("$id")
   actual=$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$id")
   [[ $actual == "$revision" ]]
-  timeout 240 docker start --attach "$id"
+  timeout 480 docker start --attach "$id"
   [[ $(docker inspect -f '{{.State.ExitCode}}' "$id") == 0 ]]
 done
 # The runner can reach an internal bridge by container IP. Do not assume

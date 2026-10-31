@@ -629,6 +629,16 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Claude Code and Codex preinstalled (0.3.24)
+
+The image now ships the official **Claude Code 2.1.296** and **Codex 0.162.1** CLIs for amd64 and arm64, so every Pi Agent built from it can run `claude` and `codex` in the Pi Web terminal.
+- **Pinning:** exact npm versions and integrities come from `cli-runtime/{claude,codex}/package-lock.json`, byte-identical to the Home Assistant add-on's locks. They are installed under `/opt/pi-clis/{claude,codex}`, one image layer each, and linked as `/usr/local/bin/claude` and `/usr/local/bin/codex`. The unused musl Claude binary is dropped.
+- **Sharing:** the bundled shared runtime finds both CLIs at startup and shares Pi skills (symbolic links in `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`) and the Pi Web global MCP servers (one `pi_shared_runtime` entry in `~/.claude.json` and `~/.codex/config.toml`) with them.
+- **Acceptance:** `tests/image-cli-sharing.mjs` proves this offline in the disposable acceptance containers. It checks the versions, a Pi skill visible to Claude and Codex, both CLIs listing the bridge, and a Pi Web global MCP tool answering through it.
+- **Logins:** each CLI still needs its own official login (`claude auth login`, `codex login`). No provider token is copied and nothing is downloaded at tenant startup.
+- **Size:** about 680 MB uncompressed per architecture (Claude 246 MB, Codex 432 MB).
+- **PaaS:** the PaaS overlay no longer installs its own copy; it uses these CLIs.
+
 ## Omnigent 0.3.31 (0.3.23)
 
 The image pins [Omnigent plugin 0.3.31](https://github.com/WOOWTECH/pi-omnigent-plugin/releases/tag/v0.3.31); Paseo 0.1.15 and the Pi Web patches are unchanged.
@@ -742,4 +752,4 @@ Paseo 0.1.10 records the verified daemon process birth and uses a shared Linux l
 
 Native package disable/removal and existing external plugin installations are preserved; an official GitHub git pin moves to the bundled plugin at startup (see "Official plugin git pins move to the bundled plugins at startup"). `PI_PASEO_AUTO_SETUP=false` opts out of new image registration and of that move; it does not remove an existing installation. Manual service Stop remains effective across restart. Use the Paseo settings page to resume. Existing services only change when explicitly upgraded.
 
-The PaaS overlay supplies its existing Claude Code/Codex tools and Omnigent gateway; each tenant still needs valid provider login or gateway access. A bundled runtime does not prove a provider can answer. The HA package uses a separate ingress adapter for Pi Web 0.12.
+Since 0.3.24 the image itself ships Claude Code and Codex (see "Claude Code and Codex preinstalled"); the PaaS overlay adds its Omnigent gateway; each tenant still needs valid provider login or gateway access. A bundled runtime does not prove a provider can answer. The HA package uses a separate ingress adapter for Pi Web 0.12.
