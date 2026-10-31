@@ -234,6 +234,32 @@ RUN set -euo pipefail; \
     fi; \
     node /opt/patches/fix-unicode-space-paths.mjs "${FILES[@]}"
 
+# Official Claude Code and Codex CLIs, preinstalled since 0.3.24 so every Pi Agent
+# built from this image can run `claude` / `codex` and share Pi skills and global
+# MCP servers with them (bundled pi-agent-shared-runtime). Exact npm versions and
+# integrities come from cli-runtime/{claude,codex}/package-lock.json, byte-identical
+# to the Home Assistant add-on's locks. One prefix per CLI so stage 2 copies each
+# into its own layer. Tenant HOME keeps only each CLI's own login state.
+#
+# npm also installs the musl Claude executable on Debian: the lock's platform
+# entries carry no libc field, so `npm ci` cannot skip it. The postinstall
+# hard-links the glibc binary to bin/claude.exe; drop the unused ~240 MB musl copy.
+COPY cli-runtime/claude/ /opt/pi-clis/claude/
+RUN set -euo pipefail; \
+    npm ci --omit=dev --no-audit --no-fund --prefix=/opt/pi-clis/claude; \
+    native=/opt/pi-clis/claude/node_modules/@anthropic-ai/claude-code; \
+    cmp -s "${native}/bin/claude.exe" "${native}-linux-$(node -p process.arch)/claude"; \
+    rm -rf "${native}"-linux-*-musl; \
+    want="$(node -p 'require("/opt/pi-clis/claude/package.json").dependencies["@anthropic-ai/claude-code"]')"; \
+    /opt/pi-clis/claude/node_modules/.bin/claude --version | grep -qwF -e "${want}"; \
+    chmod -R a+rX,go-w /opt/pi-clis/claude
+COPY cli-runtime/codex/ /opt/pi-clis/codex/
+RUN set -euo pipefail; \
+    npm ci --omit=dev --no-audit --no-fund --prefix=/opt/pi-clis/codex; \
+    want="$(node -p 'require("/opt/pi-clis/codex/package.json").dependencies["@openai/codex"]')"; \
+    /opt/pi-clis/codex/node_modules/.bin/codex --version | grep -qwF -e "${want}"; \
+    chmod -R a+rX,go-w /opt/pi-clis/codex
+
 
 # =============================================================================
 # Stage 2 — the runtime image. No compiler, no npm registry access.
@@ -319,6 +345,24 @@ COPY --from=piweb-builder /opt/woow/pi-omnigent-plugin /opt/woow/pi-omnigent-plu
 COPY --from=piweb-builder /opt/woow/pi-paseo-plugin /opt/woow/pi-paseo-plugin
 COPY --from=piweb-builder /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
 COPY --from=piweb-builder /opt/woow/pi-paseo-web /opt/woow/pi-paseo-web
+# Claude Code and Codex (see the builder stage): one layer each, linked into the
+# system PATH. The shared runtime finds them here and wraps them per tenant. The
+# Claude tree must hold exactly one native binary: no musl copy, and at most
+# 16 MiB beside bin/claude.exe (du counts its hard link once).
+COPY --from=piweb-builder /opt/pi-clis/claude /opt/pi-clis/claude
+COPY --from=piweb-builder /opt/pi-clis/codex /opt/pi-clis/codex
+RUN set -euo pipefail; \
+    ln -s /opt/pi-clis/claude/node_modules/.bin/claude /usr/local/bin/claude; \
+    ln -s /opt/pi-clis/codex/node_modules/.bin/codex /usr/local/bin/codex; \
+    claude_want="$(node -p 'require("/opt/pi-clis/claude/package.json").dependencies["@anthropic-ai/claude-code"]')"; \
+    codex_want="$(node -p 'require("/opt/pi-clis/codex/package.json").dependencies["@openai/codex"]')"; \
+    claude --version | grep -qwF -e "${claude_want}"; \
+    codex --version | grep -qwF -e "${codex_want}"; \
+    if compgen -G '/opt/pi-clis/claude/node_modules/@anthropic-ai/*musl*' >/dev/null; then echo 'musl Claude copy survived' >&2; exit 1; fi; \
+    tree="$(du -sb /opt/pi-clis/claude | cut -f1)"; \
+    binary="$(stat -c %s /opt/pi-clis/claude/node_modules/@anthropic-ai/claude-code/bin/claude.exe)"; \
+    test $((tree - binary)) -le $((16 * 1024 * 1024)); \
+    echo "[build] Claude Code ${claude_want} and Codex ${codex_want} preinstalled"
 RUN ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-omnigent-plugin/node_modules \
     && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent \
     && ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-paseo-plugin/node_modules \
@@ -355,6 +399,7 @@ RUN set -euo pipefail; \
 COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
+COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
 # Preserve repository-relative imports for the same real offline suite in local QA and image builds.
 COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
 COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/
