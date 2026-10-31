@@ -35,7 +35,8 @@ env:
 
 jobs:
   image:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became 26.04 (2026-10), where Playwright 1.56 cannot install Chromium.
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     permissions:
       contents: read
@@ -128,7 +129,8 @@ jobs:
 
   acceptance:
     needs: image
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became 26.04 (2026-10), where Playwright 1.56 cannot install Chromium.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
