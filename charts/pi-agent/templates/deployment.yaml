@@ -125,6 +125,7 @@ spec:
                     # the pod: every abnormal path logs and exits 0.
                     python3 /opt/pi-agent/omnigent-patch/omnigent-model-options-patch.py \
                       --tool-dir "$HOME/.local/share/uv/tools/omnigent" \
+                      --tool-dir /opt/omnigent/venv \
                       --expected-version {{ .Values.omnigent.modelOptionsPatch.expectedVersion | quote }} || true
                     {{- end }}
                     # A bare `omni host` only survives as long as it does not
