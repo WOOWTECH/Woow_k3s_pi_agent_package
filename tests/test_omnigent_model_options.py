@@ -11,12 +11,14 @@ plus the contract that the hook never fails the pod.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
+import types
 import unittest
 from pathlib import Path
 
@@ -58,6 +60,101 @@ UPSTREAM = textwrap.dedent(
     def untouched_neighbour():
         return "keep me"
     '''
+)
+
+
+# The two functions the PREVIOUS edition of the patcher wrote (timeout 30, reads every two-word line as a model). Venvs that persist across restarts
+# (the native installer, the chart on a PVC) already carry this text, and the new patcher must replace it, not stack on it.
+PREVIOUS_EDITION = '''\
+def pi_own_login_model_options(agent_dir: Path | None = None) -> list[dict[str, object]]:
+    """Enumerate the models Pi's own login can use (the unmanaged fallback).
+
+    Upstream reads Pi's ``models-store.json`` filtered to providers with an
+    ``auth.json`` entry. Pi only writes that store for providers whose catalog
+    it refreshes over the network, so a compatible endpoint declared in
+    ``models.json`` -- the documented way to add a gateway -- appears in
+    neither file and the picker comes up empty. When the file pair yields
+    nothing, ask the installed Pi CLI, which already knows.
+
+    :param agent_dir: Pi agent dir override (tests); defaults to the host's
+        own Pi agent dir.
+    :returns: Picker options shaped like :func:`pi_native_model_options`,
+        qualified as ``provider/model`` -- the reference form Pi's ``--model``
+        resolves natively against its own providers.
+    """
+    root = agent_dir if agent_dir is not None else _global_pi_agent_dir()
+    logged_in = set(_read_json_object(root / "auth.json"))
+    options: dict[str, dict[str, object]] = {}
+    for provider_id, payload in _read_json_object(root / "models-store.json").items():
+        if provider_id not in logged_in or not _is_str_object_dict(payload):
+            continue
+        models = payload.get("models")
+        for model in models if isinstance(models, list) else []:
+            if not _is_str_object_dict(model):
+                continue
+            model_id = model.get("id")
+            if not isinstance(model_id, str) or not model_id:
+                continue
+            qualified = f"{provider_id}/{model_id}"
+            name = model.get("name")
+            options[qualified] = {
+                "id": qualified,
+                "model": qualified,
+                "displayName": name if isinstance(name, str) and name else model_id,
+            }
+    if not options:
+        return _ambient_pi_model_options()
+    return [options[model_id] for model_id in sorted(options)]
+
+
+def _ambient_pi_model_options() -> list[dict[str, object]]:
+    """List models exposed by Pi's own configured providers, without launching one."""
+    try:
+        result = subprocess.run(
+            ["pi", "--list-models"],
+            capture_output=True,
+            text=True,
+            # `pi --list-models` measures ~5s idle on these hosts, and the
+            # first minute after a start is not idle -- 15s (upstream's value)
+            # expired there and handed the dialog an empty picker, which is the
+            # very failure this patch exists to remove.
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        _LOGGER.info("pi-native: could not run `pi --list-models` for the model picker")
+        return []
+    if result.returncode != 0:
+        _LOGGER.info("pi-native: `pi --list-models` failed; leaving the model picker empty")
+        return []
+
+    options: dict[str, dict[str, object]] = {}
+    for line in result.stdout.splitlines():
+        columns = line.split()
+        # Pi's stable table begins ``provider model context ...``.  Ignore the
+        # header, separators, and any future non-tabular diagnostic lines.
+        if len(columns) < 2 or columns[0] == "provider" or columns[0].startswith("-"):
+            continue
+        provider_id, model_id = columns[:2]
+        qualified = f"{provider_id}/{model_id}"
+        options[qualified] = {
+            "id": qualified,
+            "model": qualified,
+            "displayName": model_id,
+        }
+    return [options[model_id] for model_id in sorted(options)]
+'''
+
+NOTICE = (
+    "No models available. Use /login to log into a provider via OAuth or API key. See:\n"
+    "  /usr/local/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n"
+    "  /usr/local/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n"
+)
+
+TABLE = (
+    "provider    model                context  max-out  thinking  images\n"
+    "openrouter  vendor/model-a:free  128K     16.4K    no        no\n"
+    "anthropic   claude-haiku-4-5     200K     64K      yes       yes\n"
 )
 
 
@@ -171,6 +268,97 @@ class PatchTests(unittest.TestCase):
         result = run(self.tmp / "nothing-here")
         self.assertEqual(result.returncode, 0)
         self.assertIn("nothing to patch", result.stdout)
+
+    def test_converges_from_the_previous_edition(self) -> None:
+        """A venv patched by the previous edition ends up byte-identical to a freshly patched one."""
+        fresh = make_install(self.tmp / "fresh")
+        run(self.tmp / "fresh")
+        old = make_install(self.tmp / "old")
+        head = UPSTREAM[: UPSTREAM.index("def pi_own_login_model_options")]
+        tail = UPSTREAM[UPSTREAM.index("def untouched_neighbour") :]
+        old.write_text(head + PREVIOUS_EDITION.rstrip("\n") + "\n\n\n" + tail, encoding="utf-8")
+        result = run(self.tmp / "old")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(old.read_text(encoding="utf-8"), fresh.read_text(encoding="utf-8"))
+        self.assertNotIn("timeout=30", old.read_text(encoding="utf-8"))
+
+
+class PatchedPickerTests(unittest.TestCase):
+    """Executes the PATCHED stand-in module (no omnigent needed), so the PR gate also covers how the picker reads `pi --list-models`."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        module_path = make_install(self.tmp / "venv")
+        result = run(self.tmp / "venv")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        spec = importlib.util.spec_from_file_location("patched_credentials", module_path)
+        self.module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.module)
+        # The module gets its own `subprocess`; patching the real one would leak into this file's `run()` helper and into the tests that follow.
+        self.fake = types.SimpleNamespace(
+            run=None, DEVNULL=subprocess.DEVNULL, SubprocessError=subprocess.SubprocessError, TimeoutExpired=subprocess.TimeoutExpired
+        )
+        self.module.subprocess = self.fake
+        self.agent = self.tmp / "agent"
+        self.agent.mkdir()
+        self.seen: dict = {}
+
+    def pi_prints(self, stdout: str, returncode: int = 0):
+        class Completed:
+            pass
+
+        completed = Completed()
+        completed.stdout, completed.stderr, completed.returncode = stdout, "", returncode
+
+        def fake(*args, **kwargs):
+            self.seen.update(kwargs)
+            self.seen["args"] = args
+            return completed
+
+        self.fake.run = fake
+
+    def ids(self) -> list[str]:
+        return [o["id"] for o in self.module.pi_own_login_model_options(self.agent)]
+
+    def test_the_no_models_notice_is_not_a_model(self) -> None:
+        """Pi prints this on STDOUT with exit code 0 when nothing is configured; it used to become a model called `No/models`."""
+        self.pi_prints(NOTICE)
+        self.assertEqual(self.ids(), [])
+
+    def test_a_table_is_read_and_sorted(self) -> None:
+        self.pi_prints(TABLE)
+        self.assertEqual(self.ids(), ["anthropic/claude-haiku-4-5", "openrouter/vendor/model-a:free"])
+
+    def test_text_around_the_table_and_separator_rows_are_ignored(self) -> None:
+        self.pi_prints("Warning: an update is available\n" + TABLE.splitlines(True)[0] + "-------  -----\n" + "".join(TABLE.splitlines(True)[1:]) + "\n(2 models)\n")
+        self.assertEqual(self.ids(), ["anthropic/claude-haiku-4-5", "openrouter/vendor/model-a:free"])
+
+    def test_a_failing_cli_is_an_empty_picker(self) -> None:
+        self.pi_prints(TABLE, returncode=1)
+        self.assertEqual(self.ids(), [])
+
+    def test_a_missing_or_hung_cli_is_an_empty_picker(self) -> None:
+        for error in (OSError("no pi on PATH"), subprocess.TimeoutExpired("pi", 12)):
+            def boom(*args, **kwargs):
+                raise error
+
+            self.fake.run = boom
+            self.assertEqual(self.ids(), [], repr(error))
+
+    def test_the_cli_call_is_bounded_and_aimed_at_the_directory_that_was_read(self) -> None:
+        self.pi_prints(TABLE)
+        self.ids()
+        self.assertEqual(self.seen["args"][0], ["pi", "--list-models"])
+        self.assertLess(self.seen["timeout"], 15, "the host RPC is cut off at 15 seconds")
+        self.assertEqual(self.seen["env"]["PI_CODING_AGENT_DIR"], str(self.agent))
+        self.assertEqual(self.seen["errors"], "replace")
+        self.assertEqual(self.seen["stdin"], subprocess.DEVNULL, "Pi must never read the caller's stdin")
+
+    def test_without_a_directory_the_cli_inherits_the_environment(self) -> None:
+        self.pi_prints(TABLE)
+        self.module.pi_own_login_model_options()
+        self.assertIsNone(self.seen["env"])
 
 
 if __name__ == "__main__":
