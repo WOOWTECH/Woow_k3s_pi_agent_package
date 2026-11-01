@@ -143,6 +143,30 @@ class PatchTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
         self.assertEqual(before, module.read_text(encoding="utf-8"))
 
+    def test_site_packages_is_patched_directly(self) -> None:
+        """Build-time entry point: the add-on passes site-packages, not a venv root."""
+        module = make_install(self.tmp / "venv")
+        site = self.tmp / "venv" / "lib" / "python3.12" / "site-packages"
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--site-packages", str(site), "--strict"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("_ambient_pi_model_options", functions(module.read_text(encoding="utf-8")))
+
+    def test_strict_fails_the_build_on_a_version_bump(self) -> None:
+        """A silent skip is what let the 0.12.0 edition rot; a build must stop."""
+        make_install(self.tmp / "venv", version="0.17.0")
+        site = self.tmp / "venv" / "lib" / "python3.12" / "site-packages"
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--site-packages", str(site), "--strict"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("SKIPPING", result.stdout)
+
     def test_missing_install_is_not_an_error(self) -> None:
         result = run(self.tmp / "nothing-here")
         self.assertEqual(result.returncode, 0)

@@ -214,54 +214,68 @@ def main() -> int:
         help="omnigent venv root; repeatable. Defaults are searched when omitted or unmatched.",
     )
     parser.add_argument(
+        "--site-packages",
+        help="patch the omnigent in this site-packages directly (build-time use)",
+    )
+    parser.add_argument(
         "--expected-version",
         action="append",
         default=[],
         help="only patch these omnigent versions; anything else is reported and skipped",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero when the patch does not apply (build-time use)",
+    )
     args = parser.parse_args()
 
-    expected = args.expected_version or ["0.16.0"]
-    roots = [*args.tool_dir, *DEFAULT_ROOTS]
+    # At runtime an unapplied patch is a degraded picker, never a dead pod, so
+    # every path exits 0. A build must fail loudly instead: --strict.
+    def give_up(message: str) -> int:
+        log(message)
+        return 1 if args.strict else 0
 
-    site_packages = None
-    for root in roots:
-        site_packages = find_site_packages(root)
-        if site_packages:
-            log(f"found omnigent under {root}")
-            break
-    if site_packages is None:
-        log(f"no omnigent install under any of {roots} — nothing to patch")
-        return 0
+    expected = args.expected_version or ["0.16.0"]
+
+    if args.site_packages:
+        site_packages = args.site_packages if os.path.isdir(args.site_packages) else None
+        if site_packages is None:
+            return give_up(f"{args.site_packages} is not a directory — nothing to patch")
+    else:
+        roots = [*args.tool_dir, *DEFAULT_ROOTS]
+        site_packages = None
+        for root in roots:
+            site_packages = find_site_packages(root)
+            if site_packages:
+                log(f"found omnigent under {root}")
+                break
+        if site_packages is None:
+            return give_up(f"no omnigent install under any of {roots} — nothing to patch")
 
     version = installed_version(site_packages)
     if version not in expected:
-        log(
+        return give_up(
             f"omnigent {version or 'unknown'} is installed but this patch was validated "
             f"against {expected} — SKIPPING. Re-check whether the Pi model picker still "
             f"needs it, then bump omnigent.modelOptionsPatch.expectedVersion."
         )
-        return 0
 
     target = find_module(site_packages)
     if target is None:
-        log(f"pi_native credentials module not found under {site_packages} — leaving it alone")
-        return 0
+        return give_up(f"pi_native credentials module not found under {site_packages}")
 
     try:
         original = open(target, encoding="utf-8").read()
     except OSError as exc:
-        log(f"cannot read {target}: {exc}")
-        return 0
+        return give_up(f"cannot read {target}: {exc}")
 
     try:
         found = spans(original)
     except SyntaxError as exc:
-        log(f"{target} does not parse ({exc}) — leaving it alone")
-        return 0
+        return give_up(f"{target} does not parse ({exc}) — leaving it alone")
     if ANCHOR not in found:
-        log(f"{ANCHOR}() is gone from this build — leaving it alone")
-        return 0
+        return give_up(f"{ANCHOR}() is gone from this build — leaving it alone")
 
     patched = splice(original, found)
     if patched == original:
@@ -278,30 +292,26 @@ def main() -> int:
             shutil.copy2(target, backup)
             log(f"kept the pristine file as {os.path.basename(backup)}")
     except OSError as exc:
-        log(f"cannot write beside {target} ({exc}) — read-only install, patch it at build time")
-        return 0
+        return give_up(f"cannot write beside {target} ({exc}) — read-only install, patch it at build time")
 
     tmp = target + ".patch-tmp"
     try:
         with open(tmp, "w", encoding="utf-8") as handle:
             handle.write(patched)
     except OSError as exc:
-        log(f"cannot write {tmp} ({exc}) — read-only install, patch it at build time")
-        return 0
+        return give_up(f"cannot write {tmp} ({exc}) — read-only install, patch it at build time")
     try:
         rewritten = spans(open(tmp, encoding="utf-8").read())
         if set(rewritten) != set(TARGETS):
             raise ValueError(f"expected both functions, got {sorted(rewritten)}")
     except (SyntaxError, ValueError) as exc:
         os.unlink(tmp)
-        log(f"patched file rejected ({exc}) — original left in place")
-        return 0
+        return give_up(f"patched file rejected ({exc}) — original left in place")
     try:
         os.replace(tmp, target)
     except OSError as exc:
         os.unlink(tmp)
-        log(f"cannot replace {target} ({exc}) — original left in place")
-        return 0
+        return give_up(f"cannot replace {target} ({exc}) — original left in place")
 
     # A stale .pyc would keep serving the old body. mtime invalidation already
     # covers this; dropping the cache makes it certain and costs one import.
