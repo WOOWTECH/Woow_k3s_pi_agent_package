@@ -4,10 +4,14 @@ FROM ${BASE}
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web
 COPY patch-*.mjs patch-pi-context-window-launcher.py sync-litellm-model-metadata.py /opt/patches/
 COPY sync-litellm-model-metadata.py /opt/woow/pi-agent/context-window/sync-litellm-model-metadata.py
+COPY omnigent-model-options-patch/ /opt/patches/omnigent-model-options-patch/
 COPY tests/ /opt/patches/tests/
 RUN python3 -B /opt/patches/tests/patch-pi-context-window-launcher.test.py \
     && python3 -B /opt/patches/tests/image-launcher.test.py \
     && python3 -B /opt/patches/tests/sync-litellm-model-metadata.test.py \
+    `# the patcher itself; its companion test needs the omnigent venv and so` \
+    `# runs in the release image instead` \
+    && python3 -B /opt/patches/tests/omnigent-model-options-patcher.test.py \
     && python3 /opt/patches/patch-pi-context-window-launcher.py /usr/local/bin/pi \
     && python3 /opt/patches/patch-pi-context-window-launcher.py /usr/local/bin/pi \
     && node --test /opt/patches/tests/*.test.mjs \

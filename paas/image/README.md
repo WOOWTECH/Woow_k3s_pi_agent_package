@@ -1,6 +1,52 @@
 # pi-agent image
 
-## Root 0.3.21：Paseo 0.1.14／Omnigent 0.3.29（2026-10-29）
+租戶營運（綁定、HTTP 409／`reset-id`、換外掛來源重登、升級保留登入）看 [RUNBOOK.md](RUNBOOK.md)，工具在 [`tools/pi-tenant/`](../tools/pi-tenant/README.md)。
+
+## Root 0.3.24：預裝 Claude Code 與 Codex 改由 root 提供（2026-11-01）
+
+PaaS 衍生映像的 root 基底改為 `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.24@sha256:1c9045028417bc44ed79de16e5ba50adc77e7e826f4cc1aa160ce92a8f28f285`（雙架構 index，source revision `42c12e119bd45414204339c97617a66f6d642a6b`）。
+
+- root 0.3.24 起，映像本身就內建官方 Claude Code **2.1.296** 與 Codex **0.162.1**（`/opt/pi-clis/claude`、`/opt/pi-clis/codex`，各一層，鎖檔與 HA add-on 逐位元組相同）。
+- 本層原本自己 `npm ci` 的 CLI 層與 `pi-agent/cli-runtime/` 已移除，改成只驗證基底提供的版本。版本完全不變。
+- 映像約小 240 MB：原本那層多帶一份用不到的 musl 版 Claude。
+- Omnigent 0.3.31、Paseo 0.1.15、修正版 web 0.13.0-woow.1 與本層的 Pi Web 補丁都不變。
+- root 0.3.24 的驗收（`tests/image-cli-sharing.mjs`，離線、雙架構）證明：Pi 的技能與 Pi Web 全域 MCP 會共享給兩個 CLI。
+
+## Root 0.3.23（歷史紀錄；現行基底見上節）：Omnigent 0.3.31（2026-10-30）
+
+PaaS 衍生映像的 root 基底改為
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.23@sha256:4039b4d22a255648c98bb9dc2e8a59c70a2cdb408993d969686beeff94342135`（雙架構 index，
+source revision `180d7b528baa396e0214a2c517dbcae03b96dc6b`）。內含 Omnigent **0.3.31**；Paseo 仍是 **0.1.15**，修正版 web 仍是 **0.13.0-woow.1**，
+`tests/managed-web-contract.json` 的 `omnigentVersion` 已同步。相對 root 0.3.22，使用者看得到的差異：
+
+1. **設定 → Omnigent 打開更快。** 在正式租戶實測，原本後端約 4 秒：
+   - 引擎版本檢查的快取由 15 秒改為 10 分鐘；換掉或移除引擎仍會立刻重新檢查。
+   - 已登入時，狀態與模型清單同時讀取，不再一前一後。
+2. **Pi 模型清單為空時，`pi update --models` 最多等 5 秒。** 刷新在背景完成，下次讀取就看得到模型。
+
+Omnigent 組合補丁的雜湊不變（`b204fcae…`），Paseo `host/adapter.patch` 也不變（`348f0b34…`）。本層的 Pi Web 補丁與 e2e 由 PR 的 test-pi-agent-patches 對新基底實跑。
+租戶升級沿用 `tools/pi-tenant/`（RUNBOOK 第 4 節），檢查含升級前後的登入對照。
+
+## Root 0.3.22（歷史紀錄；現行基底見上節）：Omnigent 0.3.30／Paseo 0.1.15（2026-10-30）
+
+PaaS 衍生映像的 root 基底改為
+`ghcr.io/woowtech/woow-k3s-pi-agent:0.3.22@sha256:5de287447e52eb690cceb19541cae3a6b9d4fa221e46fc40755b2a759c7c0c8c`（雙架構 index，
+source revision `1be84d623d09a1085fc946b08d541d8848eb95fa`）。內含 Omnigent **0.3.30**、Paseo **0.1.15**；
+修正版 web 仍是 **0.13.0-woow.1**，`tests/managed-web-contract.json` 的 `omnigentVersion`、`paseoVersion` 已同步。
+相對 root 0.3.21，使用者看得到的差異：
+
+1. **升級不必重新登入。** 換外掛來源（git 釘選↔映像內建）時保留已核准的登入；映像開機時、Pi Web 啟動前，
+   會把官方外掛的 git 釘選改成映像內建版本（有備份與收據，啟動器跟不上時自動還原）。
+2. **設定 → Omnigent 顯示問題原因與下一步**（英文、繁中、簡中）。主機被別的帳號佔用時，先請使用者用擁有它的帳號登入，
+   `reset-id` 留到最後。
+3. **啟動鏈自動修復**：記錄的 Pi Web 不見時改用可用的 `pi-web`；新增 `pi-omnigent doctor`。
+4. **Paseo 0.1.15**：換外掛來源後 Paseo 不會再被關掉。Paseo runtime 拿掉用不到的 musl 版 Claude SDK。
+
+Omnigent 組合補丁的雜湊改為 `b204fcae…`（設定頁的問題提示），Paseo `host/adapter.patch` 不變（`348f0b34…`）。
+本層的 Pi Web 補丁與 e2e 由 PR 的 test-pi-agent-patches 對新基底實跑。外掛來源路徑不變的租戶（`/opt/woow/...`）只換映像，
+Omnigent 登入與主機連線不受影響；租戶升級沿用 `tools/pi-tenant/`（RUNBOOK 第 4 節），檢查含升級前後的登入對照。
+
+## Root 0.3.21（歷史紀錄；現行基底見上節）：Paseo 0.1.14／Omnigent 0.3.29（2026-10-29）
 
 PaaS 衍生映像的 root 基底改為
 `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.21@sha256:ce0895df04c00885a85638e59b44b3cc852ec92bff75d99ead0f0efdeb46bb34`（雙架構 index，
@@ -14,8 +60,9 @@ source revision `eba7b0925bc45799ff69916016480f48d9426401`）。內含 Paseo **0
 2. **供應商模型清單為空或快取到錯誤時，登入後重整一次**，新登入不必重啟就看得到模型。
 
 `host/adapter.patch` 與 Omnigent 組合補丁的雜湊與 0.3.20 相同，所以本層補丁與 e2e 不動。外掛來源路徑不變的租戶
-（`/opt/woow/pi-paseo-plugin`）只換映像即可，Omnigent 登入與主機連線不受影響（2026-10-29 對 6 台租戶 1105→1328
-實測登入保留，換 Paseo 版本是同一種只換映像的升級）。
+（`/opt/woow/pi-paseo-plugin`）只換映像即可，Omnigent 登入與主機連線不受影響（2026-10-29 6 台租戶 1105→1328 升級後
+全部仍登入、主機在線；但其中 5 台缺升級前的對照資料，有前後對照的只有 1 台，詳見 [RUNBOOK.md](RUNBOOK.md) 第 3.1 節。
+換 Paseo 版本是同一種只換映像的升級）。
 
 ## Root 0.3.20（歷史紀錄；現行基底見上節）：Paseo 0.1.13／Omnigent 0.3.29（2026-10-28）
 
@@ -140,6 +187,7 @@ chart／platform pin 仍由發布協調者依序完成。
 | 10 | 重啟中斷的工具呼叫補結果：session 檔被重新開啟（不在本程序記憶體）且最後一筆是沒有結果的 assistant 工具呼叫（`stopReason: toolUse`）時，追加一筆 `isError` 的 `toolResult`「【已中斷】服務在這個工具執行到一半時重新啟動…」。保護條件：檔案閒置 ≥ 60 秒（`PI_WEB_HEAL_MIN_IDLE_MS`）、只處理最後一筆；`PI_WEB_HEAL_INTERRUPTED_TOOLS=0` 關閉 | AI-PI-005-2：重啟後畫面沒有「已中斷」提示，模型也不知道原本的指令沒跑完 |
 | 11 | uid 1000 的 passwd 家目錄＝`/data/pi-agent/home`（volume），不再是容器暫存層的 `/home/pi` | AI-PI-003-1：OpenSSH 的 `~` 看 `/etc/passwd` 不看 `$HOME`，預設 `ssh-keygen`／`known_hosts` 落在 `/home/pi/.ssh`，重啟（pod 換新）後整個消失，`git push` 失敗。build 以 `ssh -vvv` 驗證 `~/.ssh/known_hosts` 展開到 volume |
 | 12 | Omnigent 原生 Pi session 的 branded LiteLLM 模型 ID 會依 canonical `/data/pi-agent/models.json` 補上能力與 context window | gateway 產生 `apporo-elmo/claude-sonnet-5-5` 等 alias 時原本沒有模型限制，Pi 便退回 128K；啟動器保留 session-local 目錄並同步唯一對應的 canonical metadata，讓 Sonnet 5.5 等模型取得 1M context window |
+| 13 | Omnigent 的「Configure Pi」模型選單（`omnigent-model-options-patch/`）：0.16.0 對「用 Pi 自己登入」的主機，只列 `auth.json` ∩ `models-store.json`；Pi 僅對**連網動態刷新**的供應商寫 store，所以租戶在「模型」頁加的 OpenAI 相容閘道（寫進 `models.json`，見 `patch-models-config.mjs`）兩個檔都不在 → 選單只剩「Default」。補丁讓這個空集合改問 `pi --list-models`，且只收 `provider  model` 標題列之後的行（完全沒設定時 Pi 改在 stdout 印一段「No models available」說明、結束碼仍是 0，那不是模型，舊寫法會把它當成名為 `No/models` 的模型）；呼叫上限 12 秒（Omnigent 伺服器等 host 回應的上限是 15 秒，慢了寧可選單空也不要 504）；真有 Pi 登入時仍以原本的檔案結果為準 | 實地稽核：7 台線上 pi-agent 租戶中有 2 台就是這個狀態（`auth.json` 為 `{}`、有 models.json 閘道），租戶在 Omnigent 裡**完全無法使用 Pi**，但同樣的模型在終端機與 Pi Web 都正常。chart 的 postStart 版本救不了這裡：執行期 `/opt` 唯讀，必須在 build 時打 |
 
 patch 用**精確錨點**（`patch-models-config.mjs`、`patch-prompt-errors.mjs`、`patch-error-hints.mjs`），錨點數 ≠ 1 就讓 build 失敗——pi-web 升版搬了程式碼時會被擋下，不會靜默漏 patch。
 
@@ -172,7 +220,7 @@ Pi Web OAuth route 傳入 `getDeviceId`。UUID 由 SDK `SettingsManager.getOrCre
 
 ## 新開通預裝 CLI
 
-官方 Claude Code 2.1.296 與 Codex 0.162.1 在 image build 以 npm lockfile 安裝到 /opt/pi-clis，/usr/local/bin 提供可執行入口。一般 uid1000 與新 HOME 的 --version 於 CI 驗證。新服務不用下載 CLI；Shared Runtime 會偵測已有安裝而跳過。登入、訂閱、API key 與 workspace 均由使用者設定，不把任何帳號或 token 打包進映像。既有 PVC 自行安裝版本不覆蓋。
+官方 Claude Code 2.1.296 與 Codex 0.162.1 由 root 映像（0.3.24 起）以 npm lockfile 安裝到 /opt/pi-clis/claude 與 /opt/pi-clis/codex（與 HA add-on 鎖檔相同、已移除 musl 版 Claude），/usr/local/bin 提供可執行入口；本層只驗證版本。一般 uid1000 與新 HOME 的 --version 於 CI 驗證。新服務不用下載 CLI；Shared Runtime 會偵測已有安裝而跳過。登入、訂閱、API key 與 workspace 均由使用者設定，不把任何帳號或 token 打包進映像。既有 PVC 自行安裝版本不覆蓋。
 
 ## Skills 與 MCP 共用
 

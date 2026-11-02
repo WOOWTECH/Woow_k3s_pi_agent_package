@@ -751,8 +751,13 @@ t_memory() {
   check "over OG_MEM_GUARD_PERCENT: the session child is killed" wait_for 6 dead "$cp"
   check "... the product survives" alive "$prod"
   check "... the host survives" alive "$hp"
-  check "guard logged the kill (with the victim's RSS)" grep -Eq 'memory guard: container at 92% .*killed Omnigent session process [0-9]+ \(python3, (29|3[0-9]) MiB\)' "$E/stdout.log"
-  check "status keeps the last memory-guard kill" grep -q 'killed session process python3' <<<"$(st memory_guard)"
+  # fake child 配置 30 MiB，再加 python3 直譯器自己的基線 RSS（3.12 約 10 MiB，不同版本／
+  # 建置會不同）；上限放寬到 49，仍遠小於 product 的 80 MiB，足以證明量到的是 session。
+  # log 在 kill 之後才寫，所以用 wait_for 輪詢，不與 supervisor 搶時序。
+  check "guard logged the kill (with the victim's RSS)" wait_for 3 grep -Eq 'memory guard: container at 92% .*killed Omnigent session process [0-9]+ \(python3, (29|[34][0-9]) MiB\)' "$E/stdout.log"
+  # ST_GUARD 在 log 之後才設、write_status 再寫檔，同樣輪詢
+  memory_guard_has_kill() { grep -q 'killed session process python3' <<<"$(st memory_guard)"; }
+  check "status keeps the last memory-guard kill" wait_for 3 memory_guard_has_kill
   check "status printer shows it" grep -q '記憶體保護' <<<"$(OG_STATUS_FILE=$STATUS_FILE sh "$STATUS")"
   # still over the threshold after the throttle window (3 x OG_MEM_GUARD_SECONDS):
   # the only process left in the tree is the host itself -> never a victim

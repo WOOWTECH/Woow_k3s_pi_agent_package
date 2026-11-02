@@ -26,7 +26,7 @@
 #      keep keys and known_hosts across restarts (they ignore $HOME and read /etc/passwd)
 # Chart: woow-paas-charts charts/pi-agent (loopback pi-web behind an nginx basic-auth
 # sidecar). Registry: jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent:{tag}.
-ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.21@sha256:ce0895df04c00885a85638e59b44b3cc852ec92bff75d99ead0f0efdeb46bb34
+ARG BASE=ghcr.io/woowtech/woow-k3s-pi-agent:0.3.24@sha256:1c9045028417bc44ed79de16e5ba50adc77e7e826f4cc1aa160ce92a8f28f285
 FROM ${BASE}
 
 ARG PI_WEB_DIR=/usr/local/lib/node_modules/@agegr/pi-web
@@ -56,15 +56,13 @@ RUN node --test /opt/patches/tests/*.test.mjs \
     && node /opt/patches/patch-pi-web.mjs "${PI_WEB_DIR}" \
     && node /opt/patches/tests/device-id-live.mjs "${PI_WEB_DIR}"
 
-# Official CLI distributions are baked into every new Pi instance. Exact npm
-# versions/integrities are locked; tenant HOME contains only login/user state.
-COPY cli-runtime/package.json cli-runtime/package-lock.json /opt/pi-clis/
-RUN npm ci --omit=dev --prefix /opt/pi-clis \
-    && ln -s /opt/pi-clis/node_modules/.bin/claude /usr/local/bin/claude \
-    && ln -s /opt/pi-clis/node_modules/.bin/codex /usr/local/bin/codex \
+# Official Claude Code and Codex come from the root image (0.3.24+): /opt/pi-clis/{claude,codex},
+# npm locks byte-identical to the Home Assistant add-on, musl copy removed, one layer each.
+# This layer only asserts the pinned versions; tenant HOME contains only login/user state.
+RUN test "$(readlink -f /usr/local/bin/claude)" = "$(readlink -f /opt/pi-clis/claude/node_modules/.bin/claude)" \
+    && test "$(readlink -f /usr/local/bin/codex)" = "$(readlink -f /opt/pi-clis/codex/node_modules/.bin/codex)" \
     && claude --version | grep -q '^2.1.296' \
-    && codex --version | grep -q '0.162.1' \
-    && chmod -R a+rX,go-w /opt/pi-clis
+    && codex --version | grep -q '0.162.1'
 
 # 2. non-root: uid/gid 1000, best-effort TZ writes, writable Next cache, volume mountpoint owned
 # The passwd home is the VOLUME home, not /home/pi (container layer): OpenSSH (ssh, ssh-keygen, git over ssh)
@@ -151,6 +149,29 @@ RUN set -eu; \
     /opt/omnigent/venv/bin/python /opt/patches/tests/omnigent-reminder-patch.test.py; \
     grep -q 'omnigent-reminder-patch v2' "$SP/omnigent/harnesses/claude_native/bridge.py"; \
     chmod -R a+rX,go-w /opt/omnigent
+# Omnigent's "Configure Pi" model picker asks the host which models a Pi session may start
+# with. For a Pi on its own login the pinned omnigent answers from auth.json INTERSECT
+# models-store.json; Pi fills that store only for providers whose catalog it refreshes over
+# the network, so a gateway declared in models.json -- which is exactly what this image's
+# own Models page writes (see patch-models-config.mjs) -- is in neither file and the dialog
+# offers only "Default": the tenant cannot drive Pi through Omnigent at all, while the same
+# models answer normally in the terminal and in Pi Web. Verified in the field: 2 of 7 live
+# pi-agent tenants were in that state. The patch routes the empty case to `pi --list-models`.
+# A real Pi login still wins. Same script as Woow_k3s_pi_agent_package
+# charts/pi-agent/files (byte-identical) and the HA add-on. The chart's postStart copy
+# cannot help here: /opt is read-only at runtime, so this must happen at build time.
+# Exact-anchor and version-gated like the reminder patch; unit tests run on the patched
+# package and the pyc is rewritten because /opt is read-only at runtime.
+COPY omnigent-model-options-patch/ /opt/patches/omnigent-model-options-patch/
+COPY tests/omnigent-model-options-patch.test.py /opt/patches/tests/omnigent-model-options-patch.test.py
+RUN set -eu; \
+    SP=/opt/omnigent/venv/lib/python3.12/site-packages; \
+    /opt/omnigent/venv/bin/python /opt/patches/omnigent-model-options-patch/omnigent-model-options-patch.py \
+      --site-packages "$SP" --strict --expected-version "${OMNIGENT_VERSION}"; \
+    /opt/omnigent/venv/bin/python /opt/patches/tests/omnigent-model-options-patch.test.py; \
+    grep -q '_ambient_pi_model_options' "$SP/omnigent/harnesses/pi_native/credentials.py"; \
+    chmod -R a+rX,go-w /opt/omnigent
+
 # 5. office/PDF toolbox for pi's tools and skills (QA round 1, PA-02: pi had to improvise
 # without them). Debian 12 packages, top-level versions pinned (the base is digest-pinned;
 # a Debian point/security release that drops one of these versions fails the build here
