@@ -104,8 +104,33 @@ type: application
 # login. Omnigent is still bound only from Settings (no setup conversation).
 # No workload template change from 0.1.16. The platform must pin the promoted
 # tag@sha256 (sha256:7997f1db...) separately.
-version: 0.1.17
-appVersion: "20261029.0606"
+# 0.1.18 = promote the 20261030.0550 image (root 0.3.22, Omnigent 0.3.30,
+# Paseo 0.1.15). An image upgrade no longer signs anyone out of Omnigent: the
+# image moves official plugin git pins to its bundled copies before Pi Web
+# starts (backup, receipt, roll-back when the launcher cannot follow) and a
+# plugin source switch keeps the approved login; Settings → Omnigent shows
+# the reason and next step for each issue; a broken launch chain falls back
+# to a working pi-web; Paseo stays on after a source switch. Omnigent is
+# still bound only from Settings (no setup conversation). No workload
+# template change from 0.1.17. The platform must pin the promoted
+# tag@sha256 (sha256:ef39e877...) separately.
+# 0.1.19 = promote the 20261030.1101 image (root 0.3.23, Omnigent 0.3.31,
+# Paseo 0.1.15). Settings → Omnigent opens faster: engine version probes are
+# cached for 10 minutes, and a signed-in page reads the status and the model
+# catalog at the same time; an empty Pi model list waits at most 5 s for
+# `pi update --models`. Omnigent is still bound only from Settings (no setup
+# conversation). No workload template change from 0.1.18. The platform must
+# pin the promoted tag@sha256 (sha256:6144c9ff...) separately.
+# 0.1.20 = promote the 20261101.0017 image (root 0.3.24, Omnigent 0.3.31,
+# Paseo 0.1.15). Claude Code 2.1.296 and Codex 0.162.1 now come from the root
+# image (same versions, npm locks shared with the HA add-on); the PaaS layer no
+# longer installs its own copy and the image is ~240 MB smaller. Pi skills and
+# Pi Web global MCP servers are shared with both CLIs as before. Omnigent and
+# Paseo are still bound only from Settings (no setup conversation). No workload
+# template change from 0.1.19. The platform must pin the promoted tag@sha256
+# (sha256:f9fb5214...) separately.
+version: 0.1.20
+appVersion: "20261101.0017"
 keywords: [paas, pi-agent, coding-agent, cloud-service]
 maintainers:
   - name: WOOW PaaS Team

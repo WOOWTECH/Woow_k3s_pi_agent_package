@@ -19,15 +19,15 @@ them. Open the change against the Gitea repository instead.
 <!-- BEGIN GENERATED: scripts/sync-paas-from-gitea.sh -->
 | Mirror path | Source repository | Source path | Commit |
 |---|---|---|---|
-| `paas/image/` | `woow-paas/paas-odoo-ci` | `pi-agent/` | `427d24a712d0009f26bc2ea3b0b2a0f9dcabfe9e` |
-| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `8967b1153a09b34c9aee1470e831f58ef7c77581` |
-| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `8967b1153a09b34c9aee1470e831f58ef7c77581` |
+| `paas/image/` | `woow-paas/paas-odoo-ci` | `pi-agent/` | `144c60770a05a1ed6caa3e6c2dfb89dd5244a287` |
+| `paas/chart/` | `woow-paas/woow-paas-charts` | `charts/pi-agent/` | `87e4eb8bf319443357bb623fad3cbf64b70b9111` |
+| `paas/shared/omnigent-host/` | `woow-paas/woow-paas-charts` | `shared/omnigent-host/` | `87e4eb8bf319443357bb623fad3cbf64b70b9111` |
 
-PaaS image base (this repository's release): `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.21@sha256:ce0895df04c00885a85638e59b44b3cc852ec92bff75d99ead0f0efdeb46bb34`
+PaaS image base (this repository's release): `ghcr.io/woowtech/woow-k3s-pi-agent:0.3.24@sha256:1c9045028417bc44ed79de16e5ba50adc77e7e826f4cc1aa160ce92a8f28f285`
 
 PaaS image repository: `jcr-prod.woowtech.io/woow-paas-docker-local/pi-agent` (the platform pins the tag by `tag@sha256`)
 
-Chart `0.1.17` / pi-agent image `20261029.0606` — synced 2026-10-29 06:50 UTC.
+Chart `0.1.20` / pi-agent image `20261101.0017` — synced 2026-11-02 01:24 UTC.
 <!-- END GENERATED -->
 
 ## How the two editions relate
