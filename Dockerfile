@@ -402,6 +402,7 @@ COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
+COPY tests/image-shared-sync-boundary.mjs /opt/woow/tests/image-shared-sync-boundary.mjs
 # Preserve repository-relative imports for the same real offline suite in local QA and image builds.
 COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
 COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/
