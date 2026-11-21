@@ -6,21 +6,24 @@
       "name": "@woowtech/pi-omnigent-plugin",
       "version": "0.3.33",
       "sha256": "8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9",
-      "published": false
+      "published": false,
+      "sourceCommit": "3a8e66492bedf02704525a029ccd3abefc81ca46"
     },
     {
       "file": "woowtech-pi-paseo-0.1.17.tgz",
       "name": "@woowtech/pi-paseo",
       "version": "0.1.17",
-      "sha256": "1d4f0e9dc08ee73f9935dbff054f2854f77c2b80aedc7f81c3cc527481885fd8",
-      "published": false
+      "sha256": "ef08edfa18cd3f71d8e50cc22329ee7c143632e04338f16c7188ae848f5c8170",
+      "published": false,
+      "sourceCommit": "c4484d7f1a14125f74382cee379bc2e5f0d053f5"
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
       "name": "@woowtech/pi-agent-shared-runtime",
       "version": "0.1.5",
-      "sha256": "68ba472e3292341911e2041e3e4c19f46ea38aaca13b96728ac874cbb6e97240",
-      "published": false
+      "sha256": "eb6e2056c5523307331f40e1c3a61d552315ef743abfda42a44f7228d6f86a96",
+      "published": false,
+      "sourceCommit": "8e143a60ba372fb34fac3bea5951886677981ecf"
     }
   ]
 }

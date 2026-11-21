@@ -140,7 +140,7 @@ RUN set -euo pipefail; \
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
 ARG PI_PASEO_VERSION=0.1.17
-ARG PI_PASEO_SHA256=1d4f0e9dc08ee73f9935dbff054f2854f77c2b80aedc7f81c3cc527481885fd8
+ARG PI_PASEO_SHA256=ef08edfa18cd3f71d8e50cc22329ee7c143632e04338f16c7188ae848f5c8170
 COPY candidate-packages/woowtech-pi-paseo-0.1.17.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
@@ -374,16 +374,16 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
     PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin \
     PI_PASEO_WEB_ARCHIVE=/opt/woow/pi-paseo-web/client.tar.gz
 
-# Shared skills/MCP runtime. The baseline source revision is recorded below; the
+# Shared skills/MCP runtime. The reviewed source revision is recorded below; the
 # candidate payload is pinned by archive digest and package identity. Its
 # dependencies are installed at build time so a tenant's first Pi Web boot does
 # not need GitHub or npm access. `--legacy-peer-deps` is required by Pi's peer
 # dependency contract and matches the package's documented installation mode.
 COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
-ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
+ARG PI_SHARED_RUNTIME_REF=8e143a60ba372fb34fac3bea5951886677981ecf
 COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
-ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=68ba472e3292341911e2041e3e4c19f46ea38aaca13b96728ac874cbb6e97240
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=eb6e2056c5523307331f40e1c3a61d552315ef743abfda42a44f7228d6f86a96
 RUN set -euo pipefail; \
     echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
