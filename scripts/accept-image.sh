@@ -60,6 +60,16 @@ for index in "${!platforms[@]}"; do
   [[ $actual == "$revision" ]]
   timeout 480 docker start --attach "$id"
   [[ $(docker inspect -f '{{.State.ExitCode}}' "$id") == 0 ]]
+  # Mandatory per-platform installed cold/warm bridge gate; fail before any
+  # successful acceptance receipt can be emitted.
+  id=$(docker create --platform "$platform" --label "pi.root.qa=$owner" --network none \
+    --user 1000:1000 --read-only --memory 2g --cpus 2 --pids-limit 256 \
+    --cap-drop ALL --security-opt no-new-privileges \
+    --tmpfs /tmp:rw,exec,uid=1000,gid=1000,size=536870912 \
+    --entrypoint node "$platform_image" /opt/woow/tests/image-shared-mcp-adapter.mjs)
+  containers+=("$id")
+  timeout 180 docker start --attach "$id"
+  [[ $(docker inspect -f '{{.State.ExitCode}}' "$id") == 0 ]]
 done
 # The runner can reach an internal bridge by container IP. Do not assume
 # host-port publishing is available; keep external egress disabled.
@@ -113,7 +123,7 @@ assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['setti
            and view['setupConversationCount'] == 0 and view['modelRequests'] == 0
            and view['firstScreenOmnigentStep'] and view['paseoStatusWithoutProject'] == 200
            for phase in (first, again) for view in phase['views'])
-checks=[name+':'+p for p in c['platforms'] for name in ['startup','shared-sync-extension-boundary']]+['first-home-desktop','first-home-mobile','restart-persistence']
+checks=[name+':'+p for p in c['platforms'] for name in ['startup','shared-sync-extension-boundary','shared-mcp-cold-warm']]+['first-home-desktop','first-home-mobile','restart-persistence']
 Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')
 print('PASS exact-image startup, desktop/mobile first home and persistent-volume restart')
 PY

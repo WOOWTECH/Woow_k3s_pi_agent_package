@@ -68,7 +68,7 @@ class GitHub:
                               platforms=['linux/amd64'], root_version='0.3.8')
         registry.manifests[self.candidate['tag']] = registry.raw
         self.acceptance = dict(candidate=copy.deepcopy(self.candidate), passed=True,
-                               checks=['startup:linux/amd64', 'shared-sync-extension-boundary:linux/amd64', 'first-home-desktop', 'first-home-mobile', 'restart-persistence'])
+                               checks=['startup:linux/amd64', 'shared-sync-extension-boundary:linux/amd64', 'shared-mcp-cold-warm:linux/amd64', 'first-home-desktop', 'first-home-mobile', 'restart-persistence'])
 
     def run(self, run_id):
         assert run_id == 123
@@ -105,7 +105,7 @@ def stable_fixture(github, registry):
     github.candidate.update(digest=registry.digest, ref='refs/tags/v0.3.8', platforms=['linux/amd64','linux/arm64'])
     github.run_record['head_branch'] = 'v0.3.8'
     github.acceptance['candidate'] = copy.deepcopy(github.candidate)
-    github.acceptance['checks'].extend(['startup:linux/arm64', 'shared-sync-extension-boundary:linux/arm64'])
+    github.acceptance['checks'].extend(['startup:linux/arm64', 'shared-sync-extension-boundary:linux/arm64', 'shared-mcp-cold-warm:linux/arm64'])
 
 
 class PublicationGate(unittest.TestCase):
@@ -120,6 +120,14 @@ class PublicationGate(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             self.promote()
         self.assertEqual(self.registry.writes, [], 'rejected inputs must not change any registry tag')
+
+    def test_missing_installed_cold_warm_gate_blocks_each_platform(self):
+        for platform in ('linux/amd64', 'linux/arm64'):
+            with self.subTest(platform=platform):
+                self.setUp()
+                if platform == 'linux/arm64': stable_fixture(self.github, self.registry)
+                self.github.acceptance['checks'].remove('shared-mcp-cold-warm:' + platform)
+                self.rejected('required image checks missing')
 
     def test_success_copies_the_tested_manifest_without_rebuild(self):
         result = self.promote()

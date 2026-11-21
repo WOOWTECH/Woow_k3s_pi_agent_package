@@ -18,12 +18,12 @@
       "sourceCommit": "aea2da4a83dbd220d8e9aa532ff91f9ac4e2c206"
     },
     {
-      "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
+      "file": "woowtech-pi-agent-shared-runtime-0.1.6.tgz",
       "name": "@woowtech/pi-agent-shared-runtime",
-      "version": "0.1.5",
-      "sha256": "f59b204a681f147b843199ffec9845723176916dee979ee78c4cf82b7dd1f3ea",
+      "version": "0.1.6",
+      "sha256": "0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937",
       "published": false,
-      "sourceCommit": "8009ba9c77148b8d329d3660cca31c4da91e435c"
+      "sourceCommit": "e51849dfa340a2f91bcc7041092749d1b4859c70"
     }
   ]
 }

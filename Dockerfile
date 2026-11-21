@@ -381,14 +381,14 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
 # dependency contract and matches the package's documented installation mode.
 COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
-ARG PI_SHARED_RUNTIME_REF=8009ba9c77148b8d329d3660cca31c4da91e435c
-COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
-ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=f59b204a681f147b843199ffec9845723176916dee979ee78c4cf82b7dd1f3ea
+ARG PI_SHARED_RUNTIME_REF=e51849dfa340a2f91bcc7041092749d1b4859c70
+COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.6.tgz /tmp/shared-runtime.tgz
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937
 RUN set -euo pipefail; \
     echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
     tar xzf /tmp/shared-runtime.tgz -C /opt/woow/pi-agent-shared-runtime --strip-components=1; \
-    node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime"||p.version!=="0.1.5") throw new Error("unexpected shared runtime candidate");'; \
+    node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime"||p.version!=="0.1.6") throw new Error("unexpected shared runtime candidate");'; \
     rm /tmp/shared-runtime.tgz; \
     npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
     npm audit --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --audit-level=high --no-fund; \
@@ -403,6 +403,7 @@ COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
 COPY tests/image-shared-sync-boundary.mjs /opt/woow/tests/image-shared-sync-boundary.mjs
+COPY tests/image-shared-mcp-adapter.mjs /opt/woow/tests/image-shared-mcp-adapter.mjs
 # Preserve repository-relative imports for the same real offline suite in local QA and image builds.
 COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
 COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/
