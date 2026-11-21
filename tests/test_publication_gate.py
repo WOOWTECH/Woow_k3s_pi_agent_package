@@ -68,7 +68,7 @@ class GitHub:
                               platforms=['linux/amd64'], root_version='0.3.8')
         registry.manifests[self.candidate['tag']] = registry.raw
         self.acceptance = dict(candidate=copy.deepcopy(self.candidate), passed=True,
-                               checks=['startup:linux/amd64', 'first-home-desktop', 'first-home-mobile', 'restart-persistence'])
+                               checks=['startup:linux/amd64', 'shared-sync-extension-boundary:linux/amd64', 'first-home-desktop', 'first-home-mobile', 'restart-persistence'])
 
     def run(self, run_id):
         assert run_id == 123
@@ -105,7 +105,7 @@ def stable_fixture(github, registry):
     github.candidate.update(digest=registry.digest, ref='refs/tags/v0.3.8', platforms=['linux/amd64','linux/arm64'])
     github.run_record['head_branch'] = 'v0.3.8'
     github.acceptance['candidate'] = copy.deepcopy(github.candidate)
-    github.acceptance['checks'].append('startup:linux/arm64')
+    github.acceptance['checks'].extend(['startup:linux/arm64', 'shared-sync-extension-boundary:linux/arm64'])
 
 
 class PublicationGate(unittest.TestCase):
@@ -159,6 +159,14 @@ class PublicationGate(unittest.TestCase):
     def test_missing_browser_or_startup_check_rejected(self):
         self.github.acceptance['checks'].remove('first-home-mobile'); self.rejected('checks')
         self.setUp(); self.github.acceptance['passed'] = False; self.rejected('acceptance')
+
+    def test_missing_sync_extension_boundary_rejected_for_every_built_platform(self):
+        self.github.acceptance['checks'].remove('shared-sync-extension-boundary:linux/amd64')
+        self.rejected('checks')
+        self.setUp()
+        stable_fixture(self.github, self.registry)
+        self.github.acceptance['checks'].remove('shared-sync-extension-boundary:linux/arm64')
+        self.rejected('checks')
 
     def test_candidate_tag_overwrite_or_revision_mismatch_rejected(self):
         self.registry.manifests[self.github.candidate['tag']] = encoded({'mediaType': 'invalid'})

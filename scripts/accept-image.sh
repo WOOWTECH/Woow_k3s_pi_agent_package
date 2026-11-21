@@ -113,7 +113,7 @@ assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['setti
            and view['setupConversationCount'] == 0 and view['modelRequests'] == 0
            and view['firstScreenOmnigentStep'] and view['paseoStatusWithoutProject'] == 200
            for phase in (first, again) for view in phase['views'])
-checks=['startup:'+p for p in c['platforms']]+['first-home-desktop','first-home-mobile','restart-persistence']
+checks=[name+':'+p for p in c['platforms'] for name in ['startup','shared-sync-extension-boundary']]+['first-home-desktop','first-home-mobile','restart-persistence']
 Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')
 print('PASS exact-image startup, desktop/mobile first home and persistent-volume restart')
 PY

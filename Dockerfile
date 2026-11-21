@@ -381,9 +381,9 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
 # dependency contract and matches the package's documented installation mode.
 COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
-ARG PI_SHARED_RUNTIME_REF=8e143a60ba372fb34fac3bea5951886677981ecf
+ARG PI_SHARED_RUNTIME_REF=8009ba9c77148b8d329d3660cca31c4da91e435c
 COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
-ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=eb6e2056c5523307331f40e1c3a61d552315ef743abfda42a44f7228d6f86a96
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=f59b204a681f147b843199ffec9845723176916dee979ee78c4cf82b7dd1f3ea
 RUN set -euo pipefail; \
     echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \

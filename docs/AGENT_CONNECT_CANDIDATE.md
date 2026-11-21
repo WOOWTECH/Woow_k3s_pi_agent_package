@@ -1,7 +1,7 @@
 # Agent Connect release candidate — 2026-11-21
 
 This is coordinated source preparation, not a published release or deployment.
-The prior image failed live shared-skill authority checks and is superseded.
+The earlier images failed live shared-skill authority or isolated extension-boundary checks and are superseded.
 The package archives below were produced locally with `npm pack`; the public
 release URLs do not exist yet. Their SHA-256 values are the actual local bytes,
 not placeholders. This image build consumes the reviewed archives committed
@@ -14,7 +14,7 @@ updating every consumer pin together.
 | --- | --- | --- |
 | `@woowtech/pi-paseo` (Agent Connect) | 0.1.17 | `ef08edfa18cd3f71d8e50cc22329ee7c143632e04338f16c7188ae848f5c8170` |
 | `@woowtech/pi-omnigent-plugin` | 0.3.33 | `8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9` |
-| `@woowtech/pi-agent-shared-runtime` | 0.1.5 | `eb6e2056c5523307331f40e1c3a61d552315ef743abfda42a44f7228d6f86a96` |
+| `@woowtech/pi-agent-shared-runtime` | 0.1.5 | `f59b204a681f147b843199ffec9845723176916dee979ee78c4cf82b7dd1f3ea` |
 | Combined Pi Web 0.10 adapter | 0.3.33 | `dc6cf4eb7531445e1a9246a35c6383a60c6769f1e71ac1aa4e1aae9fae3128a7` |
 
 Changes belong to the authoritative Gitea repository. The GitHub repository
@@ -36,6 +36,8 @@ using the exact candidate image or installer. Local Linux tests and browser
 fixtures do not substitute for macOS/Windows host acceptance, a multiarch
 container build, HA Supervisor upgrade tests or actual branded relay pairing.
 
-Shared runtime source `8e143a60ba372fb34fac3bea5951886677981ecf` fixes generated skill aliases being selected before authoritative package resources. Its source and exact packed archive pass 51 tests, and SDK authority checks cover 1.0, 1.1, 1.4 and 1.6. Replacement image acceptance must be rerun on the final coordinated archive set.
+Shared runtime source `8009ba9c77148b8d329d3660cca31c4da91e435c` retains the skill-authority fix and prevents resource synchronization from importing user extensions. The original sentinel failed all 10 source cases; the replacement passes those 10 cases, the full 61-test source suite, 21 focused SDK 1.4 checks and 12 exact-archive SDK 1.4 checks including the actual shared-memory MCP bridge. The dependency lock is unchanged and its audit reports zero findings. These results do not replace final image or live provider acceptance.
+
+The image installs `tests/image-shared-sync-boundary.mjs`. Canonical `scripts/accept-image.sh` runs its six sync/initialize/boot/watch/provider-refresh checks on every built architecture with no network or provider login. Provider child positive controls use owned fake CLI binaries and the actual Pi SDK. Each architecture must record `shared-sync-extension-boundary:<platform>` in the image acceptance receipt; `scripts/image-publication.py` rejects promotion when this check is absent. The same regression must pass on the final PaaS derivative before any controlled host upgrade.
 
 Connector source `c4484d7f1a14125f74382cee379bc2e5f0d053f5` includes the macOS process-state fix. Both macOS arm64 and x64 runners passed actual provider-free daemon start/stop/restart and identity-retention checks; the exact archive also passed a fresh production install and dependency audit with zero findings. These checks do not replace branded public-Web/provider acceptance.

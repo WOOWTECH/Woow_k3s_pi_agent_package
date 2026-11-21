@@ -21,9 +21,9 @@
       "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
       "name": "@woowtech/pi-agent-shared-runtime",
       "version": "0.1.5",
-      "sha256": "eb6e2056c5523307331f40e1c3a61d552315ef743abfda42a44f7228d6f86a96",
+      "sha256": "f59b204a681f147b843199ffec9845723176916dee979ee78c4cf82b7dd1f3ea",
       "published": false,
-      "sourceCommit": "8e143a60ba372fb34fac3bea5951886677981ecf"
+      "sourceCommit": "8009ba9c77148b8d329d3660cca31c4da91e435c"
     }
   ]
 }
