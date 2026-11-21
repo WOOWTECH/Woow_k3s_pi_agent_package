@@ -82,8 +82,11 @@ agent:
 
 image:
   repository: ghcr.io/woowtech/woow-k3s-pi-agent
-  # Pinned by the chart: empty means "use .Chart.AppVersion" (0.2.0 = pi-web
-  # 0.9.0). Upgrades are driven by bumping appVersion + `helm upgrade`, NOT by
+  # Pinned by the chart: empty means "use .Chart.AppVersion" (0.3.25).
+  # Stable releases require accepted linux/amd64 and linux/arm64 images.
+  # Explicit image.tag values keep existing releases pinned. For an immutable
+  # pin, use a published version@sha256:<verified multiarch index digest>.
+  # Upgrades are driven by bumping appVersion + `helm upgrade`, NOT by
   # moving :latest — the five deployments must roll one at a time (each owns a
   # RWO volume), so a floating tag that all of them auto-pull on restart is the
   # wrong mechanism here.

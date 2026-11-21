@@ -354,6 +354,14 @@ kubectl -n pi-agent-<team> annotate secret pi-agent-cf-creds helm.sh/resource-po
 
 ### Step 3: Install the agent
 
+Chart **0.3.25** targets the stable `0.3.25` image for **linux/amd64 and linux/arm64**.
+This source prepares the release; chart CI does not publish its image. Use this
+version only after the `v0.3.25` image has passed both architecture gates and the
+accepted-image publication workflow. Until then, use an already published release.
+Existing explicit `image.tag` values remain pinned. A digest-pinned install command
+can be recorded once the actual accepted multiarch index exists; an amd64-only
+`main` digest is not a substitute for that index.
+
 From a clone:
 
 ```bash
