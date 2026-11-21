@@ -1,0 +1,26 @@
+{
+  "status": "local-source-candidates-not-published",
+  "packages": [
+    {
+      "file": "woowtech-pi-omnigent-plugin-0.3.33.tgz",
+      "name": "@woowtech/pi-omnigent-plugin",
+      "version": "0.3.33",
+      "sha256": "8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9",
+      "published": false
+    },
+    {
+      "file": "woowtech-pi-paseo-0.1.17.tgz",
+      "name": "@woowtech/pi-paseo",
+      "version": "0.1.17",
+      "sha256": "fa7366760534580e313a9fea35e03d7b7088a513c4891178d242584d31e61e8e",
+      "published": false
+    },
+    {
+      "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
+      "name": "@woowtech/pi-agent-shared-runtime",
+      "version": "0.1.5",
+      "sha256": "568586e02c449370333cf56bf89bcdebad3bfcf829c9d27958f62dd2f94c0939",
+      "published": false
+    }
+  ]
+}

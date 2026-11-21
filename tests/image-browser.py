@@ -59,8 +59,8 @@ with sync_playwright() as pw:
                 sessions = get('/api/sessions').get('sessions', [])
                 assert not any(row.get('name') == 'Omnigent 連線設定' for row in sessions), 'startup created a setup conversation'
                 assert 'session' not in parse_qs(urlparse(page.url).query), 'home must not open a setup conversation'
-                assert page.get_by_role('button', name=re.compile('Paseo', re.I)).count() == 0, 'home must not show a Paseo shortcut'
-                assert page.get_by_role('link', name=re.compile('Paseo', re.I)).count() == 0, 'home must not show a Paseo link'
+                assert page.get_by_role('button', name=re.compile('Agent Connect|Paseo', re.I)).count() == 0, 'home must not show a Paseo shortcut'
+                assert page.get_by_role('link', name=re.compile('Agent Connect|Paseo', re.I)).count() == 0, 'home must not show a Paseo link'
                 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                 try:
                     opener.open(base + '/api/omnigent/onboarding', timeout=5)
@@ -92,13 +92,13 @@ with sync_playwright() as pw:
                     if picker.count() and picker.is_visible():
                         picker.select_option('paseo')
                     else:
-                        dialog.get_by_role('button', name='Paseo', exact=True).click()
+                        dialog.get_by_role('button', name='Agent Connect', exact=True).click()
                 read = first_read.value
                 assert not parse_qs(urlparse(read.url).query).get('cwd') and read.status == 200, \
                     f'Settings > Paseo with no project must read status 200 without a directory: {read.status} {read.url}'
-                panel = page.get_by_role('region', name='Paseo 連線設定')
+                panel = page.get_by_role('region', name='Agent Connect 連線設定')
                 panel.wait_for(state='visible', timeout=20000)
-                assert '請先在插件設定安裝 Paseo' not in panel.inner_text(), 'Paseo panel shows the not-found message'
+                assert '請先在插件設定安裝 Agent Connect' not in panel.inner_text(), 'Paseo panel shows the not-found message'
                 assert not get('/api/sessions').get('sessions'), 'opening Settings must not create a conversation'
                 assert not model_requests
                 page.goto(base + '/?cwd=%2Fdata%2Fpi-agent%2Fhome&settings=plugins', wait_until='domcontentloaded')
@@ -107,10 +107,10 @@ with sync_playwright() as pw:
                     section_picker.wait_for(state='visible', timeout=15000)
                     section_picker.select_option('paseo')
                 else:
-                    paseo_tab = page.locator('nav.settings-section-tabs').get_by_role('button', name='Paseo', exact=True)
+                    paseo_tab = page.locator('nav.settings-section-tabs').get_by_role('button', name='Agent Connect', exact=True)
                     paseo_tab.wait_for(state='visible', timeout=15000)
                     paseo_tab.click()
-                page.get_by_role('region', name='Paseo 連線設定').wait_for(state='visible', timeout=20000)
+                page.get_by_role('region', name='Agent Connect 連線設定').wait_for(state='visible', timeout=20000)
                 assert 'session' not in parse_qs(urlparse(page.url).query)
                 assert not model_requests
                 views.append({'viewport':'mobile' if mobile else 'desktop','homeUnchanged':True,

@@ -21,3 +21,6 @@ node_modules/
 !/charts/pi-agent/templates/secret.yaml
 !/charts/pi-agent/templates/cloudflared.yaml
 !/examples/secrets.example.yaml
+
+# Reviewed immutable build inputs for candidate versions not yet released.
+!/candidate-packages/*.tgz

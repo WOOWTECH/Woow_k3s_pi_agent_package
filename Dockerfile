@@ -126,13 +126,12 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.31
-ARG PI_OMNIGENT_SHA256=b62059cdb6e5035c577e0e759d01a2586f1353768b40da2d190ec2db6f3bb4e7
-ARG PI_OMNIGENT_UI_SHA256=b204fcae4f33d841810a212b71ab757d2d2956fb6e431e2ea7997980c469ef19
+ARG PI_OMNIGENT_VERSION=0.3.33
+ARG PI_OMNIGENT_SHA256=8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9
+ARG PI_OMNIGENT_UI_SHA256=dc6cf4eb7531445e1a9246a35c6383a60c6769f1e71ac1aa4e1aae9fae3128a7
 # Immutable plugin payload; lifecycle scripts never run during image build.
+COPY candidate-packages/woowtech-pi-omnigent-plugin-0.3.33.tgz /tmp/omnigent-plugin.tgz
 RUN set -euo pipefail; \
-    curl -fSL --retry 5 --retry-all-errors \
-      "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v${PI_OMNIGENT_VERSION}/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz" -o /tmp/omnigent-plugin.tgz; \
     echo "${PI_OMNIGENT_SHA256}  /tmp/omnigent-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-omnigent-plugin; \
     tar xzf /tmp/omnigent-plugin.tgz --strip-components=1 -C /opt/woow/pi-omnigent-plugin; \
@@ -140,11 +139,10 @@ RUN set -euo pipefail; \
     rm /tmp/omnigent-plugin.tgz
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
-ARG PI_PASEO_VERSION=0.1.15
-ARG PI_PASEO_SHA256=1a8fd99a503d544a6bd324b93d080ed46dd0bb94cefbff863580580d9c72d4f5
+ARG PI_PASEO_VERSION=0.1.17
+ARG PI_PASEO_SHA256=fa7366760534580e313a9fea35e03d7b7088a513c4891178d242584d31e61e8e
+COPY candidate-packages/woowtech-pi-paseo-0.1.17.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
-    curl -fSL --retry 5 --retry-all-errors \
-      "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v${PI_PASEO_VERSION}/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz" -o /tmp/paseo-plugin.tgz; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-paseo-plugin; \
     tar xzf /tmp/paseo-plugin.tgz --strip-components=1 -C /opt/woow/pi-paseo-plugin; \
@@ -375,20 +373,22 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
     PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin \
     PI_PASEO_WEB_ARCHIVE=/opt/woow/pi-paseo-web/client.tar.gz
 
-# Shared skills/MCP runtime. It is pinned to an immutable Git commit and its
+# Shared skills/MCP runtime. The baseline source revision is recorded below; the
+# candidate payload is pinned by archive digest and package identity. Its
 # dependencies are installed at build time so a tenant's first Pi Web boot does
 # not need GitHub or npm access. `--legacy-peer-deps` is required by Pi's peer
 # dependency contract and matches the package's documented installation mode.
 COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
 ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
+COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=568586e02c449370333cf56bf89bcdebad3bfcf829c9d27958f62dd2f94c0939
 RUN set -euo pipefail; \
+    echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
-    git -C /opt/woow/pi-agent-shared-runtime init -q; \
-    git -C /opt/woow/pi-agent-shared-runtime remote add origin https://github.com/WOOWTECH/pi-agent-shared-runtime.git; \
-    git -C /opt/woow/pi-agent-shared-runtime fetch --depth=1 origin "${PI_SHARED_RUNTIME_REF}"; \
-    git -C /opt/woow/pi-agent-shared-runtime checkout --detach -q FETCH_HEAD; \
-    test "$(git -C /opt/woow/pi-agent-shared-runtime rev-parse HEAD)" = "${PI_SHARED_RUNTIME_REF}"; \
+    tar xzf /tmp/shared-runtime.tgz -C /opt/woow/pi-agent-shared-runtime --strip-components=1; \
+    node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime"||p.version!=="0.1.5") throw new Error("unexpected shared runtime candidate");'; \
+    rm /tmp/shared-runtime.tgz; \
     npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
     node /opt/patches/patch-shared-runtime-discovery.mjs /opt/woow/pi-agent-shared-runtime/src/runtime.mjs; \
     node /opt/woow/tests/image-engine-discovery.mjs; \
