@@ -13,8 +13,8 @@ patch/verification remain in place.
 
 | Source | Package | Candidate |
 |---|---|---|
-| `WOOWTECH/pi-paseo-plugin` | `@woowtech/pi-paseo` | 0.1.19 |
-| `WOOWTECH/pi-omnigent-plugin` | `@woowtech/pi-omnigent-plugin` | 0.3.33 |
+| `WOOWTECH/pi-paseo-plugin` | `@woowtech/pi-paseo` | 0.1.20 |
+| `WOOWTECH/pi-omnigent-plugin` | `@woowtech/pi-omnigent-plugin` | 0.3.34 |
 | `WOOWTECH/pi-agent-shared-runtime` | `@woowtech/pi-agent-shared-runtime` | 0.1.5 |
 
 Review an archive without executing it using `tar tzf <file>` or

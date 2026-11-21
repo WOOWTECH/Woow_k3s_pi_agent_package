@@ -2,20 +2,20 @@
   "status": "local-source-candidates-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.33.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.34.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.33",
-      "sha256": "8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9",
+      "version": "0.3.34",
+      "sha256": "e9e80783881f8a036cbf922d2f50fad860dac3bd23e170dda768ab3c56107945",
       "published": false,
-      "sourceCommit": "3a8e66492bedf02704525a029ccd3abefc81ca46"
+      "sourceCommit": "d8652e971bdf66133d699052ab9003d39ff69159"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.19.tgz",
+      "file": "woowtech-pi-paseo-0.1.20.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.19",
-      "sha256": "c3e78092b3782c9fbd67858820054690cb08d6e57ff380507b1d65aa19f93bbe",
+      "version": "0.1.20",
+      "sha256": "1574c1bd1d0023c7b536c9feb773e1cdded929104d79cfb05b1deda5846203f8",
       "published": false,
-      "sourceCommit": "516ab49634f1ad4312d64fbcce57ff9ff1af4caa"
+      "sourceCommit": "aea2da4a83dbd220d8e9aa532ff91f9ac4e2c206"
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
