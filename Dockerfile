@@ -140,7 +140,7 @@ RUN set -euo pipefail; \
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
 ARG PI_PASEO_VERSION=0.1.17
-ARG PI_PASEO_SHA256=e1e3e420332ee9af34b4a5cb578c140c98b20a032e6bb8c4800e87df569cdcd3
+ARG PI_PASEO_SHA256=1d4f0e9dc08ee73f9935dbff054f2854f77c2b80aedc7f81c3cc527481885fd8
 COPY candidate-packages/woowtech-pi-paseo-0.1.17.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
@@ -149,6 +149,7 @@ RUN set -euo pipefail; \
     node -e 'const p=require("/opt/woow/pi-paseo-plugin/package.json"); if(p.name!=="@woowtech/pi-paseo" || p.version!==process.argv[1]) throw Error("unexpected Paseo release")' "${PI_PASEO_VERSION}"; \
     PASEO_RUNTIME=$(node --input-type=module -e 'import {prepareRuntimeManifest} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; console.log(prepareRuntimeManifest({runtimeDir:"/opt/woow/pi-paseo-runtime"}))'); \
     npm ci --prefix "$PASEO_RUNTIME" --omit=dev --no-audit --no-fund; \
+    npm audit --prefix "$PASEO_RUNTIME" --omit=dev --audit-level=high --no-fund; \
     # The runtime lockfile records only os/cpu for the Claude SDK binaries, so npm
     # installs the musl build next to the glibc one (~230 MiB per architecture).
     # The SDK tries the glibc build first; on this Debian image musl never runs.
@@ -382,7 +383,7 @@ COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtim
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
 ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
 COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
-ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=e70cbe7cdcee81ffff755cf1745608033a4615efe9fbbc14ec124a81a74f17d8
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=68ba472e3292341911e2041e3e4c19f46ea38aaca13b96728ac874cbb6e97240
 RUN set -euo pipefail; \
     echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
@@ -390,6 +391,7 @@ RUN set -euo pipefail; \
     node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime"||p.version!=="0.1.5") throw new Error("unexpected shared runtime candidate");'; \
     rm /tmp/shared-runtime.tgz; \
     npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
+    npm audit --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --audit-level=high --no-fund; \
     node /opt/patches/patch-shared-runtime-discovery.mjs /opt/woow/pi-agent-shared-runtime/src/runtime.mjs; \
     node /opt/woow/tests/image-engine-discovery.mjs; \
     node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime") throw new Error("unexpected shared runtime package"); import("/opt/woow/pi-agent-shared-runtime/src/sync.mjs").then(()=>console.log("[build] shared runtime bundle OK"))'; \

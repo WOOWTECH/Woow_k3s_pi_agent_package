@@ -21,7 +21,7 @@ assert.deepEqual(fs.readdirSync(claudeSdk).filter(name => name.endsWith('-musl')
 const bundle = '/opt/woow/pi-paseo-plugin';
 // Keep in step with `ARG PI_PASEO_VERSION` in the Dockerfile; a mismatch fails the image build here.
 assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.17');
-assert.equal(RUNTIME_REVISION, '0.11.2-r3-6d8dbe515479');
+assert.equal(RUNTIME_REVISION, '0.11.2-r3-4cf9d40940bf');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
   // Exercise the baked helper and native writers on each image architecture.

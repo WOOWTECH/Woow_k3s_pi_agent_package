@@ -11,9 +11,9 @@ updating every consumer pin together.
 
 | Input | Candidate version | SHA-256 |
 | --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.17 | `e1e3e420332ee9af34b4a5cb578c140c98b20a032e6bb8c4800e87df569cdcd3` |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.17 | `1d4f0e9dc08ee73f9935dbff054f2854f77c2b80aedc7f81c3cc527481885fd8` |
 | `@woowtech/pi-omnigent-plugin` | 0.3.33 | `8e3b55379e7850bc54896175a03c7611ee9d0080a21b8281441ac906b0a26fc9` |
-| `@woowtech/pi-agent-shared-runtime` | 0.1.5 | `e70cbe7cdcee81ffff755cf1745608033a4615efe9fbbc14ec124a81a74f17d8` |
+| `@woowtech/pi-agent-shared-runtime` | 0.1.5 | `68ba472e3292341911e2041e3e4c19f46ea38aaca13b96728ac874cbb6e97240` |
 | Combined Pi Web 0.10 adapter | 0.3.33 | `dc6cf4eb7531445e1a9246a35c6383a60c6769f1e71ac1aa4e1aae9fae3128a7` |
 
 Changes belong to the authoritative Gitea repository. The GitHub repository
