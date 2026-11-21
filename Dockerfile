@@ -139,9 +139,9 @@ RUN set -euo pipefail; \
     rm /tmp/omnigent-plugin.tgz
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
-ARG PI_PASEO_VERSION=0.1.18
-ARG PI_PASEO_SHA256=18866e16ebf384e1c677c3654f7cfcde1010ef5e82f9d68f4e8dc115d0c602c0
-COPY candidate-packages/woowtech-pi-paseo-0.1.18.tgz /tmp/paseo-plugin.tgz
+ARG PI_PASEO_VERSION=0.1.19
+ARG PI_PASEO_SHA256=c3e78092b3782c9fbd67858820054690cb08d6e57ff380507b1d65aa19f93bbe
+COPY candidate-packages/woowtech-pi-paseo-0.1.19.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-paseo-plugin; \
