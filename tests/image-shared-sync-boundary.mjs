@@ -32,11 +32,13 @@ const fs=require('node:fs');
  if(process.argv.includes('status')) { console.log(JSON.stringify({loggedIn:false})); return; }
  if(!process.argv.includes('--probe-provider')) throw Error('unexpected fixture command');
  if(process.env.PI_SHARED_BRIDGE==='1') throw Error('bridge mode leaked to provider child');
+ if(process.env.PI_SHARED_INTERNAL!=='0') throw Error('caller internal mode was not restored to provider child');
  process.env.AC_PROVIDER_FIXTURE='1';
  const pi=await import(${JSON.stringify(sdkEntry)});
- const loader=new pi.DefaultResourceLoader({cwd:${JSON.stringify(home)},agentDir:${JSON.stringify(data)},settingsManager:pi.SettingsManager.create(${JSON.stringify(home)},${JSON.stringify(data)})});
+ // Keep automatic data/extensions discovery, but exclude the shared bootstrap package from this positive control.
+ const loader=new pi.DefaultResourceLoader({cwd:${JSON.stringify(home)},agentDir:${JSON.stringify(data)},settingsManager:pi.SettingsManager.inMemory({packages:[]})});
  await loader.reload();
- console.log(JSON.stringify({providerFixture:true,bridge:process.env.PI_SHARED_BRIDGE || null,userExtensions:loader.getExtensions().extensions.length}));
+ console.log(JSON.stringify({providerFixture:true,bridge:process.env.PI_SHARED_BRIDGE || null,callerInternal:process.env.PI_SHARED_INTERNAL,userExtensions:loader.getExtensions().extensions.length}));
 })().catch(e=>{console.error(e);process.exitCode=1});
 `;
   for (const name of ['claude', 'codex']) fs.writeFileSync(path.join(bin, name), provider, { mode: 0o755 });
@@ -104,6 +106,7 @@ for (const provider of ['claude', 'codex']) {
     try {
       const result = invoke(f, ['run-cli', provider, '--probe-provider']); synchronized(f);
       assert.ok(result.stdout.includes('"providerFixture":true'), 'owned provider child actually executed');
+      assert.ok(result.stdout.includes('"callerInternal":"0"'), 'provider child retains caller internal mode');
       const events = f.events();
       assert.ok(events.some(e => e.phase === 'provider'), 'positive control: normal SDK loader still imports user extensions');
       assert.ok(events.every(e => e.phase === 'provider'), 'pre-launch synchronization imported user extensions');
