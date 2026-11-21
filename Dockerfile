@@ -140,7 +140,7 @@ RUN set -euo pipefail; \
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
 ARG PI_PASEO_VERSION=0.1.17
-ARG PI_PASEO_SHA256=fa7366760534580e313a9fea35e03d7b7088a513c4891178d242584d31e61e8e
+ARG PI_PASEO_SHA256=e1e3e420332ee9af34b4a5cb578c140c98b20a032e6bb8c4800e87df569cdcd3
 COPY candidate-packages/woowtech-pi-paseo-0.1.17.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
@@ -382,7 +382,7 @@ COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtim
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
 ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
 COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.5.tgz /tmp/shared-runtime.tgz
-ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=568586e02c449370333cf56bf89bcdebad3bfcf829c9d27958f62dd2f94c0939
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=e70cbe7cdcee81ffff755cf1745608033a4615efe9fbbc14ec124a81a74f17d8
 RUN set -euo pipefail; \
     echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \

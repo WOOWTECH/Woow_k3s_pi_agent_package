@@ -12,14 +12,14 @@
       "file": "woowtech-pi-paseo-0.1.17.tgz",
       "name": "@woowtech/pi-paseo",
       "version": "0.1.17",
-      "sha256": "fa7366760534580e313a9fea35e03d7b7088a513c4891178d242584d31e61e8e",
+      "sha256": "e1e3e420332ee9af34b4a5cb578c140c98b20a032e6bb8c4800e87df569cdcd3",
       "published": false
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.5.tgz",
       "name": "@woowtech/pi-agent-shared-runtime",
       "version": "0.1.5",
-      "sha256": "568586e02c449370333cf56bf89bcdebad3bfcf829c9d27958f62dd2f94c0939",
+      "sha256": "e70cbe7cdcee81ffff755cf1745608033a4615efe9fbbc14ec124a81a74f17d8",
       "published": false
     }
   ]
