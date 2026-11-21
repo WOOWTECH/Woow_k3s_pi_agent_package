@@ -8,9 +8,10 @@ or a version alias. Old images and tags are retained for investigation.
 
 The same workflow then runs bounded acceptance on that exact digest: offline
 startup contracts on every built architecture, and a fresh isolated data volume
-with real desktop/mobile browsers on amd64. The untouched homepage must select
-the saved setup conversation and display its initial prompt and empty URL field.
-A container restart must preserve the same onboarding identity. The containers
+with real desktop/mobile browsers on amd64. The untouched homepage must not
+create or open a setup conversation or start pairing automatically. Agent Connect
+is available through Settings, and a container restart must preserve this behavior.
+The containers
 have no provider credentials or external network access and are cleaned up by
 owned resource IDs/labels. This is image smoke acceptance; it does not certify
 real-provider replies, a connected-host full VM reboot, fleet rollout, or HA Store
