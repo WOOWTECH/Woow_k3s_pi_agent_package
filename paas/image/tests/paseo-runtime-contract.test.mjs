@@ -1,15 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runtimeContract as expected, pidLockCopies, verifyRuntimeSnapshot } from "./paseo-runtime-contract.mjs";
+import { runtimeContract as expected, pidLockCopies, brandFiles, verifyRuntimeSnapshot } from "./paseo-runtime-contract.mjs";
 
-const fixture = () => ({ receipt: { revision: expected.revision, lockSha256: expected.lockSha256, pidLockPatchId: expected.pidLockPatchId },
+const fixture = () => ({ receipt: { revision: expected.revision, lockSha256: expected.lockSha256, pidLockPatchId: expected.pidLockPatchId, brandIdentityPatchId: expected.brandIdentityPatchId },
   versions: { cli: "0.11.2", server: "0.11.2" }, lockSha256: expected.lockSha256,
-  files: Object.fromEntries(pidLockCopies.flatMap(copy => [[`${copy}/pid-lock.js`, expected.pidLockSha256],
-    [`${copy}/pi-paseo-pid-transition.mjs`, expected.transitionSha256]])) });
+  files: { ...brandFiles, ...Object.fromEntries(pidLockCopies.flatMap(copy => [[`${copy}/pid-lock.js`, expected.pidLockSha256],
+    [`${copy}/pi-paseo-pid-transition.mjs`, expected.transitionSha256]])) } });
 
-test("r3 provenance rejects legacy or incomplete readiness and changed lockfile", () => {
+test("r4 provenance rejects legacy or incomplete readiness and changed lockfile", () => {
   verifyRuntimeSnapshot(fixture());
-  for (const field of ["revision", "lockSha256", "pidLockPatchId"]) {
+  for (const field of ["revision", "lockSha256", "pidLockPatchId", "brandIdentityPatchId"]) {
     const input = fixture(); delete input.receipt[field];
     assert.throws(() => verifyRuntimeSnapshot(input), new RegExp(field));
   }
@@ -23,7 +23,7 @@ test("both official PID writers and transition helpers must match the reviewed r
   for (const file of Object.keys(fixture().files)) {
     for (const replacement of [undefined, "0".repeat(64)]) {
       const input = fixture(); input.files[file] = replacement;
-      assert.throws(() => verifyRuntimeSnapshot(input), /differs from released r3/);
+      assert.throws(() => verifyRuntimeSnapshot(input), /differs from reviewed r4/);
     }
   }
 });

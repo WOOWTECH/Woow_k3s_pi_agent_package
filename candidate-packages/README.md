@@ -13,7 +13,7 @@ patch/verification remain in place.
 
 | Source | Package | Candidate |
 |---|---|---|
-| `WOOWTECH/pi-paseo-plugin` | `@woowtech/pi-paseo` | 0.1.17 |
+| `WOOWTECH/pi-paseo-plugin` | `@woowtech/pi-paseo` | 0.1.18 |
 | `WOOWTECH/pi-omnigent-plugin` | `@woowtech/pi-omnigent-plugin` | 0.3.33 |
 | `WOOWTECH/pi-agent-shared-runtime` | `@woowtech/pi-agent-shared-runtime` | 0.1.5 |
 

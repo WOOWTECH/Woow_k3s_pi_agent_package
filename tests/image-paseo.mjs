@@ -20,8 +20,20 @@ assert.ok(fs.statSync(path.join(claudeSdk, `claude-agent-sdk-linux-${process.arc
 assert.deepEqual(fs.readdirSync(claudeSdk).filter(name => name.endsWith('-musl')), [], 'the unused musl Claude SDK must not ship');
 const bundle = '/opt/woow/pi-paseo-plugin';
 // Keep in step with `ARG PI_PASEO_VERSION` in the Dockerfile; a mismatch fails the image build here.
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.17');
-assert.equal(RUNTIME_REVISION, '0.11.2-r3-4cf9d40940bf');
+assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.18');
+assert.equal(RUNTIME_REVISION, '0.11.2-r4-4cf9d40940bf');
+const expectedBrand = {server: '8315add9226617d4c2c09d1481c750eff7a34fa83670725914c69892f1cd1561', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: 'd1f27c35db3eb9f456085893a6ca46ecc8aa353eb9dc3b3f9f8b833fd30e4d81'};
+const brandDirectory = path.join(runtime, 'node_modules/@getpaseo/server/dist/server/server');
+const {createHash} = await import('node:crypto');
+for (const [name, expected] of [['websocket-server.js', expectedBrand.server], ['pi-paseo-brand-identity.mjs', expectedBrand.helper]]) {
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(brandDirectory, name))).digest('hex'), expected, name);
+}
+assert.equal(JSON.parse(fs.readFileSync(path.join(runtime, '.pi-paseo-runtime.json'))).brandIdentityPatchId, expectedBrand.patchId);
+for (const selected of ['woowtech', 'apporo', 'paseo']) {
+  const probe = spawnSync(process.execPath, ['--input-type=module', '-e', 'const m=await import(process.argv[1]);console.log(m.agentConnectBrand.id)', pathToFileURL(path.join(brandDirectory, 'pi-paseo-brand-identity.mjs')).href], {env: {...process.env, PI_PASEO_CONNECTION_TARGET:selected}, encoding:'utf8', timeout:5000});
+  assert.equal(probe.status, 0); assert.equal(probe.stdout.trim(), selected);
+}
+console.log('[build] exact r4 server brand patch and three selected identities OK');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
   // Exercise the baked helper and native writers on each image architecture.
