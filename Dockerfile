@@ -126,13 +126,12 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.31
-ARG PI_OMNIGENT_SHA256=b62059cdb6e5035c577e0e759d01a2586f1353768b40da2d190ec2db6f3bb4e7
-ARG PI_OMNIGENT_UI_SHA256=b204fcae4f33d841810a212b71ab757d2d2956fb6e431e2ea7997980c469ef19
+ARG PI_OMNIGENT_VERSION=0.3.34
+ARG PI_OMNIGENT_SHA256=e9e80783881f8a036cbf922d2f50fad860dac3bd23e170dda768ab3c56107945
+ARG PI_OMNIGENT_UI_SHA256=f5c909b3fe6f544e11a4eed46c7e217a490f89c5e4ec356c9906e3908d9f6c30
 # Immutable plugin payload; lifecycle scripts never run during image build.
+COPY candidate-packages/woowtech-pi-omnigent-plugin-0.3.34.tgz /tmp/omnigent-plugin.tgz
 RUN set -euo pipefail; \
-    curl -fSL --retry 5 --retry-all-errors \
-      "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v${PI_OMNIGENT_VERSION}/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz" -o /tmp/omnigent-plugin.tgz; \
     echo "${PI_OMNIGENT_SHA256}  /tmp/omnigent-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-omnigent-plugin; \
     tar xzf /tmp/omnigent-plugin.tgz --strip-components=1 -C /opt/woow/pi-omnigent-plugin; \
@@ -140,17 +139,17 @@ RUN set -euo pipefail; \
     rm /tmp/omnigent-plugin.tgz
 # Pin both plugin source and runtime lockfile. No package manager is needed to
 # install Paseo itself on a fresh tenant volume.
-ARG PI_PASEO_VERSION=0.1.15
-ARG PI_PASEO_SHA256=1a8fd99a503d544a6bd324b93d080ed46dd0bb94cefbff863580580d9c72d4f5
+ARG PI_PASEO_VERSION=0.1.20
+ARG PI_PASEO_SHA256=1574c1bd1d0023c7b536c9feb773e1cdded929104d79cfb05b1deda5846203f8
+COPY candidate-packages/woowtech-pi-paseo-0.1.20.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
-    curl -fSL --retry 5 --retry-all-errors \
-      "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v${PI_PASEO_VERSION}/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz" -o /tmp/paseo-plugin.tgz; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-paseo-plugin; \
     tar xzf /tmp/paseo-plugin.tgz --strip-components=1 -C /opt/woow/pi-paseo-plugin; \
     node -e 'const p=require("/opt/woow/pi-paseo-plugin/package.json"); if(p.name!=="@woowtech/pi-paseo" || p.version!==process.argv[1]) throw Error("unexpected Paseo release")' "${PI_PASEO_VERSION}"; \
     PASEO_RUNTIME=$(node --input-type=module -e 'import {prepareRuntimeManifest} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; console.log(prepareRuntimeManifest({runtimeDir:"/opt/woow/pi-paseo-runtime"}))'); \
     npm ci --prefix "$PASEO_RUNTIME" --omit=dev --no-audit --no-fund; \
+    npm audit --prefix "$PASEO_RUNTIME" --omit=dev --audit-level=high --no-fund; \
     # The runtime lockfile records only os/cpu for the Claude SDK binaries, so npm
     # installs the musl build next to the glibc one (~230 MiB per architecture).
     # The SDK tries the glibc build first; on this Debian image musl never runs.
@@ -375,21 +374,24 @@ ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
     PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin \
     PI_PASEO_WEB_ARCHIVE=/opt/woow/pi-paseo-web/client.tar.gz
 
-# Shared skills/MCP runtime. It is pinned to an immutable Git commit and its
+# Shared skills/MCP runtime. The reviewed source revision is recorded below; the
+# candidate payload is pinned by archive digest and package identity. Its
 # dependencies are installed at build time so a tenant's first Pi Web boot does
 # not need GitHub or npm access. `--legacy-peer-deps` is required by Pi's peer
 # dependency contract and matches the package's documented installation mode.
 COPY patches/patch-shared-runtime-discovery.mjs /opt/patches/patch-shared-runtime-discovery.mjs
 COPY tests/image-engine-discovery.mjs /opt/woow/tests/image-engine-discovery.mjs
-ARG PI_SHARED_RUNTIME_REF=e648882638fa0674f83ec274d58d5fcd7e703a7b
+ARG PI_SHARED_RUNTIME_REF=e51849dfa340a2f91bcc7041092749d1b4859c70
+COPY candidate-packages/woowtech-pi-agent-shared-runtime-0.1.6.tgz /tmp/shared-runtime.tgz
+ARG PI_SHARED_RUNTIME_CANDIDATE_SHA256=0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937
 RUN set -euo pipefail; \
+    echo "${PI_SHARED_RUNTIME_CANDIDATE_SHA256}  /tmp/shared-runtime.tgz" | sha256sum -c -; \
     install -d -m 0755 /opt/woow/pi-agent-shared-runtime; \
-    git -C /opt/woow/pi-agent-shared-runtime init -q; \
-    git -C /opt/woow/pi-agent-shared-runtime remote add origin https://github.com/WOOWTECH/pi-agent-shared-runtime.git; \
-    git -C /opt/woow/pi-agent-shared-runtime fetch --depth=1 origin "${PI_SHARED_RUNTIME_REF}"; \
-    git -C /opt/woow/pi-agent-shared-runtime checkout --detach -q FETCH_HEAD; \
-    test "$(git -C /opt/woow/pi-agent-shared-runtime rev-parse HEAD)" = "${PI_SHARED_RUNTIME_REF}"; \
+    tar xzf /tmp/shared-runtime.tgz -C /opt/woow/pi-agent-shared-runtime --strip-components=1; \
+    node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime"||p.version!=="0.1.6") throw new Error("unexpected shared runtime candidate");'; \
+    rm /tmp/shared-runtime.tgz; \
     npm ci --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --ignore-scripts; \
+    npm audit --prefix /opt/woow/pi-agent-shared-runtime --omit=dev --legacy-peer-deps --audit-level=high --no-fund; \
     node /opt/patches/patch-shared-runtime-discovery.mjs /opt/woow/pi-agent-shared-runtime/src/runtime.mjs; \
     node /opt/woow/tests/image-engine-discovery.mjs; \
     node -e 'const p=require("/opt/woow/pi-agent-shared-runtime/package.json"); if(p.name!=="@woowtech/pi-agent-shared-runtime") throw new Error("unexpected shared runtime package"); import("/opt/woow/pi-agent-shared-runtime/src/sync.mjs").then(()=>console.log("[build] shared runtime bundle OK"))'; \
@@ -400,6 +402,8 @@ COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
+COPY tests/image-shared-sync-boundary.mjs /opt/woow/tests/image-shared-sync-boundary.mjs
+COPY tests/image-shared-mcp-adapter.mjs /opt/woow/tests/image-shared-mcp-adapter.mjs
 # Preserve repository-relative imports for the same real offline suite in local QA and image builds.
 COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
 COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/

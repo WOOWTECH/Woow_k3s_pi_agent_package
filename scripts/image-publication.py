@@ -57,7 +57,8 @@ def promote(run_id, github, registry, expected_revision, now, *, write=False, re
     require(accepted['passed'] is True, 'acceptance did not pass')
     platforms = candidate['platforms']
     require(platforms in [['linux/amd64'], ['linux/amd64', 'linux/arm64']], 'unsupported platforms')
-    checks = {f'startup:{platform}' for platform in platforms} | {
+    checks = {f'{check}:{platform}' for platform in platforms
+              for check in ('startup', 'shared-sync-extension-boundary', 'shared-mcp-cold-warm')} | {
         'first-home-desktop', 'first-home-mobile', 'restart-persistence'}
     require(checks.issubset(set(accepted['checks'])), 'required image checks missing')
     ref = candidate['ref']

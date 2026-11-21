@@ -1,9 +1,12 @@
 {
-  "revision": "0.11.2-r3-6d8dbe515479",
-  "lockSha256": "6d8dbe5154790bbbb0b1281e991871b6f354919022fb55a1235162e969779526",
+  "revision": "0.11.2-r4-4cf9d40940bf",
+  "lockSha256": "4cf9d40940bf5b58301775cb8322866d3bcd605db341125d98bd5218b0dfefc0",
   "pidLockPatchId": "9cb53ae98869412f55f4f5987cf1244d46641a3d492a70219893891c671578c0",
   "pidLockSha256": "a12564718dde7ac54f530ef3fedafdb762d8ee3055961b8e9919d58f34536264",
   "transitionSha256": "37bdef75ee090452ce946bbf051d411352d51fda95d8121ff0c83a34680e3987",
   "officialVersion": "0.11.2",
-  "protocol": "linux-flock-v1"
+  "protocol": "linux-flock-v1",
+  "brandIdentityPatchId": "d1f27c35db3eb9f456085893a6ca46ecc8aa353eb9dc3b3f9f8b833fd30e4d81",
+  "brandServerSha256": "8315add9226617d4c2c09d1481c750eff7a34fa83670725914c69892f1cd1561",
+  "brandHelperSha256": "036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733"
 }

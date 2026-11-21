@@ -1,6 +1,6 @@
 {
-  "paseoVersion": "0.1.15",
-  "omnigentVersion": "0.3.31",
+  "paseoVersion": "0.1.20",
+  "omnigentVersion": "0.3.34",
   "webClient": {
     "version": "0.13.0-woow.1",
     "basePath": "/paseo-web",
