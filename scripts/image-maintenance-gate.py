@@ -192,6 +192,28 @@ def bounded_process(argv, *, data=None, timeout=40, output_limit=2 * 1024 * 1024
                 pipe.close()
 
 
+def owned_inspect_absence(args, result):
+    """Recognize only the complete single-object Docker28 inspect responses.
+
+    Formatted failed inspect flushes one newline to stdout and exits 1. Bind
+    the request's type, format and owned name before comparing all stderr;
+    extra diagnostics, other names and unknown response formats stay blocking.
+    """
+    if result.returncode != 1 or result.stdout != b'\n' or len(args) != 5:
+        return False
+    if args[1:3] != ['inspect', '--format']:
+        return False
+    kind, _, _, template, name = args
+    volume = r'pi-root-qa-[0-9a-f]{32}-maintenance-(?:amd64|arm64)'
+    if kind == 'volume' and template == VOLUME_OWNER and re.fullmatch(volume, name):
+        expected = 'Error response from daemon: get ' + name + ': no such volume\n'
+    elif kind == 'container' and template == CONTAINER_INFO and re.fullmatch(volume + r'-(?:init|prefetch|offline)', name):
+        expected = 'Error response from daemon: No such container: ' + name + '\n'
+    else:
+        return False
+    return result.stderr == expected.encode('ascii')
+
+
 class Docker:
     def __init__(self, log):
         self.log = log
@@ -211,7 +233,7 @@ class Docker:
         with self.log.open('a') as stream:
             stream.write(json.dumps(entry) + '\n')
         if allow_missing and result.returncode != 0:
-            require(b'No such' in result.stderr, 'inspect-failed-not-absence')
+            require(owned_inspect_absence(args, result), 'inspect-failed-not-absence')
             return None
         require(result.returncode == 0, 'docker-operation-failed:' + args[0])
         return result.stdout
