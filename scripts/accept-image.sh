@@ -70,6 +70,10 @@ for index in "${!platforms[@]}"; do
   containers+=("$id")
   timeout 180 docker start --attach "$id"
   [[ $(docker inspect -f '{{.State.ExitCode}}' "$id") == 0 ]]
+  # Additional exact-image managed SDK proof. Package prefetch is isolated
+  # from network-none fresh/force installs, actual guards and negative cases.
+  python3 scripts/image-maintenance-gate.py --image "$platform_image" \
+    --revision "$revision" --platform "$platform" --owner "$owner"
 done
 # The runner can reach an internal bridge by container IP. Do not assume
 # host-port publishing is available; keep external egress disabled.
@@ -113,17 +117,30 @@ timeout 240 python3 tests/image-browser.py "$base" "$plugin_version" first image
 timeout 60 docker restart --time 15 "$id" >/dev/null
 base=$(python3 scripts/image-qa-network.py "$id" "$network" "$owner")
 timeout 240 python3 tests/image-browser.py "$base" "$plugin_version" restart image-browser-restart.json
-python3 - "$receipt" <<'PY'
-import json,sys
+python3 - "$receipt" "${platform_images[@]}" <<'PY'
+import importlib.util,json,sys
 from pathlib import Path
 c=json.load(open(sys.argv[1]));first=json.load(open('image-browser-first.json'));again=json.load(open('image-browser-restart.json'))
+assert len(sys.argv[2:]) == len(c['platforms'])
+spec=importlib.util.spec_from_file_location('owned_maintenance_gate','scripts/image-maintenance-gate.py')
+gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(gate)
+maintenance=[]
+for platform,image in zip(c['platforms'],sys.argv[2:]):
+    value=json.load(open('image-maintenance-'+platform.split('/')[1]+'.json'))
+    assert value['schema']=='standalone-k3s-maintenance-acceptance/v1' and value['passed'] is True
+    assert value['platform']==platform and value['platformImage']==image and value['revision']==c['revision']
+    assert value['ownedCleanupComplete'] is True
+    gate.validate_result(value['proof'],platform)
+    maintenance.append(value)
 assert first['passed'] and again['passed']
 assert len(first['views']) == len(again['views']) == 2
 assert all(view['homeUnchanged'] and view['paseoShortcutAbsent'] and view['settingsBindingVisible']
            and view['setupConversationCount'] == 0 and view['modelRequests'] == 0
            and view['firstScreenOmnigentStep'] and view['paseoStatusWithoutProject'] == 200
            for phase in (first, again) for view in phase['views'])
-checks=[name+':'+p for p in c['platforms'] for name in ['startup','shared-sync-extension-boundary','shared-mcp-cold-warm']]+['first-home-desktop','first-home-mobile','restart-persistence']
-Path('image-acceptance.json').write_text(json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again]},indent=2)+'\n')
+checks=[name+':'+p for p in c['platforms'] for name in ['startup','shared-sync-extension-boundary','shared-mcp-cold-warm','managed-sdk-maintenance']]+['first-home-desktop','first-home-mobile','restart-persistence']
+encoded=json.dumps({'candidate':c,'passed':True,'checks':checks,'browser':[first,again],'maintenance':maintenance},indent=2)+'\n'
+assert len(encoded.encode()) < 100000  # Existing immutable publication receipt limit.
+Path('image-acceptance.json').write_text(encoded)
 print('PASS exact-image startup, desktop/mobile first home and persistent-volume restart')
 PY

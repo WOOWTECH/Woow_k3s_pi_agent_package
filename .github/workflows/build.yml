@@ -165,5 +165,7 @@ jobs:
           path: |
             image-qa-diagnostics.json
             image-network-control.json
+            image-maintenance-*.json
+            image-maintenance-*.log
           if-no-files-found: warn
           retention-days: 14

@@ -126,11 +126,11 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.34
-ARG PI_OMNIGENT_SHA256=e9e80783881f8a036cbf922d2f50fad860dac3bd23e170dda768ab3c56107945
+ARG PI_OMNIGENT_VERSION=0.3.35
+ARG PI_OMNIGENT_SHA256=9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b
 ARG PI_OMNIGENT_UI_SHA256=f5c909b3fe6f544e11a4eed46c7e217a490f89c5e4ec356c9906e3908d9f6c30
 # Immutable plugin payload; lifecycle scripts never run during image build.
-COPY candidate-packages/woowtech-pi-omnigent-plugin-0.3.34.tgz /tmp/omnigent-plugin.tgz
+COPY candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz /tmp/omnigent-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_OMNIGENT_SHA256}  /tmp/omnigent-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-omnigent-plugin; \

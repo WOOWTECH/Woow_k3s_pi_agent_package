@@ -99,6 +99,55 @@ jobs:
             > /tmp/render/minimal.yaml
           ls -l /tmp/render
 
+      - name: Stable default, explicit pins and tunnel-only image contracts
+        run: |
+          python3 - <<'EOF'
+          import pathlib, subprocess, yaml
+
+          chart = pathlib.Path("charts/pi-agent")
+          metadata = yaml.safe_load((chart / "Chart.yaml").read_text())
+          defaults = yaml.safe_load((chart / "values.yaml").read_text())
+          assert metadata["version"] == metadata["appVersion"] == "0.3.25"
+          assert defaults["image"]["tag"] == ""
+          repository = defaults["image"]["repository"]
+
+          def documents(path):
+              return [d for d in yaml.safe_load_all(pathlib.Path(path).read_text()) if d]
+
+          def containers(docs):
+              return [c for d in docs if d["kind"] == "Deployment"
+                      for c in d["spec"]["template"]["spec"]["containers"]]
+
+          def agent_image(docs):
+              images = [c["image"] for c in containers(docs) if c["name"] == "pi-web"]
+              assert len(images) == 1, images
+              return images[0]
+
+          assert agent_image(documents("/tmp/render/default.yaml")) == repository + ":0.3.25"
+          # Render only: the existing published 0.3.24 index exercises tag@digest
+          # syntax without inventing a future 0.3.25 digest or claiming a pull.
+          old_index = "sha256:1c9045028417bc44ed79de16e5ba50adc77e7e826f4cc1aa160ce92a8f28f285"
+          for tag in ("0.3.24", "0.3.24@" + old_index):
+              rendered = subprocess.run(
+                  ["helm", "template", "pin-check", str(chart), "--set-string", "image.tag=" + tag],
+                  capture_output=True, text=True, check=True).stdout
+              assert agent_image([d for d in yaml.safe_load_all(rendered) if d]) == repository + ":" + tag
+
+          for values_file in sorted((chart / "values/woow-k3s").glob("pi-agent*.yaml")):
+              values = yaml.safe_load(values_file.read_text())
+              image = values["image"]
+              assert image["tag"], values_file
+              expected = image.get("repository", repository) + ":" + str(image["tag"])
+              assert agent_image(documents("/tmp/render/" + values_file.stem + ".yaml")) == expected
+
+          for variant in ("pi-tunnel.yaml", "pi-tunnel-inline-secret.yaml"):
+              tunnel = documents("/tmp/render/" + variant)
+              names = [c["name"] for c in containers(tunnel)]
+              assert names == ["cloudflared"], names
+              assert not any(d["kind"] == "PersistentVolumeClaim" for d in tunnel)
+          print("PASS stable 0.3.25 default, explicit tag/digest and instance pins, tunnel-only rendering")
+          EOF
+
       - name: kubeconform (schema validation)
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \

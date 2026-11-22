@@ -2,12 +2,13 @@
   "status": "local-source-candidates-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.34.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.35.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.34",
-      "sha256": "e9e80783881f8a036cbf922d2f50fad860dac3bd23e170dda768ab3c56107945",
+      "version": "0.3.35",
+      "sha256": "9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b",
       "published": false,
-      "sourceCommit": "d8652e971bdf66133d699052ab9003d39ff69159"
+      "sourceFreezeSha256": "095d8b1ab67f5d0dc66325b475790ba8fae695db8f835629a8e1dded343d8f87",
+      "releaseHandoffSha256": "cae362ce8904d655bd654b77994d0e0b2a1c406f47628d5e595dd6866b262dfb"
     },
     {
       "file": "woowtech-pi-paseo-0.1.20.tgz",

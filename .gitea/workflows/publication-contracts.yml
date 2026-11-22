@@ -9,6 +9,13 @@ on:
       - 'scripts/accept-image.sh'
       - 'tests/test_publication_*.py'
       - 'tests/image-browser.py'
+      - 'Dockerfile'
+      - 'candidate-packages/**'
+      - 'scripts/image-maintenance-gate.py'
+      - 'tests/image-managed-maintenance-check.py'
+      - 'tests/image-managed-maintenance.mjs'
+      - 'tests/maintenance-gate-pins.json'
+      - 'tests/test_image_maintenance_gate.py'
   push:
     branches: [main]
     paths:
@@ -19,12 +26,25 @@ on:
       - 'scripts/accept-image.sh'
       - 'tests/test_publication_*.py'
       - 'tests/image-browser.py'
+      - 'Dockerfile'
+      - 'candidate-packages/**'
+      - 'scripts/image-maintenance-gate.py'
+      - 'tests/image-managed-maintenance-check.py'
+      - 'tests/image-managed-maintenance.mjs'
+      - 'tests/maintenance-gate-pins.json'
+      - 'tests/test_image_maintenance_gate.py'
 jobs:
   publication-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Test candidate identities and fail-closed publication
         shell: bash
         run: |
@@ -32,6 +52,8 @@ jobs:
           python3 -m venv /tmp/pi-publication-contracts
           /tmp/pi-publication-contracts/bin/python -m pip install 'PyYAML==6.0.2'
           /tmp/pi-publication-contracts/bin/python -m unittest discover -s tests -p 'test_publication_*.py'
+          /tmp/pi-publication-contracts/bin/python -I -B tests/test_image_maintenance_gate.py
+          node --check tests/image-managed-maintenance.mjs
           bash -n scripts/accept-image.sh
-          python3 -m py_compile scripts/image-candidate.py scripts/image-publication.py tests/image-browser.py
+          python3 -m py_compile scripts/image-candidate.py scripts/image-publication.py tests/image-browser.py scripts/image-maintenance-gate.py tests/image-managed-maintenance-check.py tests/test_image_maintenance_gate.py
           git diff --check
