@@ -1,0 +1,196 @@
+{
+  "afterSha256": "68f4c2a3c0a3aa75436a15828e325bd279995435d83931d93b12516cca303962",
+  "beforeSha256": "2a80d492f6f844a8da0e7dbb3e8aaec396a2bbd525f6d042ddc3cf2eed6bccc6",
+  "canonicalPublicationSha256": "93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8",
+  "coreVersion": "0.16.0",
+  "pluginArchiveSha256": "9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b",
+  "pluginFiles": {
+    "CHANGELOG.md": {
+      "bytes": 1883,
+      "mode": 420,
+      "sha256": "32a53ad277315ef3b551771b2f7745cc127e488de66e03d0aa90e56f100d2d3c"
+    },
+    "LICENSE": {
+      "bytes": 1065,
+      "mode": 420,
+      "sha256": "f6980fa254a9734d6bac74df136fa8a931f3dae4dd11bfc7e5f50454a021a218"
+    },
+    "README.md": {
+      "bytes": 31029,
+      "mode": 420,
+      "sha256": "d9845ccb5c8d4d10da5a448ce9f7a91d7d2f9b8856bb2b09201a0da639b5d005"
+    },
+    "bin/check.mjs": {
+      "bytes": 1109,
+      "mode": 420,
+      "sha256": "0b8b8a4ef60b735e9e7383f99b0eabdece530ba21194e63db1916bc5789f583e"
+    },
+    "bin/cli.mjs": {
+      "bytes": 7858,
+      "mode": 493,
+      "sha256": "d67b380d113044060e3317c422cb5cd42c9f51db10dd8355a746c59abacc5a4b"
+    },
+    "bin/install-ui.mjs": {
+      "bytes": 33859,
+      "mode": 420,
+      "sha256": "a7606e080a819faee3bb3efb59ff30101b70eef05f729a0014335db6119e3905"
+    },
+    "docs/commercial-readiness.md": {
+      "bytes": 40732,
+      "mode": 420,
+      "sha256": "ee8f330b3584ec8c8d744c8e5ad6ea6989cf00c990acad87c97258f8027bd97c"
+    },
+    "docs/maintenance-preservation.md": {
+      "bytes": 9553,
+      "mode": 420,
+      "sha256": "e0bce1a62669293f9a288d0df2daeb06f819abf9cca285b4edeb8d780dbe1d43"
+    },
+    "docs/maintenance-release-provenance.json": {
+      "bytes": 2250,
+      "mode": 420,
+      "sha256": "a2d3bdbfc3390b76c229bb06e199af63edb7a02c60da524016fff67fabe44223"
+    },
+    "extensions/index.ts": {
+      "bytes": 6302,
+      "mode": 420,
+      "sha256": "c2c2fec90742a4c0b2729f1b2c7dc4b0acc00bfd33113d22f08fe4fc0a2c0991"
+    },
+    "integrations/pi-web/INSTALLER-LICENSE": {
+      "bytes": 1065,
+      "mode": 420,
+      "sha256": "1b05bfafc14067beabe8885c164528c122ebf545eabe97984b222fe377143a69"
+    },
+    "integrations/pi-web/LICENSE": {
+      "bytes": 1062,
+      "mode": 420,
+      "sha256": "19cee3b1b8fd9b42f9515366bc1a7dfaaf22fcb006234ebb85ff2f6f8c52eb2b"
+    },
+    "integrations/pi-web/README.md": {
+      "bytes": 6893,
+      "mode": 420,
+      "sha256": "c7c088f31ba1f3ece057450cc76d9ddf6e44234abed454b16c00f222215a15c7"
+    },
+    "integrations/pi-web/adapter-meta.json": {
+      "bytes": 249,
+      "mode": 420,
+      "sha256": "bf1f8450cb1ffb63bb3448d03494971a292e2c7afce6c0a13f236eaf1823c456"
+    },
+    "integrations/pi-web/adapter.patch": {
+      "bytes": 221743,
+      "mode": 420,
+      "sha256": "82b251162aff5a68daa6d6b1a1ad9daa0d2059888437860f7391772c6c8ee2cc"
+    },
+    "integrations/pi-web/combined.adapter-meta.json": {
+      "bytes": 784,
+      "mode": 420,
+      "sha256": "29a5e1921029149c38ce2fb47560bc00edb99c02d57f5a0cee9889c210d4b533"
+    },
+    "integrations/pi-web/combined.adapter.patch": {
+      "bytes": 412578,
+      "mode": 420,
+      "sha256": "f5c909b3fe6f544e11a4eed46c7e217a490f89c5e4ec356c9906e3908d9f6c30"
+    },
+    "package.json": {
+      "bytes": 1722,
+      "mode": 420,
+      "sha256": "e6e939db52ef8c9bce0b91fa31dd5143d0d30c3146a41fed41abd6fd506f959c"
+    },
+    "src/acceptance.mjs": {
+      "bytes": 2609,
+      "mode": 420,
+      "sha256": "93711172f69283521bff1a60b62eb6c6a26dd54f94b52428bdacc2ddf6193658"
+    },
+    "src/common.mjs": {
+      "bytes": 8148,
+      "mode": 420,
+      "sha256": "e7a4cbface07731dace17a7a4f16515b4bf576688b95ca462bb8201cb95ccebf"
+    },
+    "src/connect.mjs": {
+      "bytes": 3102,
+      "mode": 420,
+      "sha256": "256207d1626896cef6a979a060b95c403929897f001e4e91ac4480ce5dc90432"
+    },
+    "src/doctor.mjs": {
+      "bytes": 7856,
+      "mode": 420,
+      "sha256": "434c31bbf919398884e2027e2960a599fb9b5bd2d69f791d2f16a9ccaa5c3b94"
+    },
+    "src/installer.mjs": {
+      "bytes": 17200,
+      "mode": 420,
+      "sha256": "e1471e0fd72e1cc1e078601cfc56926a9274d12c2ee11de3d548e41dd857e2da"
+    },
+    "src/issues.mjs": {
+      "bytes": 32628,
+      "mode": 420,
+      "sha256": "1c5ebe975d15c7810bbd7a851560943faeba327dbbd8e40ff6602881eeece6fa"
+    },
+    "src/locate.mjs": {
+      "bytes": 4782,
+      "mode": 420,
+      "sha256": "508b12dfb5328993cd8ade07ec16ca465de5fcc392ea33298a87df06be3c6e2e"
+    },
+    "src/maintenance.mjs": {
+      "bytes": 1727,
+      "mode": 420,
+      "sha256": "eff5adc33eac8e8952c1927ca65a6471bdae77821c289e915a9addaeb62bf245"
+    },
+    "src/maintenance_preservation.py": {
+      "bytes": 13678,
+      "mode": 420,
+      "sha256": "f22a9ee62a1ee9ca51c13ad875df5ca06571033d98ecd1d0802023d7f706ee83"
+    },
+    "src/native-maintenance/apply_maintenance_patch.py": {
+      "bytes": 5949,
+      "mode": 420,
+      "sha256": "98355f8dd825b1642d5bb8d4b613954de838754c3b56fa401c7ce03c0f9b24ac"
+    },
+    "src/native-maintenance/bundle-provenance.json": {
+      "bytes": 873,
+      "mode": 420,
+      "sha256": "f4c53aa704f46b70865eab12e756dd3d1b0404bd9784d694d41c0b51a22b1197"
+    },
+    "src/native-maintenance/console-contract.json": {
+      "bytes": 375,
+      "mode": 420,
+      "sha256": "0f154858abbc8d9d6360e564c04e62ee0da098140be00eedefc28efec25db4a2"
+    },
+    "src/native-maintenance/console-entry.body.py": {
+      "bytes": 275,
+      "mode": 420,
+      "sha256": "f2356b7e212bcff63f614285750e50422de13a325ca1491e712637c998325f5b"
+    },
+    "src/native-maintenance/overlay/omnigent/native/native_bridge_common.py": {
+      "bytes": 13872,
+      "mode": 420,
+      "sha256": "68f4c2a3c0a3aa75436a15828e325bd279995435d83931d93b12516cca303962"
+    },
+    "src/native-maintenance/source-lock.json": {
+      "bytes": 663,
+      "mode": 420,
+      "sha256": "3a3a30222dec807e18f785f34b1fc4201251d4ba43e005c7c8e510edb62133ab"
+    },
+    "src/omnigent.py": {
+      "bytes": 76004,
+      "mode": 420,
+      "sha256": "fb135b4443d15b76fcc6cf940ccb6a142a36787ec0ec43d0f7dc58f2f6df91f3"
+    },
+    "src/runtime.mjs": {
+      "bytes": 26483,
+      "mode": 420,
+      "sha256": "610d163ea7d3d45f75d1591fa6d818c98ee1b5afef7db5891ef3b1aee5b75905"
+    },
+    "src/ui-retention.mjs": {
+      "bytes": 7441,
+      "mode": 420,
+      "sha256": "2151f4439ebf7d54d70c1d823fd54372c69434311af2d7ec148449ee39b3723b"
+    },
+    "src/web.mjs": {
+      "bytes": 26937,
+      "mode": 420,
+      "sha256": "68438fc856b3742246d720ab29f250f8c3bfb612cb7f33bc63674a7d99b8debb"
+    }
+  },
+  "pluginVersion": "0.3.35",
+  "schema": "standalone-k3s-maintenance-gate-pins/v1"
+}
