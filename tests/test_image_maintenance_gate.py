@@ -420,5 +420,127 @@ class PremergeWiringTests(unittest.TestCase):
         self.assertIn('node --check tests/image-managed-maintenance.mjs', job)
 
 
+class InspectAbsenceTests(unittest.TestCase):
+    # Exact volume response from failed run44993438056/artifact14743700664.
+    CI_VOLUME = 'pi-root-qa-2655f8a6a181491fbeed4090242490a1-maintenance-amd64'
+    CI_STDERR = b'Error response from daemon: get pi-root-qa-2655f8a6a181491fbeed4090242490a1-maintenance-amd64: no such volume\n'
+    # Exact read-only response on the bound Docker28.5.2 daemon; no object created.
+    REAL_CONTAINER = 'pi-root-qa-5ae0e47db01b4adfb7fd93f38df64721-maintenance-amd64-init'
+    CONTAINER_STDERR = b'Error response from daemon: No such container: pi-root-qa-5ae0e47db01b4adfb7fd93f38df64721-maintenance-amd64-init\n'
+
+    def volume_args(self):
+        return ['volume', 'inspect', '--format', gate.VOLUME_OWNER, self.CI_VOLUME]
+
+    def container_args(self):
+        return ['container', 'inspect', '--format', gate.CONTAINER_INFO, self.REAL_CONTAINER]
+
+    def replay(self, args, stderr, *, stdout=b'\n', code=1, allow_missing=True):
+        with tempfile.TemporaryDirectory(prefix='owned-inspect-replay-') as owned:
+            result = subprocess.CompletedProcess(['docker', *args], code, stdout, stderr)
+            with mock.patch.object(gate, 'bounded_process', return_value=result) as transport:
+                try:
+                    return gate.Docker(Path(owned) / 'calls.jsonl').run(args, allow_missing=allow_missing)
+                finally:
+                    transport.assert_called_once_with(['docker', *args], data=None, timeout=40)
+                    entry = json.loads((Path(owned) / 'calls.jsonl').read_text())
+                    self.assertEqual((entry['args'], entry['exit'], entry['stdout'], entry['stderr']),
+                                     (args, code, stdout.decode(), stderr.decode()))
+
+    def test_captured_ci_volume_response_at_actual_docker_run(self):
+        self.assertIsNone(self.replay(self.volume_args(), self.CI_STDERR))
+
+    def test_captured_real_container_and_other_owned_names(self):
+        self.assertIsNone(self.replay(self.container_args(), self.CONTAINER_STDERR))
+        for arch in ['amd64', 'arm64']:
+            volume = OWNER + '-maintenance-' + arch
+            args = self.volume_args(); args[-1] = volume
+            self.assertIsNone(self.replay(args, ('Error response from daemon: get ' + volume + ': no such volume\n').encode()))
+            for phase in ['init', 'prefetch', 'offline']:
+                args = self.container_args(); args[-1] = volume + '-' + phase
+                self.assertIsNone(self.replay(args, ('Error response from daemon: No such container: ' + args[-1] + '\n').encode()))
+
+    def test_daemon_permission_unknown_foreign_and_mixed_errors_block(self):
+        for args, valid in [(self.volume_args(), self.CI_STDERR), (self.container_args(), self.CONTAINER_STDERR)]:
+            wrong_name = valid.replace(args[-1].encode(), (args[-1] + '-other').encode())
+            errors = [b'', b'Cannot connect to the Docker daemon\n',
+                      b'permission denied while trying to connect to the Docker daemon socket\n',
+                      b'error during connect: no such file or directory\n',
+                      b'No such context: owned\n', b'not found\n', wrong_name,
+                      valid.replace(b'volume', b'container') if args[0] == 'volume' else valid.replace(b'container:', b'volume:'),
+                      b'permission denied\n' + valid, valid + b'permission denied\n', valid + valid,
+                      valid[:-1] + b': permission denied\n', b'prefix ' + valid,
+                      valid + b'\n', b'\n' + valid, valid.replace(b'\n', b'\r\n'),
+                      valid.replace(b'Error response from daemon:', b'Error:'), valid.lower(), valid.upper()]
+            for stderr in errors:
+                with self.subTest(kind=args[0], stderr=stderr):
+                    with self.assertRaisesRegex(RuntimeError, '^inspect-failed-not-absence$'):
+                        self.replay(args, stderr)
+
+    def test_exit_status_and_stdout_must_match_failed_single_inspect(self):
+        for args, stderr in [(self.volume_args(), self.CI_STDERR), (self.container_args(), self.CONTAINER_STDERR)]:
+            for code in [2, 125, -9]:
+                with self.subTest(kind=args[0], code=code), self.assertRaisesRegex(RuntimeError, '^inspect-failed-not-absence$'):
+                    self.replay(args, stderr, code=code)
+            for stdout in [b'', b'null\n', b'[]\n', b'\n\n', b' \n']:
+                with self.subTest(kind=args[0], stdout=stdout), self.assertRaisesRegex(RuntimeError, '^inspect-failed-not-absence$'):
+                    self.replay(args, stderr, stdout=stdout)
+
+    def test_only_exact_typed_owned_inspect_request_can_mean_absent(self):
+        for args, stderr in [(self.volume_args(), self.CI_STDERR), (self.container_args(), self.CONTAINER_STDERR)]:
+            variants = [args + ['another-name'], args[:-1], ['image', *args[1:]],
+                        [args[0], 'rm', *args[2:]], [*args[:2], '-f', *args[3:]],
+                        [*args[:3], '{{json .}}', args[-1]]]
+            for name in ['tenant-name', args[-1] + '-extra', args[-1].replace('amd64', 'riscv64'),
+                         args[-1].replace('qa-', 'qa-G'), args[-1].replace('maintenance', 'other')]:
+                variants.append([*args[:-1], name])
+            for request in variants:
+                # Bind the response to the new spelling too: owned scope/type/shape still matters.
+                response = stderr.replace(args[-1].encode(), request[-1].encode())
+                with self.subTest(request=request), self.assertRaisesRegex(RuntimeError, '^inspect-failed-not-absence$'):
+                    self.replay(request, response)
+
+    def test_absence_is_opt_in_and_success_output_stays_available(self):
+        with self.assertRaisesRegex(RuntimeError, '^docker-operation-failed:volume$'):
+            self.replay(self.volume_args(), self.CI_STDERR, allow_missing=False)
+        self.assertEqual(self.replay(self.volume_args(), b'', stdout=b'"existing-owner"\n', code=0), b'"existing-owner"\n')
+
+    def caller(self, stderr):
+        calls = []
+        image = 'ghcr.io/woowtech/woow-k3s-pi-agent@sha256:a53476f3ede04aab0f3fee1865db2fc330dddedb864bcb1e7f0b1e6ec02ad6fa'
+        revision = '36aac417f937692e1cbac4287a908eb71d2cecb3'
+        info = {'Id': 'sha256:b9b1da97ead57c755a86c96a7e639e665d307a2337f6f68bddeb54670cfbcee8',
+                'Os': 'linux', 'Architecture': 'amd64', 'revision': revision}
+        def replay(argv, **options):
+            calls.append(argv[1:])
+            if argv[1:3] == ['image', 'inspect']:
+                return subprocess.CompletedProcess(argv, 0, (json.dumps(info) + '\n').encode(), b'')
+            if argv[1:3] == ['volume', 'inspect']:
+                self.assertEqual(argv[1:], self.volume_args())
+                return subprocess.CompletedProcess(argv, 1, b'\n', stderr)
+            self.assertEqual(argv[1:], ['volume', 'create', '--label', 'pi.root.qa=' + self.CI_VOLUME[:43], self.CI_VOLUME])
+            raise RuntimeError('fixture-stop-before-volume-create')
+        with tempfile.TemporaryDirectory(prefix='owned-caller-replay-') as owned, mock.patch.object(gate, 'bounded_process', side_effect=replay):
+            try:
+                gate.run_gate(image, revision, 'linux/amd64', self.CI_VOLUME[:43], gate.Docker(Path(owned) / 'calls.jsonl'), ({}, '', ''))
+            except RuntimeError as error:
+                return str(error), calls
+        self.fail('pure replay must stop before volume creation, never emit acceptance')
+
+    def test_capture_reaches_caller_create_boundary_without_executing_it(self):
+        error, calls = self.caller(self.CI_STDERR)
+        self.assertEqual(error, 'fixture-stop-before-volume-create')
+        self.assertEqual([args[:2] for args in calls],
+                         [['image', 'inspect'], ['volume', 'inspect'], ['volume', 'create'], ['volume', 'inspect']])
+
+    def test_uncertain_caller_response_never_reaches_create(self):
+        for stderr in [b'permission denied\n', b'No such context: owned\n',
+                       self.CI_STDERR + b'permission denied\n',
+                       self.CI_STDERR.replace(self.CI_VOLUME.encode(), b'foreign-volume')]:
+            with self.subTest(stderr=stderr):
+                error, calls = self.caller(stderr)
+                self.assertEqual(error, 'inspect-failed-not-absence')
+                self.assertEqual([args[:2] for args in calls], [['image', 'inspect'], ['volume', 'inspect']])
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
