@@ -3,10 +3,12 @@
 // the image. Explicit disable/removal and an externally installed package win.
 // An official GitHub git pin is moved to the bundle before Pi Web starts (see
 // pi-plugin-pin-migration.mjs), so no old supervisor sees the source switch.
+// Nothing here prepares or reads a Paseo web client: the Paseo target opens the
+// official app, and the plugin removes the client copy older versions left in
+// its state directory when it activates.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { seedWebClient } from './pi-paseo-web-seed.mjs';
 import { officialGitPin, planPinMigration, applyPinMigration, recordMigration, readSettings, undoPinMigration,
   redactSource } from './pi-plugin-pin-migration.mjs';
 
@@ -69,7 +71,7 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
       entry = settings.packages.find(item => matches(item, agentDir));
     }
     const packages = settings.packages || [];
-    // A missing receipt must not keep the offline web client from being prepared.
+    // A missing receipt must not stop the boot.
     try {
       recordMigration({ file: receipt, run: migration.run, plugin: name, bundle, version: pkg.version, read, write });
     } catch { console.error('[pi-paseo] image migration receipt could not be written'); }
@@ -101,11 +103,6 @@ async function main() {
   const agentDir = process.env.PI_CODING_AGENT_DIR || process.env.PI_AGENT_DATA_DIR || '/data/pi-agent';
   const bundle = process.env.PI_PASEO_PLUGIN_ROOT || '/opt/woow/pi-paseo-plugin';
   const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_PASEO_AUTO_SETUP !== 'false' });
-  // Not a reason to undo a switch: no old copy runs here, and the plugin's own
-  // activation installs the client (from the network) when it is still missing.
-  if (result.active) await seedWebClient({ bundle }).catch(() => {
-    throw new SetupFailure(`offline web client not ready${result.reason === 'migrated' ? '; the official git pin now points to the image plugin' : ''}; open Paseo settings`);
-  });
   // Native Pi Web instrumentation restores the runtime. Pairing stays in
   // Settings and does not create or open a conversation.
   console.log(`[pi-paseo] ${result.reason}`);

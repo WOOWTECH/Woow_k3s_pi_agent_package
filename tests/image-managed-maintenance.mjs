@@ -53,7 +53,7 @@ export function validateRefusal(result, calls) {
 }
 
 function pinnedPlugin(pins) {
-  assert.equal(pins.pluginArchiveSha256, '9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b');
+  assert.equal(pins.pluginArchiveSha256, '2ed6aef9d64a3e53166805db76a98437aee44a4401b6cc698bd92c6a79425cde');
   for (const [relative, pin] of Object.entries(pins.pluginFiles)) {
     const file = path.join(ROOT, relative);
     for (let parent = path.dirname(file); parent !== '/'; parent = path.dirname(parent)) {
@@ -63,7 +63,7 @@ function pinnedPlugin(pins) {
     assert.ok(s.isFile() && s.nlink === 1 && s.size === pin.bytes && (s.mode & 0o777) === pin.mode);
     assert.equal(sha(fs.readFileSync(file)), pin.sha256, relative);
   }
-  assert.equal(JSON.parse(fs.readFileSync(`${ROOT}/package.json`)).version, '0.3.35');
+  assert.equal(JSON.parse(fs.readFileSync(`${ROOT}/package.json`)).version, pins.pluginVersion);
 }
 
 function fileIdentity(file) {

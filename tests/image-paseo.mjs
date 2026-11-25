@@ -3,28 +3,47 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { runtimeReady, runtimeDirectory, RUNTIME_REVISION } from '/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs';
 import { withPidTransition, PID_TRANSITION_PROTOCOL } from '/opt/woow/pi-paseo-plugin/src/pid-transition.mjs';
-import { webClientStatus } from '/opt/woow/pi-paseo-plugin/src/web-client.mjs';
 const loc = { runtimeDir: '/opt/woow/pi-paseo-runtime' };
 assert.equal(runtimeReady(loc), true, 'locked Paseo runtime must be ready in the image');
 const runtime = runtimeDirectory(loc);
+const bundle = '/opt/woow/pi-paseo-plugin';
+const omnigent = '/opt/woow/pi-omnigent-plugin';
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts)));
+// The runtime manifest names the Paseo release its lockfile installs. The Dockerfile pins each
+// archive's version and digest and candidate-packages/manifest.json records the runtime revision
+// (checked against the archive by tests/test_publication_packages.py), so nothing here repeats them.
+const paseoVersion = readJson(bundle, 'runtime/package.json').dependencies['@getpaseo/cli'];
+const lockSha = sha256(fs.readFileSync(path.join(bundle, 'runtime/package-lock.json')));
 const cli = spawnSync(process.execPath, [path.join(runtime, 'node_modules/@getpaseo/cli/bin/paseo'), '--version'], { encoding: 'utf8', timeout: 30000 });
-assert.equal(cli.status, 0); assert.equal(cli.stdout.trim(), '0.11.2');
+assert.equal(cli.status, 0); assert.equal(cli.stdout.trim(), paseoVersion);
 // The runtime lockfile has no libc field, so npm also installs the musl Claude
 // SDK on Debian. The SDK picks the glibc build first; the musl one never runs.
 const claudeSdk = path.join(runtime, 'node_modules/@anthropic-ai');
 assert.ok(fs.statSync(path.join(claudeSdk, `claude-agent-sdk-linux-${process.arch}`, 'claude')).isFile(), 'glibc Claude SDK binary must ship');
 assert.deepEqual(fs.readdirSync(claudeSdk).filter(name => name.endsWith('-musl')), [], 'the unused musl Claude SDK must not ship');
-const bundle = '/opt/woow/pi-paseo-plugin';
-// Keep in step with `ARG PI_PASEO_VERSION` in the Dockerfile; a mismatch fails the image build here.
-assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, 'package.json'))).version, '0.1.20');
-assert.equal(RUNTIME_REVISION, '0.11.2-r4-4cf9d40940bf');
+// The runtime directory, its receipt and the revision all derive from the Paseo release and the exact lockfile.
+const escaped = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+assert.match(RUNTIME_REVISION, new RegExp(`^${escaped(paseoVersion)}-r[0-9]+-${lockSha.slice(0, 12)}$`));
+assert.equal(path.basename(runtime), RUNTIME_REVISION);
+assert.equal(readJson(runtime, '.pi-paseo-runtime.json').revision, RUNTIME_REVISION);
+assert.equal(readJson(runtime, '.pi-paseo-runtime.json').lockSha256, lockSha);
+// Agent Connect and the Omnigent plugin's combined Pi Web adapter are one pair: the adapter pins exactly
+// one Agent Connect version and its adapter patch, so the two archives move together.
+const pairing = readJson(omnigent, 'integrations/pi-web/combined.adapter-meta.json').paseo;
+const agentConnect = readJson(bundle, 'package.json');
+assert.deepEqual([pairing.packageName, pairing.packageVersion], [agentConnect.name, agentConnect.version], 'Agent Connect must be the exact version the combined adapter pins');
+assert.equal(pairing.adapterPatchSha256, sha256(fs.readFileSync(path.join(bundle, 'host/adapter.patch'))));
+// The bundled /paseo-web client is retired: nothing of it ships, and no Paseo target needs it.
+for (const retired of ['src/web-client.mjs', 'runtime/web-client.json']) assert.equal(fs.existsSync(path.join(bundle, retired)), false, retired);
+assert.equal(fs.existsSync('/opt/woow/pi-paseo-web'), false, 'no bundled Paseo web client archive');
 const expectedBrand = {server: '8315add9226617d4c2c09d1481c750eff7a34fa83670725914c69892f1cd1561', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: 'd1f27c35db3eb9f456085893a6ca46ecc8aa353eb9dc3b3f9f8b833fd30e4d81'};
 const brandDirectory = path.join(runtime, 'node_modules/@getpaseo/server/dist/server/server');
-const {createHash} = await import('node:crypto');
 for (const [name, expected] of [['websocket-server.js', expectedBrand.server], ['pi-paseo-brand-identity.mjs', expectedBrand.helper]]) {
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(brandDirectory, name))).digest('hex'), expected, name);
 }
@@ -63,25 +82,37 @@ try {
     const result = spawnSync(process.execPath, ['/usr/local/bin/pi-paseo-seed.mjs'], { env, encoding: 'utf8', timeout: 60000 });
     assert.equal(result.status, 0, 'bundled registration requires no package manager');
   }
-  assert.equal(webClientStatus({stateDir: path.join(temp, 'pi-paseo')}).ready, true, 'offline client must be ready before Pi Web starts');
+  assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/web-client')), false, 'a fresh volume gets no Paseo web client directory');
   const settings = JSON.parse(fs.readFileSync(path.join(temp, 'settings.json')));
   assert.deepEqual(settings.packages, [bundle]);
   assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/daemon')), false, 'image seeding does not distribute a daemon identity');
   assert.equal(fs.existsSync(path.join(temp, 'auth.json')), false);
   assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/pairing.private.json')), false);
-  for (const route of ['api/plugin-paseo/route.js', 'paseo/setup/page.js', 'paseo-web/[[...path]]/route.js']) {
-    assert.ok(fs.existsSync('/usr/local/lib/node_modules/@agegr/pi-web/.next/server/app/' + route));
-  }
+  const routes = '/usr/local/lib/node_modules/@agegr/pi-web/.next/server/app/';
+  for (const route of ['api/plugin-paseo/route.js', 'paseo/setup/page.js']) assert.ok(fs.existsSync(routes + route), route);
+  assert.equal(fs.existsSync(routes + 'paseo-web'), false, 'the retired /paseo-web route is not built');
   console.log('[build] pinned Paseo runtime, native routes and repeat registration OK');
 } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 // An official git pin moves to the bundle before Pi Web starts, once, with a
 // backup and a receipt. The checks below run after the migration boot and a
-// repeat boot (one receipt run, offline client ready); paseo-web-offline.mjs
-// checks the client right after a single migration boot.
+// repeat boot (one receipt run). The volume also holds the web client state an
+// older image or plugin left behind: the seed must neither need, recreate nor
+// remove it, because the plugin deletes it itself when it activates.
 const upgrade = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-upgrade-'));
 try {
+  // 0.1.9 is the first Agent Connect release that downloaded the bundled web client.
   const pin = 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.9';
   fs.writeFileSync(path.join(upgrade, 'settings.json'), JSON.stringify({ packages: [pin] }));
+  const retired = path.join(upgrade, 'pi-paseo/web-client');
+  const release = path.join(retired, 'a'.repeat(64)), staging = path.join(retired, '.stage-00000000-0000-4000-8000-000000000000');
+  for (const directory of [release, staging]) fs.mkdirSync(path.join(directory, '_expo'), { recursive: true });
+  fs.writeFileSync(path.join(release, 'index.html'), '<!doctype html>');
+  fs.writeFileSync(path.join(release, '_expo/entry.js'), 'retired client');
+  fs.writeFileSync(path.join(release, '.installed.json'), '{"retired":true}');
+  fs.writeFileSync(path.join(upgrade, 'pi-paseo/state.json'), '{"phase":"stopped"}');
+  const listing = directory => fs.readdirSync(directory, { recursive: true, withFileTypes: true })
+    .map(entry => path.join(entry.parentPath, entry.name) + (entry.isFile() ? ':' + sha256(fs.readFileSync(path.join(entry.parentPath, entry.name))) : '')).sort();
+  const retiredBefore = listing(retired);
   const env = { ...process.env, HOME: upgrade, PI_AGENT_DATA_DIR: upgrade, PI_CODING_AGENT_DIR: upgrade, PI_PASEO_PLUGIN_ROOT: bundle };
   for (let boot = 0; boot < 2; boot++) {
     const result = spawnSync(process.execPath, ['/usr/local/bin/pi-paseo-seed.mjs'], { env, encoding: 'utf8', timeout: 60000 });
@@ -91,6 +122,7 @@ try {
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(upgrade, 'settings.json.pre-image-migration.bak'))).packages, [pin]);
   const receipt = JSON.parse(fs.readFileSync(path.join(upgrade, 'pi-paseo/image-migration.json')));
   assert.equal(receipt.runs.length, 1); assert.equal(receipt.runs[0].changed[0].from, pin);
-  assert.equal(webClientStatus({ stateDir: path.join(upgrade, 'pi-paseo') }).ready, true, 'offline client must be ready after the migration and repeat boots');
-  console.log('[build] official Paseo git pin moved to the image bundle; offline client ready');
+  assert.deepEqual(listing(retired), retiredBefore, 'the seed leaves an older web client state directory exactly as it found it');
+  assert.equal(fs.readFileSync(path.join(upgrade, 'pi-paseo/state.json'), 'utf8'), '{"phase":"stopped"}');
+  console.log('[build] official Paseo git pin moved to the image bundle; an older web client directory is left for the plugin to remove');
 } finally { fs.rmSync(upgrade, { recursive: true, force: true }); }

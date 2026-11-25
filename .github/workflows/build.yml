@@ -6,7 +6,6 @@ on:
     paths:
       - "Dockerfile"
       - "cli-runtime/**"
-      - "scripts/prepare-paseo-web.mjs"
       - "scripts/image-*.py"
       - "scripts/accept-image.sh"
       - "rootfs/**"

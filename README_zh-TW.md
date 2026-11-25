@@ -606,6 +606,15 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
+## Agent Connect 改開官方 Paseo 應用程式（映像標籤由 PaaS 建置產生）
+
+映像固定使用 [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.23 與 Omnigent 插件 0.3.38；Omnigent 插件的組合 Pi Web 介面只接受唯一一個 Agent Connect 版本，所以兩個壓縮檔一律一起更新。Paseo 執行套件維持 0.11.2（修訂版 `0.11.2-r4-4cf9d40940bf`）。這份說明刻意不寫映像或 Chart 版號：映像標籤由 PaaS 建置產生。
+
+- **Paseo 選項改開官方應用程式。** 選擇 Paseo 目標時，設定 → Agent Connect 會在 <https://app.paseo.sh/#offer=…> 開啟並配對，就像 Woowtech Smart 與 Apporo Smart 目標各自開啟自己的網站。配對不再等待網頁 client，Pi Web 內建的 `/paseo-web` 路由也已移除。
+- **曾透過舊版 `/paseo-web` 配對的瀏覽器需要再配對一次。** 到設定 → Agent Connect 產生新的配對連結並開啟即可。host 身分、各供應商登入與既有 agent 都不變。
+- **租戶需要重啟映像。** 執行中的 Pod 在換用新映像並重啟之前，行為維持舊樣子。重啟後 Agent Connect 第一次啟用時，會從自己的狀態目錄（`pi-paseo/web-client`，約 28 MiB）移除舊 client 的副本；開機 seed 不需要、也不會重建這個目錄。
+- **建置。** 映像不再下載、內建或預置修正版 Paseo Web（已移除 `scripts/prepare-paseo-web.mjs`、`pi-paseo-web-seed.mjs`、`PI_PASEO_WEB_ARCHIVE` 與 `tests/paseo-web-offline.mjs`）。
+
 ## 預裝 Claude Code 與 Codex（0.3.24）
 
 映像內建官方 **Claude Code 2.1.296** 與 **Codex 0.162.1**（amd64、arm64），用這個映像建立的 Pi Agent 都能在 Pi Web 終端直接執行 `claude`、`codex`。
@@ -669,7 +678,7 @@ Pi Web 啟動前，映像會把 Pi `settings.json` 裡指向官方 GitHub repo�
 
 ## Paseo 配對更新（0.3.15）
 
-0.3.15 映像與對應 Helm Chart 固定 [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) 與 Omnigent 0.3.22。Pi Web 的配對確認頁位於 `/paseo-web/welcome`，頁面導覽時可保留私有配對資訊；Omnigent 合併介面也會將舊版 Paseo 配對連結導向該頁。Pi 的 `auth.json` 若為空白，診斷會正確顯示缺少憑證。各租戶仍須登入自己的 Claude Code、Codex 和 Pi 提供者，才能驗證模型對話。PaaS 映像與 Chart 另行定版。
+0.3.15 映像與對應 Helm Chart 固定 [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) 與 Omnigent 0.3.22。Pi Web 的配對確認頁位於 `/paseo-web/welcome`，頁面導覽時可保留私有配對資訊；Omnigent 合併介面也會將舊版 Paseo 配對連結導向該頁。Pi 的 `auth.json` 若為空白，診斷會正確顯示缺少憑證。各租戶仍須登入自己的 Claude Code、Codex 和 Pi 提供者，才能驗證模型對話。PaaS 映像與 Chart 另行定版。（內建的 `/paseo-web` client 之後已移除，見「Agent Connect 改開官方 Paseo 應用程式」。）
 
 ## Omnigent 部署套件（0.3.13）
 
@@ -683,6 +692,8 @@ Pi 啟動器保留 Omnigent 傳入的 `PI_CODING_AGENT_DIR`，讓各對話使用
 HA add-on 另有 Pi Web 0.12 與 Supervisor/local build 發行流程，請使用該 repository 的版本。Shared Runtime 會偵測已安裝的 Claude/Codex，而不在初始化對話時下載缺少的引擎；需要安裝時由管理員明確操作。
 
 ## Paseo 部署套件（0.3.13）
+
+*本節所述的內建 `/paseo-web` client 已移除；Paseo 選項改開官方應用程式（見上方「Agent Connect 改開官方 Paseo 應用程式」）。*
 
 映像內建 Paseo 插件 **0.1.10**、Omnigent 插件 **0.3.21** 與鎖定的 Paseo **0.11.2** 執行套件。Pi Web 維持 0.10.0，設定順序為 MCP → Omnigent → Paseo。從 `/paseo/setup` 配對，即可使用同一 Pi Web 網域、受既有登入保護的 `/paseo-web/`。這個 client 修正串流中重新整理時的重複訊息及截斷回覆，沿用加密 relay；官方 `app.paseo.sh` 的部署另由上游管理。
 

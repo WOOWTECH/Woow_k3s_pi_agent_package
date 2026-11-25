@@ -17,6 +17,8 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# The pins file names the Omnigent archive version; the gate pins that file and the archive digest.
+ARCHIVE = 'candidate-packages/woowtech-pi-omnigent-plugin-' + json.loads((ROOT / 'tests/maintenance-gate-pins.json').read_text())['pluginVersion'] + '.tgz'
 
 
 def load(name, relative):
@@ -220,8 +222,7 @@ class SourceAndReceiptTests(unittest.TestCase):
     def test_narrowed_pins_and_archive_drift_fail_closed(self):
         with tempfile.TemporaryDirectory(prefix='owned-pins-refusal-') as owned:
             root = Path(owned)
-            names = ['tests/maintenance-gate-pins.json', 'scripts/image-publication.py',
-                     'candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz']
+            names = ['tests/maintenance-gate-pins.json', 'scripts/image-publication.py', ARCHIVE]
             for name in names:
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_bytes((ROOT / name).read_bytes())
@@ -234,10 +235,10 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_root_plugin_files_and_every_packaged_pin_are_exact(self):
         pins, _, _ = gate.validated_payload()
-        expected = {'Dockerfile': '555227066dfd029f21538b92cd626fe29a810e303332dd2f4dca790b432d6aeb',
-                    'candidate-packages/manifest.json': 'dff9cb94eaa205a90af231c63cf0a4aa1861ea9999e7e0b06d2d01c2e796b112'}
+        expected = {'Dockerfile': 'df46aa7e68a2c959ae7d19bb9352e26f7a5ee6f9bd13212a54ec1c9c9b68dd80',
+                    'candidate-packages/manifest.json': 'be343437bd0b643bb23d0f86cdad48894593078494043b903c322d84555b2bc2'}
         for name, digest in expected.items(): self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest)
-        with tarfile.open(ROOT / 'candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz') as archive:
+        with tarfile.open(ROOT / ARCHIVE) as archive:
             files = {m.name.removeprefix('package/'): m for m in archive if m.isfile()}
             self.assertEqual(set(files), set(pins['pluginFiles']))
             for name, item in files.items():

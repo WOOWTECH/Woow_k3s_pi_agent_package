@@ -18,9 +18,9 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PINS_SHA = 'b59b81c44d6f4fbbfc8decb2da1a4fff63ed81e1ad5a4d76cd0542c9600fe337'
+PINS_SHA = 'ed47fa9ff320b796d5b52f91fe998794a5c3f7cdbd2e884f8dd98498bb9ba84e'
 PUBLICATION_SHA = '93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8'
-ARCHIVE_SHA = '9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b'
+ARCHIVE_SHA = '2ed6aef9d64a3e53166805db76a98437aee44a4401b6cc698bd92c6a79425cde'
 NEGATIVES = {'source-drift', 'shared-source-inode', 'console-script-drift', 'unchecked-pyc'}
 AFTER = '68f4c2a3c0a3aa75436a15828e325bd279995435d83931d93b12516cca303962'
 IMAGE_INFO = '{"Id":{{json .Id}},"Os":{{json .Os}},"Architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}'
@@ -49,7 +49,9 @@ def validated_payload(root=ROOT):
     require(sha(raw) == PINS_SHA, 'gate-pins-drift')
     pins = json.loads(raw)
     require(pins['pluginArchiveSha256'] == ARCHIVE_SHA and len(pins['pluginFiles']) == 37, 'plugin-pin-scope')
-    archive = root / 'candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz'
+    # The pins file is hash-checked above, so its version names the archive; the archive digest is pinned separately.
+    require(re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', pins['pluginVersion']), 'plugin-pin-scope')
+    archive = root / f"candidate-packages/woowtech-pi-omnigent-plugin-{pins['pluginVersion']}.tgz"
     require(sha(archive.read_bytes()) == ARCHIVE_SHA, 'plugin-archive-drift')
     require(sha((root / 'scripts/image-publication.py').read_bytes()) == PUBLICATION_SHA, 'canonical-publication-drift')
     return pins, (root / 'tests/image-managed-maintenance.mjs').read_text(), (root / 'tests/image-managed-maintenance-check.py').read_text()
