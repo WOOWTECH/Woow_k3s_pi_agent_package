@@ -12,10 +12,10 @@ updating every consumer pin together.
 
 | Input | Candidate version | SHA-256 |
 | --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.23 | `0e4f3c99dc26b670b59c5b328285655dd47b0d81f892707f7ce387ca551e0265` |
-| `@woowtech/pi-omnigent-plugin` | 0.3.38 | `2ed6aef9d64a3e53166805db76a98437aee44a4401b6cc698bd92c6a79425cde` |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.24 | `a8ffeda600318f3c42e5e0f86d87b860f69c15b5f915286df64f7ba05a51f831` |
+| `@woowtech/pi-omnigent-plugin` | 0.3.39 | `a5eb78fedabb3671cc4d70cc88e5826e1bf6d60075eba444288f3c4478a1ff58` |
 | `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
-| Combined Pi Web 0.10 adapter | 0.3.38 | `a5f5e6ebe6efd9ba350fe8e494677ef224ad7681d7e44beb4840d281dfbc4449` |
+| Combined Pi Web 0.10 adapter | 0.3.39 | `5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5` |
 
 The table is the current snapshot; `candidate-packages/manifest.json` is the checked record (see `tests/test_publication_packages.py`). The sections below keep the history of how the candidate was prepared, so they name the versions of their day.
 
@@ -50,6 +50,6 @@ Joint fixture correction: Paseo 0.1.20 and Omnigent 0.3.34 bind the exact new st
 
 ## 2026-11-25 — official Paseo app, bundled web client removed
 
-Agent Connect 0.1.23 (source `152e1c3afe4b7081fa859f40aa316059cc3fa4fd`) and Omnigent plugin 0.3.38 (source `a447f30d4953c367916a68aaa3b621815cd93c81`) replace 0.1.20 and 0.3.35 in the table above. The combined adapter is regenerated and accepts only Agent Connect 0.1.23. The Paseo target now opens and pairs at `https://app.paseo.sh`: the bundled `/paseo-web` client, its Pi Web route and the image's offline web archive are removed, and Agent Connect deletes the copy older versions left in `<stateDir>/web-client` when it activates. The managed Paseo runtime lock, its patches and its layout are byte-identical to 0.1.20, so the runtime stays 0.11.2 with revision `0.11.2-r4-4cf9d40940bf`.
+Agent Connect 0.1.23 (source `152e1c3afe4b7081fa859f40aa316059cc3fa4fd`) and Omnigent plugin 0.3.38 (source `a447f30d4953c367916a68aaa3b621815cd93c81`) replaced 0.1.20 and 0.3.35. The combined adapter was regenerated and accepted only Agent Connect 0.1.23. The Paseo target now opens and pairs at `https://app.paseo.sh`: the bundled `/paseo-web` client, its Pi Web route and the image's offline web archive are removed, and Agent Connect deletes the copy older versions left in `<stateDir>/web-client` when it activates. The managed Paseo runtime lock, its patches and its layout are byte-identical to 0.1.20, so the runtime stays 0.11.2 with revision `0.11.2-r4-4cf9d40940bf`.
 
-Browsers paired through the old `/paseo-web` pair once more; host identity and provider logins are unchanged, and tenants need the image restarted. This change adds no image or chart version: the PaaS build produces the image tag. Before promotion the exact-image acceptance, including the owned maintenance gate for the 0.3.38 archive, has to run on the new image. A later Agent Connect 0.1.24 moves the runtime to Paseo 0.17.4 and replaces this pair.
+Browsers paired through the old `/paseo-web` pair once more; host identity and provider logins are unchanged, and tenants need the image restarted. This change adds no image or chart version: the PaaS build produces the image tag. Before promotion the exact-image acceptance, including the owned maintenance gate for the 0.3.38 archive, has to run on the new image. Agent Connect 0.1.24 then moved the runtime to Paseo 0.17.4 and replaced this pair; the table above is the current snapshot.

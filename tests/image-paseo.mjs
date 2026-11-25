@@ -42,7 +42,7 @@ assert.equal(pairing.adapterPatchSha256, sha256(fs.readFileSync(path.join(bundle
 // The bundled /paseo-web client is retired: nothing of it ships, and no Paseo target needs it.
 for (const retired of ['src/web-client.mjs', 'runtime/web-client.json']) assert.equal(fs.existsSync(path.join(bundle, retired)), false, retired);
 assert.equal(fs.existsSync('/opt/woow/pi-paseo-web'), false, 'no bundled Paseo web client archive');
-const expectedBrand = {server: '8315add9226617d4c2c09d1481c750eff7a34fa83670725914c69892f1cd1561', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: 'd1f27c35db3eb9f456085893a6ca46ecc8aa353eb9dc3b3f9f8b833fd30e4d81'};
+const expectedBrand = {server: '17ea88357d2f25caab81ad63d32804fe41158c1d70e8e4f549c4fc7173fe8d68', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: '20f860e40bfb9d654182fd996f4f1999f2b73fe2f2f924519bc344a5592e89f2'};
 const brandDirectory = path.join(runtime, 'node_modules/@getpaseo/server/dist/server/server');
 for (const [name, expected] of [['websocket-server.js', expectedBrand.server], ['pi-paseo-brand-identity.mjs', expectedBrand.helper]]) {
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(brandDirectory, name))).digest('hex'), expected, name);
@@ -52,7 +52,7 @@ for (const selected of ['woowtech', 'apporo', 'paseo']) {
   const probe = spawnSync(process.execPath, ['--input-type=module', '-e', 'const m=await import(process.argv[1]);console.log(m.agentConnectBrand.id)', pathToFileURL(path.join(brandDirectory, 'pi-paseo-brand-identity.mjs')).href], {env: {...process.env, PI_PASEO_CONNECTION_TARGET:selected}, encoding:'utf8', timeout:5000});
   assert.equal(probe.status, 0); assert.equal(probe.stdout.trim(), selected);
 }
-console.log('[build] exact r4 server brand patch and three selected identities OK');
+console.log('[build] exact server brand patch and three selected identities OK');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-image-'));
 try {
   // Exercise the baked helper and native writers on each image architecture.
