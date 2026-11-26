@@ -16,6 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ROOT / 'candidate-packages'
 MANIFEST = json.loads((PACKAGES / 'manifest.json').read_text())
 DOCKERFILE = (ROOT / 'Dockerfile').read_text()
+SEMVER = re.compile(
+    r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)'
+    r'(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)'
+    r'(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?'
+    r'(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+)
 
 
 def entry(name):
@@ -42,6 +48,13 @@ def sha256(raw):
     return hashlib.sha256(raw).hexdigest()
 
 
+def is_semver_prerelease(version):
+    match = SEMVER.fullmatch(version)
+    if match is None:
+        raise ValueError(f'not a SemVer 2.0.0 version: {version!r}')
+    return match.group(4) is not None
+
+
 def dockerfile_arg(name):
     values = set(re.findall(rf'^ARG {name}=(\S+)$', DOCKERFILE, re.M))
     assert len(values) == 1, (name, values)
@@ -49,6 +62,18 @@ def dockerfile_arg(name):
 
 
 class CandidateArchiveTests(unittest.TestCase):
+    def test_semver_prerelease_detection_covers_identifiers_and_build_metadata(self):
+        for version in ('1.2.3-rc.3', '1.2.3-rc', '1.2.3-beta.1', '1.2.3-alpha.beta', '1.2.3-0'):
+            with self.subTest(version=version):
+                self.assertTrue(is_semver_prerelease(version))
+        for version in ('1.2.3', '1.2.3+build.7'):
+            with self.subTest(version=version):
+                self.assertFalse(is_semver_prerelease(version))
+        for version in ('1.2', '01.2.3', '1.2.3-01', '1.2.3-', '1.2.3+'):
+            with self.subTest(version=version):
+                with self.assertRaises(ValueError):
+                    is_semver_prerelease(version)
+
     def test_every_manifest_archive_is_the_exact_named_package(self):
         for package in MANIFEST['packages']:
             with self.subTest(package=package['name']):
@@ -62,8 +87,8 @@ class CandidateArchiveTests(unittest.TestCase):
                     self.assertTrue(package['releaseURL'].startswith('https://github.com/WOOWTECH/'))
                 else:
                     self.assertNotIn('releaseURL', package)
-                if '-rc.' in package['version']:
-                    self.assertFalse(package['published'], 'release candidates must not claim publication')
+                if is_semver_prerelease(package['version']):
+                    self.assertFalse(package['published'], 'prereleases must not claim publication')
                 identity = archive_json(package, 'package.json')
                 self.assertEqual((identity['name'], identity['version']), (package['name'], package['version']))
                 with tarfile.open(PACKAGES / package['file']) as tar:
