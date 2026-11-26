@@ -1,0 +1,64 @@
+{
+  "woowtech-pi-omnigent-plugin-0.3.39.tgz": "a5eb78fedabb3671cc4d70cc88e5826e1bf6d60075eba444288f3c4478a1ff58",
+  "woowtech-pi-paseo-0.1.24.tgz": "a8ffeda600318f3c42e5e0f86d87b860f69c15b5f915286df64f7ba05a51f831",
+  "woowtech-pi-agent-shared-runtime-0.1.6.tgz": "0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937",
+  "maintenance_file_count": 37,
+  "PINS_SHA": "3ed913a084a677f9a8021e1fc9ce9f9df4b14a09623f83603e105a89db3f8197",
+  "PUBLICATION_SHA": "93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8",
+  "beforeSha256": "2a80d492f6f844a8da0e7dbb3e8aaec396a2bbd525f6d042ddc3cf2eed6bccc6",
+  "afterSha256": "68f4c2a3c0a3aa75436a15828e325bd279995435d83931d93b12516cca303962",
+  "Dockerfile": "8bcbaf26e3b6d23c509926ef4dfc77c8995bbf96d59b28cca53c19d28c6f7a73",
+  "candidate-packages/manifest.json": "d847de9eb8ba2b4bca4a329c17becaf769e5ab72fb1a20ed97dc26affd1836f7",
+  "tests/image-managed-maintenance.mjs": "916ce853729f3cff31c9cae580abb5095d898d038851f5e75dada911bf398363",
+  "tests/maintenance-gate-pins.json": "3ed913a084a677f9a8021e1fc9ce9f9df4b14a09623f83603e105a89db3f8197",
+  "scripts/image-maintenance-gate.py": "5d00d793a22afe390144b5412dfd890297d369f7db96abcc46580db75e816846",
+  "combinedAdapterSha256": "5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5",
+  "expectedBrand": {
+    "server": "17ea88357d2f25caab81ad63d32804fe41158c1d70e8e4f549c4fc7173fe8d68",
+    "helper": "036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733",
+    "patchId": "20f860e40bfb9d654182fd996f4f1999f2b73fe2f2f924519bc344a5592e89f2"
+  },
+  "runtimeRevision": "0.17.4-r1-a651f42711da",
+  "runtimePayload": {
+    "installedBytes": 696775513,
+    "gzipTarBytes": 248016309,
+    "imageBuild": false,
+    "architecture": "amd64"
+  },
+  "testRuntime": {
+    "node": "v22.23.3",
+    "python": "Python 3.12.14",
+    "PyYAML": "6.0.2"
+  },
+  "logSha256": {
+    "node-seeds.log": "a8f7f05010e018b935f58c753fae1edd19f737dee7006a31b7cd01f442c68bba",
+    "python-all.log": "21db3b9b24b525c948c278d23aaaa735c7b46cc342690409260ffc7d1e873881",
+    "maintenance-isolated.log": "fea69833aae1cc99c3af9439b84425fd2dfd92abaf11223e1617afa659673359",
+    "profile.log": "57fb64cee5867c68a7b388caf07522274f9475383529b9c6d9790381c0bd7b80",
+    "shared-seed.log": "23c4cae7c51b784d4d6ce6f141a7c81bbb1e9edb6a83c78d0acc045c0a7577c1",
+    "session-env.log": "8ef1c9b1c7a70d1a6ef7d94f5143fdfe5a949c31b3c1245039c35ebda2372109",
+    "syntax.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "py-compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "whitespace.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local-ci-mirror.log": "11122dea3d996864f8cfeffd6bbf43633eab2a738e0e586a840912b013d361b3",
+    "image-paseo-emulated.log": "8e60e04513d153c2d17a5a6feef3ecc593228e4f91ab2fa34f14d8bf769bca6e"
+  },
+  "sourceCommit": "2b4b67a4efab2df0c98097c119b545b83585d32c",
+  "baselineCommit": "90a49ce",
+  "branch": "feat/agent-connect-official-paseo-20261125",
+  "task": "a8b32f4365e7cfe0b",
+  "validation": {
+    "nodeTests": 54,
+    "pythonTests": 93,
+    "isolatedMaintenanceTests": 34,
+    "shellSuites": 3,
+    "syntaxChecks": "passed",
+    "preparedAmd64Artifact": "passed with path remapping; no daemon activation",
+    "imageBuilt": false,
+    "mutationTestsRun": false,
+    "remoteWrites": false
+  },
+  "persistentLogDirectory": "/data/pi-agent/home/work/pi-smart-connectors-20261121/Woow_k3s_pi_agent_official-paseo-20261125/.local-checks/agent-connect-0124-20261126",
+  "sourceCheckScriptSha256": "ba87eac8275faf8ee603ed61c7d7c44efaae79c7d3e00159a0bda081b508c208",
+  "verifiedAtUtc": "2026-11-26T01:20:56Z"
+}
