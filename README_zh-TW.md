@@ -606,9 +606,9 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Agent Connect 0.1.25 — 官方 Paseo 應用程式、Smart Tasks 內建外掛與 daemon 0.17.4
+## Agent Connect 0.1.26 — 官方 Paseo 應用程式、Smart Tasks 內建外掛與 daemon 0.17.4
 
-映像固定使用 [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.25（source `43cc7b0623c47afdbad6e35e0df7bd03dd5c72d3`）與 Omnigent 插件 0.3.40（source `a36f260d680d8334206e4b794a7c4bcd8dd2e99f`）的唯一相容組合，官方 Paseo 為 0.17.4（runtime `0.17.4-r2-a651f42711da`），並內建產品管理的 Better Paseo 1.7.0；Tasks 預設開啟，聊天增強與自動更新關閉。這些是凍結的候選輸入，尚不代表映像發布。根映像的版本標籤來自通過 `publish-accepted-image` 驗收的 `v*` 候選；PaaS 使用已驗收的根映像 `tag@sha256` 建置自己的衍生映像，詳見[映像發布流程](docs/IMAGE_PUBLICATION.md)。
+映像固定使用 [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.26（source `23026e2442403ddee8df9f764ded6ea1a75b121e`）與 Omnigent 插件 0.3.41（source `b481f9cd74e269a3f52a5cbf62713e252573c075`）的唯一相容組合，官方 Paseo 為 0.17.4（runtime `0.17.4-r2-a651f42711da`），並內建產品管理的 Better Paseo 1.7.0；Tasks 預設開啟，聊天增強與自動更新關閉。這些是凍結的候選輸入，尚不代表映像發布。根映像的版本標籤來自通過 `publish-accepted-image` 驗收的 `v*` 候選；PaaS 使用已驗收的根映像 `tag@sha256` 建置自己的衍生映像，詳見[映像發布流程](docs/IMAGE_PUBLICATION.md)。
 
 - **Paseo 選項改開官方應用程式。** 選擇 Paseo 目標時，設定 → Agent Connect 會在 <https://app.paseo.sh/#offer=…> 開啟並配對，就像 Woowtech Smart 與 Apporo Smart 目標各自開啟自己的網站。配對不再等待網頁 client，Pi Web 內建的 `/paseo-web` 路由也已移除。
 - **曾透過舊版 `/paseo-web` 配對的瀏覽器需要再配對一次。** 到設定 → Agent Connect 產生新的配對連結並開啟即可。host 身分、各供應商登入與既有 agent 都不變。

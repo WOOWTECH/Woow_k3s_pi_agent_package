@@ -3,12 +3,12 @@
   "beforeSha256": "2a80d492f6f844a8da0e7dbb3e8aaec396a2bbd525f6d042ddc3cf2eed6bccc6",
   "canonicalPublicationSha256": "93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8",
   "coreVersion": "0.16.0",
-  "pluginArchiveSha256": "4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846",
+  "pluginArchiveSha256": "7de928d37def9feec4476674da82979c2bdb24adb3cd9413188959410120ad4e",
   "pluginFiles": {
     "CHANGELOG.md": {
-      "bytes": 6530,
+      "bytes": 6815,
       "mode": 420,
-      "sha256": "69e2b9807e79e76641b8b0288667a8b153b1ed62211af5c128ff6b57d4e1d461"
+      "sha256": "b566227f6f72f7a23c979f900dcece1cafa5e36bbc1130c02c5712aa9b7b9958"
     },
     "LICENSE": {
       "bytes": 1065,
@@ -16,9 +16,9 @@
       "sha256": "f6980fa254a9734d6bac74df136fa8a931f3dae4dd11bfc7e5f50454a021a218"
     },
     "README.md": {
-      "bytes": 31817,
+      "bytes": 31844,
       "mode": 420,
-      "sha256": "f219f07a03c1a5faa31411d0464ffa7913a187af6f589a2dd631fe727e9a6803"
+      "sha256": "9c6aee91bd9f5584299b49f636b9ed4942ae57d5f8e8006acd2503acfd8191ee"
     },
     "bin/check.mjs": {
       "bytes": 1109,
@@ -83,17 +83,17 @@
     "integrations/pi-web/combined.adapter-meta.json": {
       "bytes": 784,
       "mode": 420,
-      "sha256": "beb5d08cec1fcccd15158adbe3b9b24e9da2976909d5e12ca2a7e4cf6ec99f88"
+      "sha256": "edf480b713d3569a1847bb564356d9be0522338fb2f1be1fba5f050e465821b0"
     },
     "integrations/pi-web/combined.adapter.patch": {
-      "bytes": 423583,
+      "bytes": 460728,
       "mode": 420,
-      "sha256": "5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5"
+      "sha256": "13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb"
     },
     "package.json": {
       "bytes": 1722,
       "mode": 420,
-      "sha256": "ad74d0ffb04f56dd5fddb3e931df87af7bc9578cf7d479e4848c8b86e012b7b8"
+      "sha256": "33e17d2c2d508d7f1ae13beca1ad075b36ac53af168cd9ecc1f827a528c38bb0"
     },
     "src/acceptance.mjs": {
       "bytes": 2609,
@@ -191,6 +191,6 @@
       "sha256": "68438fc856b3742246d720ab29f250f8c3bfb612cb7f33bc63674a7d99b8debb"
     }
   },
-  "pluginVersion": "0.3.40",
+  "pluginVersion": "0.3.41",
   "schema": "standalone-k3s-maintenance-gate-pins/v1"
 }

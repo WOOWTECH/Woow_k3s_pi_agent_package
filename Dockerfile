@@ -126,9 +126,9 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.40
-ARG PI_OMNIGENT_SHA256=4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846
-ARG PI_OMNIGENT_UI_SHA256=5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5
+ARG PI_OMNIGENT_VERSION=0.3.41
+ARG PI_OMNIGENT_SHA256=7de928d37def9feec4476674da82979c2bdb24adb3cd9413188959410120ad4e
+ARG PI_OMNIGENT_UI_SHA256=13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb
 # Immutable plugin payload; lifecycle scripts never run during image build. The
 # archive name follows PI_OMNIGENT_VERSION, so a version bump edits one pin here.
 COPY candidate-packages/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz /tmp/omnigent-plugin.tgz
@@ -142,8 +142,8 @@ RUN set -euo pipefail; \
 # install Paseo itself on a fresh tenant volume. Agent Connect and the Omnigent
 # plugin's combined Pi Web adapter must move together: the adapter pins exactly
 # one Agent Connect version (tests/image-paseo.mjs re-checks the pair in the image).
-ARG PI_PASEO_VERSION=0.1.25
-ARG PI_PASEO_SHA256=9717988c00a4c830a3fa458ab1ae778515c90257faaac0e68e695fefbf7cd8d1
+ARG PI_PASEO_VERSION=0.1.26
+ARG PI_PASEO_SHA256=87fcc99b371ef8acbb694884ae3b8654e50f9270651062ac55d37090734f3825
 COPY candidate-packages/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
@@ -185,7 +185,7 @@ RUN set -euo pipefail; \
     cd "$WEB"; \
     NODE_ENV=development npm_config_build_from_source=true npm ci --include=dev --no-audit --no-fund; \
     npm audit --audit-level=high --no-fund; \
-    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs; \
+    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs components/PaseoPluginPanel.behavior.test.mjs; \
     NEXT_TELEMETRY_DISABLED=1 CIRCLE_NODE_TOTAL=3 npm run build; \
     test -s .next/BUILD_ID; \
     test -f .next/server/app/api/omnigent/route.js; \

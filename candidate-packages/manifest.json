@@ -2,21 +2,21 @@
   "status": "root-image-candidate-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.40.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.41.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.40",
-      "sha256": "4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846",
+      "version": "0.3.41",
+      "sha256": "7de928d37def9feec4476674da82979c2bdb24adb3cd9413188959410120ad4e",
       "published": true,
-      "sourceCommit": "a36f260d680d8334206e4b794a7c4bcd8dd2e99f",
-      "releaseURL": "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.40/woowtech-pi-omnigent-plugin-0.3.40.tgz"
+      "sourceCommit": "b481f9cd74e269a3f52a5cbf62713e252573c075",
+      "releaseURL": "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.41/woowtech-pi-omnigent-plugin-0.3.41.tgz"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.25.tgz",
+      "file": "woowtech-pi-paseo-0.1.26.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.25",
-      "sha256": "9717988c00a4c830a3fa458ab1ae778515c90257faaac0e68e695fefbf7cd8d1",
+      "version": "0.1.26",
+      "sha256": "87fcc99b371ef8acbb694884ae3b8654e50f9270651062ac55d37090734f3825",
       "published": true,
-      "sourceCommit": "43cc7b0623c47afdbad6e35e0df7bd03dd5c72d3",
+      "sourceCommit": "23026e2442403ddee8df9f764ded6ea1a75b121e",
       "runtimeRevision": "0.17.4-r2-a651f42711da",
       "betterPaseo": {
         "version": "1.7.0",
@@ -25,7 +25,7 @@
         "builtinSha256": "a915ed83caacda0bb8da8ac9153521d15d72c99dd074cc290c54b1aa86316494",
         "tasksChunkId": "09f2925ed07d663f"
       },
-      "releaseURL": "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.25/woowtech-pi-paseo-0.1.25.tgz"
+      "releaseURL": "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.26/woowtech-pi-paseo-0.1.26.tgz"
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.6.tgz",
