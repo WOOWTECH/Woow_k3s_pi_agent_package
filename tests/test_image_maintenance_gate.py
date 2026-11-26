@@ -235,7 +235,7 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_root_plugin_files_and_every_packaged_pin_are_exact(self):
         pins, _, _ = gate.validated_payload()
-        expected = {'Dockerfile': 'b76d9588bf4ecbfa99db6ca4c762c706cd4c6c25c34ab3824b8517d97c66ef9d',
+        expected = {'Dockerfile': '8bcbaf26e3b6d23c509926ef4dfc77c8995bbf96d59b28cca53c19d28c6f7a73',
                     'candidate-packages/manifest.json': 'd847de9eb8ba2b4bca4a329c17becaf769e5ab72fb1a20ed97dc26affd1836f7'}
         for name, digest in expected.items(): self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest)
         with tarfile.open(ROOT / ARCHIVE) as archive:
@@ -291,13 +291,23 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_node_protocol_validation_is_pure_and_rejects_fake_guard_success(self):
         positive = proof()['installs'][0]
-        negative = {'ok': False, 'changed': False, 'maintenancePreservation': {'code': 'MAINTENANCE_PRESERVATION_REQUIRED'},
+        negative = {'ok': False, 'changed': False, 'maintenancePreservation': {'code': 'MAINTENANCE_PRESERVATION_REQUIRED', 'reason': 'unsafe-source-file'},
                     'steps': [{'dependency': 'omnigent', 'action': 'maintenance-preservation', 'status': 'blocked'}]}
         script = "import assert from 'node:assert/strict';import {validateInstall,validateRefusal} from './tests/image-managed-maintenance.mjs';\n"
         script += 'const positive=' + json.dumps(positive) + ';\n'
         script += "validateInstall(positive.result,positive.calls,'fresh');positive.calls[0].copyMode='hardlink';assert.throws(()=>validateInstall(positive.result,positive.calls,'fresh'));\n"
         script += 'const negative=' + json.dumps(negative) + ';\n'
-        script += "const calls=[{kind:'guard',code:1,value:{ok:false,code:'MAINTENANCE_PRESERVATION_REQUIRED'},guardInputUnchanged:true}];validateRefusal(negative,calls);calls[0].code=0;assert.throws(()=>validateRefusal(negative,calls));console.log('PASS pure protocol fixture');"
+        script += """
+const calls=[{kind:'guard',code:1,value:{ok:false,code:'MAINTENANCE_PRESERVATION_REQUIRED',reason:'unsafe-source-file'},guardInputUnchanged:true}];
+const validate=()=>validateRefusal(negative,calls,'unsafe-source-file');
+validate();
+for (const target of [negative.maintenancePreservation,calls[0].value]) {
+  delete target.reason; assert.throws(validate);
+  target.reason='unexpected-error'; assert.throws(validate);
+  target.reason='unsafe-source-file';
+}
+calls[0].code=0;assert.throws(validate);console.log('PASS pure protocol fixture');
+"""
         r = subprocess.run(['node', '--input-type=module', '-'], input=script, cwd=ROOT, text=True, capture_output=True, timeout=10)
         self.assertEqual(r.returncode, 0, r.stderr)
 

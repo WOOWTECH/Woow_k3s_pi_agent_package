@@ -167,6 +167,7 @@ RUN set -euo pipefail; \
     PASEO_WANT="$(node -p 'require("/opt/woow/pi-paseo-plugin/runtime/package.json").dependencies["@getpaseo/cli"]')"; \
     test "$(node "$PASEO_RUNTIME/node_modules/@getpaseo/cli/bin/paseo" --version)" = "$PASEO_WANT"; \
     node --input-type=module -e 'import {markRuntimeReady} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; markRuntimeReady({runtimeDir:"/opt/woow/pi-paseo-runtime"})'; \
+    chmod -R a+rX /opt/woow/pi-paseo-runtime; \
     rm /tmp/paseo-plugin.tgz
 # Build the reviewed native settings adapter into the image. Tenants never need
 # a compiler, npm install, or a second Pi Web tree to see the Omnigent tab.
@@ -343,7 +344,9 @@ COPY --from=piweb-builder /opt/piweb/lib/node_modules /usr/local/lib/node_module
 COPY --from=piweb-builder /opt/piweb/bin              /usr/local/bin
 COPY --from=piweb-builder /opt/woow/pi-omnigent-plugin /opt/woow/pi-omnigent-plugin
 COPY --from=piweb-builder /opt/woow/pi-paseo-plugin /opt/woow/pi-paseo-plugin
-COPY --from=piweb-builder /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
+# Set ownership on arrival: a later recursive chown can copy the entire runtime
+# into another image layer. Modes are prepared in the builder before this COPY.
+COPY --from=piweb-builder --chown=1000:1000 /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
 # Claude Code and Codex (see the builder stage): one layer each, linked into the
 # system PATH. The shared runtime finds them here and wraps them per tenant. The
 # Claude tree must hold exactly one native binary: no musl copy, and at most
@@ -365,9 +368,7 @@ RUN set -euo pipefail; \
 RUN ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-omnigent-plugin/node_modules \
     && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent \
     && ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-paseo-plugin/node_modules \
-    && ln -s /opt/woow/pi-paseo-plugin/bin/cli.mjs /usr/local/bin/pi-paseo \
-    && chmod -R a+rX /opt/woow/pi-paseo-runtime \
-    && chown -R 1000:1000 /opt/woow/pi-paseo-runtime
+    && ln -s /opt/woow/pi-paseo-plugin/bin/cli.mjs /usr/local/bin/pi-paseo
 ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
     PI_OMNIGENT_SDK_ROOT=/usr/local/lib/node_modules/@agegr/pi-web \
     PI_PASEO_RUNTIME_DIR=/opt/woow/pi-paseo-runtime \

@@ -27,8 +27,8 @@ Review an archive without executing it using `tar tzf <file>` or
 the archives outside the Dockerfile. The combined adapter pins the exact
 Agent Connect contributor; mixing prior plugin versions is rejected, so
 `@woowtech/pi-paseo` and `@woowtech/pi-omnigent-plugin` are always replaced
-together. `woowtech-pi-omnigent-plugin-0.3.34.tgz` is the previous frozen
-Omnigent archive; it is kept for reference and is not installed or listed.
+together. Only archives listed in the manifest are kept here; prior frozen
+inputs remain available in Git history.
 
 Image promotion and PaaS deployment keep their existing gates. The shared
 runtime's ordinary startup preserves disabled selections; an authorized

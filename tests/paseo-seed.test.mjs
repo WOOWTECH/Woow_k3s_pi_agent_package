@@ -149,9 +149,12 @@ test('a home project disable choice wins over a new global image default', t => 
 
 // The Paseo target opens the official app, so the image prepares no web client. Agent Connect 0.1.9-0.1.22 left
 // <stateDir>/web-client/<sha256> (and .stage-<uuid>) behind; the plugin removes those itself when it activates.
+// The next two guard helper behavior. Only the startup-script test below detects
+// the retired client preparation step, which used to run outside seed().
 const retiredClient = f => path.join(f.agentDir, 'pi-paseo/web-client');
+// Dirent.parentPath needs Node 20.12; the older name `path` covers the runners that have not got it.
 const tree = directory => fs.readdirSync(directory, { recursive: true, withFileTypes: true })
-  .map(entry => path.join(entry.parentPath, entry.name) + (entry.isFile() ? ':' + fs.readFileSync(path.join(entry.parentPath, entry.name), 'utf8') : '')).sort();
+  .map(entry => { const file = path.join(entry.parentPath ?? entry.path, entry.name); return file + (entry.isFile() ? ':' + fs.readFileSync(file, 'utf8') : ''); }).sort();
 test('a fresh volume gets no web client directory', t => {
   const f = fixture(t, '0.1.23');
   assert.equal(seed(f).reason, 'registered'); assert.equal(seed(f).reason, 'existing');
@@ -173,37 +176,52 @@ test('an old plugin pin migrates and its web client state is neither required, r
   fs.rmSync(retiredClient(f), { recursive: true }); assert.equal(seed(f).reason, 'existing');
   assert.equal(fs.existsSync(retiredClient(f)), false);
 });
-test('the startup script needs no web client module, archive, state directory setting or network', t => {
+// What an upgraded tenant's volume really holds, at the paths the seed and the plugin use: PI_CODING_AGENT_DIR for Pi's
+// logins and the plugin's own state (preferences, pairing, daemon identity, Paseo's home), HOME for the provider CLIs'
+// logins, and the retired client. The startup script must leave every one of them byte for byte as it was.
+const AGENT_FILES = ['auth.json', 'pi-paseo/state.json', 'pi-paseo/preferences.json', 'pi-paseo/pairing.private.json', 'pi-paseo/daemon-instance.private.json',
+  'pi-paseo/daemon/daemon.json', 'pi-paseo/daemon/config.json', 'pi-paseo/daemon/daemon-keypair.json', 'pi-paseo/daemon/server-id',
+  'pi-paseo/daemon/agents/retained-agent.json', 'pi-paseo/web-client/' + 'b'.repeat(64) + '/index.html'];
+const HOME_FILES = ['.claude/.credentials.json', '.codex/auth.json',
+  '.local/share/pi-paseo/runtime/releases/0.11.2-r4-4cf9d40940bf/.pi-paseo-runtime.json'];
+const volumeFiles = (f, home) => [...AGENT_FILES.map(name => path.join(f.agentDir, name)), ...HOME_FILES.map(name => path.join(home, name))];
+const NO_NETWORK = 'globalThis.fetch = () => { throw Error("unexpected runtime network"); };';
+function startup(f, home, mode) {
+  const trap = path.join(f.root, 'no-network.mjs'); fs.writeFileSync(trap, NO_NETWORK);
+  return spawnSync(process.execPath, ['--import', trap, new URL('../rootfs/usr/local/bin/pi-paseo-seed.mjs', import.meta.url).pathname], {
+    env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: f.agentDir, PI_PASEO_PLUGIN_ROOT: f.bundle,
+      PI_PASEO_WEB_ARCHIVE: path.join(f.root, 'no-such-archive.tar.gz'), PI_PASEO_AUTO_SETUP: mode === 'opt-out' ? 'false' : 'true' },
+    encoding: 'utf8', timeout: 60000,
+  });
+}
+test('the startup script leaves an upgraded volume untouched and creates no identity, login or client on a fresh one', t => {
   const entries = { external: 'git:github.com/example/pi-paseo-plugin@v0.1.8', 'official-pin': 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.8',
     'newer-pin': 'git:github.com/WOOWTECH/pi-paseo-plugin@v99.0.0' };
   for (const mode of ['fresh', 'managed-upgrade', 'disabled', 'removed', 'external', 'official-pin', 'newer-pin', 'opt-out']) {
-    const f = fixture(t, '0.1.23'), home = path.join(f.root, 'home'), state = path.join(f.root, 'custom-state');
-    const entry = mode === 'disabled' ? { source: f.bundle, extensions: [] } : entries[mode] || f.bundle;
-    if (mode !== 'fresh' && mode !== 'opt-out') f.write({ model: 'operator-choice', packages: mode === 'removed' ? [] : [entry] });
-    if (mode === 'removed') { fs.mkdirSync(path.join(f.agentDir, 'pi-paseo')); fs.writeFileSync(path.join(f.agentDir, 'pi-paseo/image-seed.json'), '{}'); }
-    // What a tenant upgraded from an image with the bundled client keeps on its volume.
-    const retained = ['auth.json', '.claude/.credentials.json', '.codex/auth.json', 'custom-state/daemon/daemon.json', 'custom-state/state.json',
-      'custom-state/web-client/old-release/index.html', 'pi-paseo/web-client/' + 'b'.repeat(64) + '/index.html'];
-    for (const relative of retained) {
-      const file = path.join(relative.startsWith('pi-paseo/') ? f.agentDir : f.root, relative);
-      fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify({ retained: relative }));
+    // An upgraded volume always has a settings.json that lists the plugin; one with plugin state but no settings is a legacy removal (tested above).
+    for (const upgraded of mode === 'fresh' ? [false] : [true, false]) {
+      const label = `${mode}/${upgraded ? 'upgraded' : 'new'} volume`;
+      const f = fixture(t, '0.1.24'), home = path.join(f.root, 'home');
+      const entry = mode === 'disabled' ? { source: f.bundle, extensions: [] } : entries[mode] || f.bundle;
+      if (mode !== 'fresh' && mode !== 'opt-out') f.write({ model: 'operator-choice', packages: mode === 'removed' ? [] : [entry] });
+      if (mode === 'removed') { fs.mkdirSync(path.join(f.agentDir, 'pi-paseo'), { recursive: true }); fs.writeFileSync(path.join(f.agentDir, 'pi-paseo/image-seed.json'), '{}'); }
+      const files = volumeFiles(f, home);
+      if (upgraded) for (const file of files) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify({ retained: path.basename(file) })); }
+      const before = files.map(file => fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
+      const result = startup(f, home, mode);
+      assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+      assert.match(result.stdout, /^\[pi-paseo\] \S+\n$/, label); assert.equal(result.stderr, '', label);
+      // Upgraded: all of it unchanged. New: none of it appears (no identity, pairing, login or web client is distributed).
+      assert.deepEqual(files.map(file => fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null), before, `${label}: the volume's own files are untouched`);
+      if (!upgraded) for (const name of ['pi-paseo/daemon', 'pi-paseo/web-client', 'pi-paseo/preferences.json', 'pi-paseo/pairing.private.json', 'pi-paseo/daemon-instance.private.json', 'auth.json']) {
+        assert.equal(fs.existsSync(path.join(f.agentDir, name)), false, `${label}: ${name} must not appear`);
+      }
+      if (!upgraded) for (const name of ['.claude', '.codex']) assert.equal(fs.existsSync(path.join(home, name)), false, `${label}: ${name} must not appear`);
+      if (['managed-upgrade', 'official-pin'].includes(mode)) assert.equal(f.read().model, 'operator-choice');
+      if (mode === 'official-pin') assert.deepEqual(f.read().packages, [f.bundle], 'an older official pin moves to the bundle');
+      if (['external', 'newer-pin', 'disabled'].includes(mode)) assert.deepEqual(f.read().packages, [entry], label);
+      if (mode === 'fresh') assert.deepEqual(f.read(), { packages: [f.bundle] });
+      if (mode === 'opt-out') assert.equal(fs.existsSync(f.settings), false);
     }
-    const snapshot = () => retained.map(relative => fs.readFileSync(path.join(relative.startsWith('pi-paseo/') ? f.agentDir : f.root, relative), 'utf8'));
-    const before = snapshot();
-    const trap = path.join(f.root, 'no-network.mjs'); fs.writeFileSync(trap, 'globalThis.fetch = () => { throw Error("unexpected runtime network"); };');
-    const result = spawnSync(process.execPath, ['--import', trap, new URL('../rootfs/usr/local/bin/pi-paseo-seed.mjs', import.meta.url).pathname], {
-      env: { ...process.env, HOME: home, PI_CODING_AGENT_DIR: f.agentDir, PI_PASEO_STATE_DIR: state, PI_PASEO_PLUGIN_ROOT: f.bundle,
-        PI_PASEO_WEB_ARCHIVE: path.join(f.root, 'no-such-archive.tar.gz'), PI_PASEO_AUTO_SETUP: mode === 'opt-out' ? 'false' : 'true' },
-      encoding: 'utf8', timeout: 60000,
-    });
-    assert.equal(result.status, 0, `${mode}: ${result.stderr}`);
-    assert.match(result.stdout, /^\[pi-paseo\] \S+\n$/, mode); assert.equal(result.stderr, '', mode);
-    assert.deepEqual(snapshot(), before, `${mode}: the retained volume state is untouched`);
-    assert.equal(fs.existsSync(path.join(f.agentDir, 'pi-paseo/daemon')), false, 'seeding must not create an identity');
-    if (['managed-upgrade', 'official-pin'].includes(mode)) assert.equal(f.read().model, 'operator-choice');
-    if (mode === 'official-pin') assert.deepEqual(f.read().packages, [f.bundle], 'an older official pin moves to the bundle');
-    if (['external', 'newer-pin', 'disabled'].includes(mode)) assert.deepEqual(f.read().packages, [entry], mode);
-    if (mode === 'fresh') assert.deepEqual(f.read(), { packages: [f.bundle] });
-    if (mode === 'opt-out') assert.equal(fs.existsSync(f.settings), false);
   }
 });

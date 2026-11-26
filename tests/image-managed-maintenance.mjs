@@ -40,14 +40,17 @@ export function validateInstall(result, calls, phase) {
   }
 }
 
-export function validateRefusal(result, calls) {
+export function validateRefusal(result, calls, reason) {
+  assert.match(reason, /^[a-z0-9][a-z0-9-]{0,63}$/);
   assert.equal(result.ok, false);
   assert.equal(result.changed, false);
   assert.equal(result.maintenancePreservation.code, 'MAINTENANCE_PRESERVATION_REQUIRED');
+  assert.equal(result.maintenancePreservation.reason, reason);
   assert.deepEqual(calls.map(c => c.kind), ['guard']);
   assert.notEqual(calls[0].code, 0);
   assert.equal(calls[0].value.ok, false);
   assert.equal(calls[0].value.code, 'MAINTENANCE_PRESERVATION_REQUIRED');
+  assert.equal(calls[0].value.reason, reason);
   assert.equal(calls[0].guardInputUnchanged, true);
   assert.ok(result.steps.some(s => s.dependency === 'omnigent' && s.action === 'maintenance-preservation' && s.status === 'blocked'));
 }
@@ -169,7 +172,9 @@ export async function main(input) {
   }
   const beforeNegatives = await check('snapshot');
   const negativeCases = [];
-  for (const name of ['source-drift', 'shared-source-inode', 'console-script-drift', 'unchecked-pyc']) {
+  const refusalReasons = { 'source-drift': 'unknown-installed-source', 'shared-source-inode': 'unsafe-source-file',
+    'console-script-drift': 'unsupported-python-console-script', 'unchecked-pyc': 'unverified-or-stale-bytecode' };
+  for (const [name, reason] of Object.entries(refusalReasons)) {
     const saved = watched().map(file => [file, fs.readFileSync(file)]);
     const alias = '/qa/owned-negative-alias';
     try {
@@ -182,7 +187,7 @@ export async function main(input) {
       }
       phase = 'negative'; calls = [];
       const result = await invoke(false);
-      validateRefusal(result, calls);
+      validateRefusal(result, calls, reason);
       negativeCases.push({ name, refused: true, actualGuard: true, inputUnchanged: true });
     } finally {
       if (fs.existsSync(alias)) fs.unlinkSync(alias);

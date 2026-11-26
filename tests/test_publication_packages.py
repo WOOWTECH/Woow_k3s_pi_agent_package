@@ -67,10 +67,7 @@ class CandidateArchiveTests(unittest.TestCase):
 
     def test_archives_beside_the_manifest_are_known_packages(self):
         listed = {package['file'] for package in MANIFEST['packages']}
-        # woowtech-pi-omnigent-plugin-0.3.34.tgz stays as the previous frozen Omnigent archive; nothing else may linger.
-        allowed = listed | {'woowtech-pi-omnigent-plugin-0.3.34.tgz'}
-        self.assertEqual({path.name for path in PACKAGES.glob('*.tgz')} - allowed, set())
-        self.assertEqual(listed - {path.name for path in PACKAGES.glob('*.tgz')}, set())
+        self.assertEqual({path.name for path in PACKAGES.glob('*.tgz')}, listed)
 
     def test_the_dockerfile_installs_exactly_the_manifest_archives(self):
         self.assertEqual((dockerfile_arg('PI_OMNIGENT_VERSION'), dockerfile_arg('PI_OMNIGENT_SHA256')), (OMNIGENT['version'], OMNIGENT['sha256']))
@@ -89,6 +86,22 @@ class CandidateArchiveTests(unittest.TestCase):
 
 
 class AgentConnectPairingTests(unittest.TestCase):
+    def test_image_brand_hashes_match_the_frozen_plugin(self):
+        patch = archive_member(AGENT_CONNECT, 'src/brand-identity-patch.mjs').decode()
+        server = re.search(r"export const PATCHED_BRAND_SERVER_SHA256 = '([0-9a-f]{64})';", patch).group(1)
+        helper = archive_member(AGENT_CONNECT, 'src/brand-identity.mjs')
+        image_test = (ROOT / 'tests/image-paseo.mjs').read_text()
+        pinned = dict(re.findall(r"(server|helper|patchId): '([0-9a-f]{64})'", image_test))
+        self.assertEqual(pinned, {'server': server, 'helper': sha256(helper), 'patchId': sha256(helper + server.encode())})
+
+    def test_image_selects_the_prebuilt_runtime_without_a_second_ownership_layer(self):
+        self.assertIn('PI_PASEO_RUNTIME_DIR=/opt/woow/pi-paseo-runtime', DOCKERFILE)
+        for name in ('pi-web-start.sh', 'pi-agent-env.sh'):
+            self.assertNotRegex((ROOT / 'rootfs/usr/local/bin' / name).read_text(), r'PI_PASEO_RUNTIME_DIR=')
+        self.assertIn('COPY --from=piweb-builder --chown=1000:1000 /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime', DOCKERFILE)
+        self.assertNotIn('chown -R 1000:1000 /opt/woow/pi-paseo-runtime', DOCKERFILE)
+        self.assertIn('chmod -R a+rX /opt/woow/pi-paseo-runtime', DOCKERFILE.split('# Stage 2')[0])
+
     def test_combined_adapter_pins_exactly_this_agent_connect_and_this_pi_web(self):
         meta = archive_json(OMNIGENT, 'integrations/pi-web/combined.adapter-meta.json')
         self.assertEqual((meta['paseo']['packageName'], meta['paseo']['packageVersion']), (AGENT_CONNECT['name'], AGENT_CONNECT['version']))

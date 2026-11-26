@@ -171,12 +171,25 @@ def make_install(root: Path, version: str = "0.16.0", legacy: bool = False) -> P
 
 
 def run(tool_dir: Path, *extra: str) -> subprocess.CompletedProcess:
+    # --tool-dir falls through to DEFAULT_ROOTS when the fixture is absent.
+    # HOME alone cannot hide /opt/omnigent/venv: redirect every fallback into
+    # the fixture before calling the real CLI parser and patch implementation.
+    runner = '''
+import importlib.util
+from pathlib import Path
+import sys
+script, fixture = sys.argv[1:3]
+spec = importlib.util.spec_from_file_location("owned_patch", script)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.DEFAULT_ROOTS = tuple(str(Path(fixture) / f"default-{i}") for i in range(len(module.DEFAULT_ROOTS)))
+sys.argv = [script, *sys.argv[3:]]
+raise SystemExit(module.main())
+'''
     return subprocess.run(
-        [sys.executable, str(SCRIPT), "--tool-dir", str(tool_dir), *extra],
+        [sys.executable, "-c", runner, str(SCRIPT), str(tool_dir.parent), "--tool-dir", str(tool_dir), *extra],
         capture_output=True,
         text=True,
-        # Keep the real host's venvs out of the search: the script falls back to
-        # DEFAULT_ROOTS, and a developer machine may actually have one.
         env={**os.environ, "HOME": str(tool_dir.parent)},
     )
 
@@ -268,6 +281,12 @@ class PatchTests(unittest.TestCase):
         result = run(self.tmp / "nothing-here")
         self.assertEqual(result.returncode, 0)
         self.assertIn("nothing to patch", result.stdout)
+
+    def test_missing_explicit_install_searches_the_default_roots(self) -> None:
+        module = make_install(self.tmp / "default-0")
+        result = run(self.tmp / "nothing-here")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("_ambient_pi_model_options", functions(module.read_text(encoding="utf-8")))
 
     def test_converges_from_the_previous_edition(self) -> None:
         """A venv patched by the previous edition ends up byte-identical to a freshly patched one."""

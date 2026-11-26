@@ -99,7 +99,7 @@ export function seed({ agentDir, bundle, home = path.join(agentDir, "home"), see
   }
 }
 
-async function main() {
+function main() {
   const agentDir = process.env.PI_CODING_AGENT_DIR || process.env.PI_AGENT_DATA_DIR || '/data/pi-agent';
   const bundle = process.env.PI_PASEO_PLUGIN_ROOT || '/opt/woow/pi-paseo-plugin';
   const result = seed({ agentDir, bundle, home: process.env.HOME, seedEnabled: process.env.PI_PASEO_AUTO_SETUP !== 'false' });
@@ -108,9 +108,9 @@ async function main() {
   console.log(`[pi-paseo] ${result.reason}`);
 }
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  main().catch(error => {
+  try { main(); } catch (error) {
     // A failure after a settings.json write is a SetupFailure; others wrote nothing.
     console.error(`[pi-paseo] ${error instanceof SetupFailure ? error.message : 'setup could not complete; settings.json unchanged; open Paseo settings'}`);
     process.exitCode = 1;
-  });
+  }
 }

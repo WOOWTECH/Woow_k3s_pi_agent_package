@@ -82,12 +82,10 @@ try {
     const result = spawnSync(process.execPath, ['/usr/local/bin/pi-paseo-seed.mjs'], { env, encoding: 'utf8', timeout: 60000 });
     assert.equal(result.status, 0, 'bundled registration requires no package manager');
   }
-  assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/web-client')), false, 'a fresh volume gets no Paseo web client directory');
   const settings = JSON.parse(fs.readFileSync(path.join(temp, 'settings.json')));
   assert.deepEqual(settings.packages, [bundle]);
-  assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/daemon')), false, 'image seeding does not distribute a daemon identity');
-  assert.equal(fs.existsSync(path.join(temp, 'auth.json')), false);
-  assert.equal(fs.existsSync(path.join(temp, 'pi-paseo/pairing.private.json')), false);
+  for (const name of ['pi-paseo/web-client', 'pi-paseo/daemon', 'pi-paseo/pairing.private.json', 'pi-paseo/preferences.json', 'pi-paseo/state.json',
+    'auth.json', '.claude', '.codex']) assert.equal(fs.existsSync(path.join(temp, name)), false, `a fresh volume gets no ${name}: the image distributes no client, identity, pairing or login`);
   const routes = '/usr/local/lib/node_modules/@agegr/pi-web/.next/server/app/';
   for (const route of ['api/plugin-paseo/route.js', 'paseo/setup/page.js']) assert.ok(fs.existsSync(routes + route), route);
   assert.equal(fs.existsSync(routes + 'paseo-web'), false, 'the retired /paseo-web route is not built');
@@ -95,34 +93,68 @@ try {
 } finally { fs.rmSync(temp, { recursive: true, force: true }); }
 // An official git pin moves to the bundle before Pi Web starts, once, with a
 // backup and a receipt. The checks below run after the migration boot and a
-// repeat boot (one receipt run). The volume also holds the web client state an
-// older image or plugin left behind: the seed must neither need, recreate nor
-// remove it, because the plugin deletes it itself when it activates.
+// repeat boot (one receipt run). The volume is an upgraded tenant's: Pi's login,
+// the plugin's state, the daemon identity and pairing of the 0.11.2 era, the
+// provider CLIs' logins under HOME and the web client an older image or plugin
+// left behind. The seed must leave every one of them exactly as it found it and
+// neither need, recreate nor remove the web client: the plugin deletes it itself
+// when it activates.
 const upgrade = fs.mkdtempSync(path.join(os.tmpdir(), 'paseo-upgrade-'));
 try {
+  const agent = path.join(upgrade, 'agent'), homeDir = path.join(upgrade, 'home');
   // 0.1.9 is the first Agent Connect release that downloaded the bundled web client.
   const pin = 'git:github.com/WOOWTECH/pi-paseo-plugin@v0.1.9';
-  fs.writeFileSync(path.join(upgrade, 'settings.json'), JSON.stringify({ packages: [pin] }));
-  const retired = path.join(upgrade, 'pi-paseo/web-client');
+  fs.mkdirSync(agent, { recursive: true }); fs.mkdirSync(homeDir, { recursive: true });
+  fs.writeFileSync(path.join(agent, 'settings.json'), JSON.stringify({ packages: [pin] }));
+  const retired = path.join(agent, 'pi-paseo/web-client');
   const release = path.join(retired, 'a'.repeat(64)), staging = path.join(retired, '.stage-00000000-0000-4000-8000-000000000000');
   for (const directory of [release, staging]) fs.mkdirSync(path.join(directory, '_expo'), { recursive: true });
   fs.writeFileSync(path.join(release, 'index.html'), '<!doctype html>');
   fs.writeFileSync(path.join(release, '_expo/entry.js'), 'retired client');
   fs.writeFileSync(path.join(release, '.installed.json'), '{"retired":true}');
-  fs.writeFileSync(path.join(upgrade, 'pi-paseo/state.json'), '{"phase":"stopped"}');
-  const listing = directory => fs.readdirSync(directory, { recursive: true, withFileTypes: true })
-    .map(entry => path.join(entry.parentPath, entry.name) + (entry.isFile() ? ':' + sha256(fs.readFileSync(path.join(entry.parentPath, entry.name))) : '')).sort();
-  const retiredBefore = listing(retired);
-  const env = { ...process.env, HOME: upgrade, PI_AGENT_DATA_DIR: upgrade, PI_CODING_AGENT_DIR: upgrade, PI_PASEO_PLUGIN_ROOT: bundle };
+  const oldState = { phase: 'stopped', installedVersion: '0.11.2', installedRuntimeRevision: '0.11.2-r4-4cf9d40940bf', daemonRuntimeRevision: '0.11.2-r4-4cf9d40940bf', activeTarget: 'paseo' };
+  const retained = [['auth.json', agent], ['pi-paseo/state.json', agent], ['pi-paseo/preferences.json', agent], ['pi-paseo/pairing.private.json', agent],
+    ['pi-paseo/daemon-instance.private.json', agent], ['pi-paseo/daemon/daemon.json', agent], ['pi-paseo/daemon/config.json', agent],
+    ['pi-paseo/daemon/daemon-keypair.json', agent], ['pi-paseo/daemon/server-id', agent], ['pi-paseo/daemon/agents/retained-agent.json', agent],
+    ['.claude/.credentials.json', homeDir], ['.codex/auth.json', homeDir],
+    ['.local/share/pi-paseo/runtime/releases/0.11.2-r4-4cf9d40940bf/.pi-paseo-runtime.json', homeDir]].map(([name, base]) => path.join(base, name));
+  for (const file of retained) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, file.endsWith('pi-paseo/state.json') ? JSON.stringify(oldState) : JSON.stringify({ retained: path.relative(upgrade, file) }));
+  }
+  const listing = directory => fs.readdirSync(directory, { recursive: true, withFileTypes: true }).map(entry => {
+    const file = path.join(entry.parentPath ?? entry.path, entry.name);
+    return file + (entry.isFile() ? ':' + sha256(fs.readFileSync(file)) : '');
+  }).sort();
+  const retiredBefore = listing(retired), retainedBefore = retained.map(file => sha256(fs.readFileSync(file)));
+  const env = { ...process.env, HOME: homeDir, PI_AGENT_DATA_DIR: agent, PI_CODING_AGENT_DIR: agent, PI_PASEO_PLUGIN_ROOT: bundle };
   for (let boot = 0; boot < 2; boot++) {
     const result = spawnSync(process.execPath, ['/usr/local/bin/pi-paseo-seed.mjs'], { env, encoding: 'utf8', timeout: 60000 });
     assert.equal(result.status, 0, 'moving an official pin requires no package manager or network');
   }
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(upgrade, 'settings.json'))).packages, [bundle]);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(upgrade, 'settings.json.pre-image-migration.bak'))).packages, [pin]);
-  const receipt = JSON.parse(fs.readFileSync(path.join(upgrade, 'pi-paseo/image-migration.json')));
+  // Use the image's inherited PI_PASEO_RUNTIME_DIR, not a test override. The
+  // actual plugin must accept the prebuilt release despite the old HOME/state.
+  // installRuntime() only runs npm ci when this runtimeReady() check is false.
+  const probe = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import assert from 'node:assert/strict';
+    const {locations} = await import(process.argv[1]);
+    const {runtimeReady, runtimeDirectory, RUNTIME_REVISION} = await import(process.argv[2]);
+    const loc = locations();
+    assert.equal(loc.runtimeDir, process.argv[3]);
+    assert.equal(runtimeReady(loc), true, 'old HOME must not trigger runtime npm ci');
+    assert.equal(runtimeDirectory(loc), process.argv[4]);
+    console.log(RUNTIME_REVISION);
+  `, pathToFileURL(path.join(bundle, 'src/state.mjs')).href,
+  pathToFileURL(path.join(bundle, 'src/runtime-layout.mjs')).href, loc.runtimeDir, runtime], { env, encoding: 'utf8', timeout: 30000 });
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.equal(probe.stdout.trim(), RUNTIME_REVISION);
+  assert.equal(fs.existsSync(path.join(homeDir, '.local/share/pi-paseo/runtime/releases', RUNTIME_REVISION)), false,
+    'migration must not install another runtime under HOME');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(agent, 'settings.json'))).packages, [bundle]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(agent, 'settings.json.pre-image-migration.bak'))).packages, [pin]);
+  const receipt = JSON.parse(fs.readFileSync(path.join(agent, 'pi-paseo/image-migration.json')));
   assert.equal(receipt.runs.length, 1); assert.equal(receipt.runs[0].changed[0].from, pin);
   assert.deepEqual(listing(retired), retiredBefore, 'the seed leaves an older web client state directory exactly as it found it');
-  assert.equal(fs.readFileSync(path.join(upgrade, 'pi-paseo/state.json'), 'utf8'), '{"phase":"stopped"}');
-  console.log('[build] official Paseo git pin moved to the image bundle; an older web client directory is left for the plugin to remove');
+  assert.deepEqual(retained.map(file => sha256(fs.readFileSync(file))), retainedBefore, 'logins, identity, pairing, preferences and state are untouched');
+  console.log('[build] official Paseo git pin moved to the image bundle; the volume and an older web client directory are left as found');
 } finally { fs.rmSync(upgrade, { recursive: true, force: true }); }
