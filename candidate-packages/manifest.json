@@ -2,30 +2,28 @@
   "status": "root-image-candidate-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.41.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.42-rc.3.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.41",
-      "sha256": "7de928d37def9feec4476674da82979c2bdb24adb3cd9413188959410120ad4e",
-      "published": true,
-      "sourceCommit": "b481f9cd74e269a3f52a5cbf62713e252573c075",
-      "releaseURL": "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.41/woowtech-pi-omnigent-plugin-0.3.41.tgz"
+      "version": "0.3.42-rc.3",
+      "sha256": "fe9eb04b44da3e509723889de77c00d1da44daff44c81b5cba6df43b117ab80e",
+      "published": false,
+      "sourceCommit": "828d136eca97f9f985250b14be3e43715ec2bf4d"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.26.tgz",
+      "file": "woowtech-pi-paseo-0.1.27-rc.3.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.26",
-      "sha256": "87fcc99b371ef8acbb694884ae3b8654e50f9270651062ac55d37090734f3825",
-      "published": true,
-      "sourceCommit": "23026e2442403ddee8df9f764ded6ea1a75b121e",
-      "runtimeRevision": "0.17.4-r2-a651f42711da",
+      "version": "0.1.27-rc.3",
+      "sha256": "ee3a2f8b35bb42f87b85d4811362d134dcbcb9ae8e8845af69cc6d75d27248f4",
+      "published": false,
+      "sourceCommit": "88857bd86a4bf982aef6d85122f16b7d4a03d009",
+      "runtimeRevision": "0.17.5-r3-8664f2c3f8f5",
       "betterPaseo": {
         "version": "1.7.0",
         "upstreamCommit": "e9ac5216185988ce99574b3e2f04f178020204f1",
-        "smartCommit": "d00161a34470aee6ff853651d6176c96f760fe33",
-        "builtinSha256": "a915ed83caacda0bb8da8ac9153521d15d72c99dd074cc290c54b1aa86316494",
-        "tasksChunkId": "09f2925ed07d663f"
-      },
-      "releaseURL": "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.26/woowtech-pi-paseo-0.1.26.tgz"
+        "smartCommit": "2b012f9f91377908c75b076c40a5917c712b66aa",
+        "builtinSha256": "ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d",
+        "tasksChunkId": "1821b057ad824d0d"
+      }
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.6.tgz",

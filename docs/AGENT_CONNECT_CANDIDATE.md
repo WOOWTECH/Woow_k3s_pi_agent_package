@@ -1,36 +1,30 @@
-# Agent Connect release candidate — 2026-11-26
+# Agent Connect coordinated release candidate — 2026-11-26
 
-Agent Connect 0.1.26 and Omnigent 0.3.41 are published GitHub releases; their
-anonymous release archives match the recorded SHAs below. This remains a root
-image candidate, not a published image or deployment.
-The earlier images failed live shared-skill authority or isolated extension-boundary checks and are superseded.
-Agent Connect 0.1.26 is the formal release from source commit
-`23026e2442403ddee8df9f764ded6ea1a75b121e`; its anonymous release archive was
-verified byte-for-byte against the candidate archive below. Omnigent 0.3.41 is the formal release from merged main commit
-`b481f9cd74e269a3f52a5cbf62713e252573c075`; both anonymous release assets
-match the candidate archive SHA shown below. This image consumes the reviewed archives committed
-under `candidate-packages/`, verifying their digests before installation.
-Repacking changed source requires updating every consumer pin together.
+This isolated root-image companion pins unpublished RC archives from the exact
+reviewed source heads. It is a candidate input set only: no OCI image has been
+built or published, and no PaaS BASE digest is available or changed.
 
-The 0.1.26/0.3.41 pair fixes Start service feedback: the settings page tracks
-scheduled startup, permits stopping while preparing, explains unsaved/pending
-target changes, and gives bounded timeout feedback without automatically
-repeating a lifecycle request. The daemon runtime, Better Paseo payload and
-maintenance-preservation code are unchanged from the preceding package pair.
+| Input | Candidate | Source head | Archive SHA-256 |
+| --- | --- | --- | --- |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.27-rc.3 | `88857bd86a4bf982aef6d85122f16b7d4a03d009` | `ee3a2f8b35bb42f87b85d4811362d134dcbcb9ae8e8845af69cc6d75d27248f4` |
+| `@woowtech/pi-omnigent-plugin` | 0.3.42-rc.3 | `828d136eca97f9f985250b14be3e43715ec2bf4d` | `fe9eb04b44da3e509723889de77c00d1da44daff44c81b5cba6df43b117ab80e` |
+| `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `e51849dfa340a2f91bcc7041092749d1b4859c70` | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
+| Combined Pi Web 0.10 adapter | 0.3.42-rc.3 | bound to both heads above | `13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb` |
 
-| Input | Candidate version | SHA-256 |
-| --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.26 | `87fcc99b371ef8acbb694884ae3b8654e50f9270651062ac55d37090734f3825` |
-| `@woowtech/pi-omnigent-plugin` | 0.3.41 | `7de928d37def9feec4476674da82979c2bdb24adb3cd9413188959410120ad4e` |
-| `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
-| Combined Pi Web 0.10 adapter | 0.3.41 | `13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb` |
-| Product-managed Better Paseo builtin | 1.7.0 | `a915ed83caacda0bb8da8ac9153521d15d72c99dd074cc290c54b1aa86316494` |
+Agent Connect includes official Paseo `0.17.5`, computed runtime revision
+`0.17.5-r3-8664f2c3f8f5`, and the complete product-managed Better Paseo 1.7.0
+builtin from smart commit `2b012f9f91377908c75b076c40a5917c712b66aa`.
+The builtin SHA-256 is
+`ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d`, with
+Tasks enabled and chat enhancements and self-update disabled. The package
+manifest and source-only tests verify the archives, exact pair, runtime revision
+and builtin provenance.
 
-The table is the current snapshot; `candidate-packages/manifest.json` is the checked record (see `tests/test_publication_packages.py`). The sections below keep the history of how the candidate was prepared, so they name the versions of their day.
+C3 records successful exact-head CI for Agent Connect, Omnigent, and native PR25 `82d004fbd358439fc38f3c38c1de875cf278313f`. The owner also reports native artifact/owned-acceptance checks, Gauss local validation, installed Aicoder, and Start 6/6 passing. These checks do not stand in for building and accepting this root image. After the image publication gate produces a real multiarch index digest, hand that exact accepted `tag@sha256` to the separate PaaS derivative workflow; keep the PaaS BASE unchanged until then.
 
-Changes belong to the authoritative Gitea repository. The GitHub repository
-and `paas/` remain mirrors; this candidate does not edit `paas/`. PaaS rollout
-requires its own rebuilt derivative image and digest pin.
+The table is the current snapshot; `candidate-packages/manifest.json` is the
+checked record (`tests/test_publication_packages.py`). Older sections below
+preserve the history of earlier candidate generations.
 
 Agent Connect preserves package IDs and paths. Existing installations default
 to Paseo; users may choose Woowtech Smart or Apporo Smart. A running daemon

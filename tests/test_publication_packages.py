@@ -57,11 +57,13 @@ class CandidateArchiveTests(unittest.TestCase):
                 self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
                 self.assertRegex(package['sourceCommit'], r'^[0-9a-f]{40}$')
                 self.assertIsInstance(package['published'], bool)
-                self.assertIs(package['published'], package['name'] in ('@woowtech/pi-paseo', '@woowtech/pi-omnigent-plugin'))
+                self.assertIs(package['published'], 'releaseURL' in package)
                 if package['published']:
                     self.assertTrue(package['releaseURL'].startswith('https://github.com/WOOWTECH/'))
                 else:
                     self.assertNotIn('releaseURL', package)
+                if '-rc.' in package['version']:
+                    self.assertFalse(package['published'], 'release candidates must not claim publication')
                 identity = archive_json(package, 'package.json')
                 self.assertEqual((identity['name'], identity['version']), (package['name'], package['version']))
                 with tarfile.open(PACKAGES / package['file']) as tar:

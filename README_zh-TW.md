@@ -606,9 +606,9 @@ EOF
   <sub>由 <a href="https://github.com/WOOWTECH">WOOWTECH</a> 用心打造 &bull; 基於 k3s</sub>
 </p>
 
-## Agent Connect 0.1.26 — 官方 Paseo 應用程式、Smart Tasks 內建外掛與 daemon 0.17.4
+## Agent Connect 0.1.27-rc.3 — 官方 Paseo 應用程式、完整 Better Paseo 內建外掛與 daemon 0.17.5-r3
 
-映像固定使用 [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.26（source `23026e2442403ddee8df9f764ded6ea1a75b121e`）與 Omnigent 插件 0.3.41（source `b481f9cd74e269a3f52a5cbf62713e252573c075`）的唯一相容組合，官方 Paseo 為 0.17.4（runtime `0.17.4-r2-a651f42711da`），並內建產品管理的 Better Paseo 1.7.0；Tasks 預設開啟，聊天增強與自動更新關閉。這些是凍結的候選輸入，尚不代表映像發布。根映像的版本標籤來自通過 `publish-accepted-image` 驗收的 `v*` 候選；PaaS 使用已驗收的根映像 `tag@sha256` 建置自己的衍生映像，詳見[映像發布流程](docs/IMAGE_PUBLICATION.md)。
+此協同候選將 [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.27-rc.3（source `88857bd86a4bf982aef6d85122f16b7d4a03d009`）與 Omnigent 插件 0.3.42-rc.3（source `828d136eca97f9f985250b14be3e43715ec2bf4d`）配成精確組合，官方 Paseo 為 0.17.5（runtime `0.17.5-r3-8664f2c3f8f5`）。產品管理的 Better Paseo 1.7.0 使用 smart commit `2b012f9f91377908c75b076c40a5917c712b66aa` 的完整 builtin（SHA-256 `ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d`）；Tasks 預設開啟，聊天增強與自動更新關閉。RC 套件尚未發布，這也不是已建置或發布的根映像。在已驗收根映像取得真實 index digest 前，PaaS BASE 維持原值；之後 PaaS 才以該精確 `tag@sha256` 建置獨立衍生映像。詳見[映像發布流程](docs/IMAGE_PUBLICATION.md)。
 
 - **Paseo 選項改開官方應用程式。** 選擇 Paseo 目標時，設定 → Agent Connect 會在 <https://app.paseo.sh/#offer=…> 開啟並配對，就像 Woowtech Smart 與 Apporo Smart 目標各自開啟自己的網站。配對不再等待網頁 client，Pi Web 內建的 `/paseo-web` 路由也已移除。
 - **曾透過舊版 `/paseo-web` 配對的瀏覽器需要再配對一次。** 到設定 → Agent Connect 產生新的配對連結並開啟即可。host 身分、各供應商登入與既有 agent 都不變。
@@ -617,9 +617,9 @@ EOF
 - **PID 檔相容性（0.1.21）。** daemon 目錄為擁有者私有的 `0700` 時，允許群組可寫的 PID 檔（上游在 umask `002` 下可能建立這種檔案）。仍核對擁有者、一般檔案、單一連結與私有身分證明；不接受所有人可寫的 PID 檔。
 - **「允許代理彼此協作」（0.1.22）預設關閉。** 開啟 `daemon.mcp.injectIntoAgents` 後，代理可建立並操作其他代理、終端機與排程，切換權限模式並批准權限請求；終端機可不經確認直接執行指令。變更只影響新對話，關閉不會移除既有代理的工具或取消排程；要立即重設，須停止再啟動 Agent Connect 並檢查排程。這個開關不是沙盒。
 - **Omnigent 維護拒絕原因（0.3.36–0.3.37）。** `MAINTENANCE_PRESERVATION_REQUIRED` 增加固定格式的 `reason`。`unsafe-source-file` 可指出 SDK 原始檔有硬連結；復原提示為 `repair --update`，以複製模式重裝受管理 SDK，再驗證維護保留功能。
-- **Paseo 0.17.4 首次啟動。** 仍在執行的 0.11.2 daemon 繼續服務並回報 `RESTART_REQUIRED`，停止再啟動才換版。新版本依 0.17.4 規則轉換語音／OpenAI 設定；若回報 `CONFIG_INCOMPATIBLE` 或 `CONFIG_CORRUPT`，先修正再停止舊 daemon。同一個 daemon home、身分、登入與對話資料保留；容器換版則先結束舊程序再啟動。
-- **Smart relay 相容性。** 選 Woowtech Smart 或 Apporo Smart 時，每次啟動設為 `daemon.relay.requireProtectedSecurity=false`。執行中若又開啟，配對回報 `PAIRING_SECURITY_UNSUPPORTED`；Paseo 目標維持用戶端選擇。0.17.4 與 Smart 的實際配對仍須驗收。
-- **終端機清理與磁碟。** 映像內建 procps `ps`，供 0.17.4 的獨立終端機 worker 核對程序；不相容的 `ps` 可能留下背景工作。即使 HOME 留著 0.11.2，也使用 `/opt/woow/pi-paseo-runtime` 的預建 runtime，遷移無須執行 runtime `npm ci`。每個 runtime 安裝後約 0.7 GB，新舊並存約 1.3 GB；自行覆寫 runtime 目錄仍可能需要安裝。詳見[預設值、退回限制與儲存空間](docs/AGENT_CONNECT_CANDIDATE.md#2026-11-25--paseo-0174-and-the-complete-upgrade)。
+- **Paseo 0.17.5 首次啟動。** 仍在執行的 0.11.2 daemon 繼續服務並回報 `RESTART_REQUIRED`，停止再啟動才換版。新版本依 0.17.5 規則轉換語音／OpenAI 設定；若回報 `CONFIG_INCOMPATIBLE` 或 `CONFIG_CORRUPT`，先修正再停止舊 daemon。同一個 daemon home、身分、登入與對話資料保留；容器換版則先結束舊程序再啟動。
+- **Smart relay 相容性。** 選 Woowtech Smart 或 Apporo Smart 時，每次啟動設為 `daemon.relay.requireProtectedSecurity=false`。執行中若又開啟，配對回報 `PAIRING_SECURITY_UNSUPPORTED`；Paseo 目標維持用戶端選擇。Smart 品牌 relay 的實際配對仍須驗收。
+- **終端機清理與磁碟。** 映像內建 procps `ps`，供 0.17.5 的獨立終端機 worker 核對程序；不相容的 `ps` 可能留下背景工作。即使 HOME 留著 0.11.2，也使用 `/opt/woow/pi-paseo-runtime` 的預建 runtime，遷移無須執行 runtime `npm ci`。每個 runtime 安裝後約 0.7 GB，新舊並存約 1.3 GB；自行覆寫 runtime 目錄仍可能需要安裝。詳見[預設值、退回限制與儲存空間](docs/AGENT_CONNECT_CANDIDATE.md#2026-11-25--paseo-0174-and-the-complete-upgrade)。
 
 ## 預裝 Claude Code 與 Codex（0.3.24）
 

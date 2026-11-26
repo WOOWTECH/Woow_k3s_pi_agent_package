@@ -54,7 +54,7 @@ assert.equal(pairing.adapterPatchSha256, sha256(fs.readFileSync(path.join(bundle
 // The bundled /paseo-web client is retired: nothing of it ships, and no Paseo target needs it.
 for (const retired of ['src/web-client.mjs', 'runtime/web-client.json']) assert.equal(fs.existsSync(path.join(bundle, retired)), false, retired);
 assert.equal(fs.existsSync('/opt/woow/pi-paseo-web'), false, 'no bundled Paseo web client archive');
-const expectedBrand = {server: '17ea88357d2f25caab81ad63d32804fe41158c1d70e8e4f549c4fc7173fe8d68', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: '20f860e40bfb9d654182fd996f4f1999f2b73fe2f2f924519bc344a5592e89f2'};
+const expectedBrand = {server: '4abdd2bc4f72d5865521b0d5adfca0743b6bd3a7cb8729df42f9b0baa635c523', helper: '036471982ccbbb5a7c3418631518025b245ac50e1c0b1a29c3824d16ba069733', patchId: '54f658b3f7885b521b6d664efbbd22b5f384c1878d36e45bb988de9ce9ac916b'};
 const brandDirectory = path.join(runtime, 'node_modules/@getpaseo/server/dist/server/server');
 for (const [name, expected] of [['websocket-server.js', expectedBrand.server], ['pi-paseo-brand-identity.mjs', expectedBrand.helper]]) {
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(brandDirectory, name))).digest('hex'), expected, name);
