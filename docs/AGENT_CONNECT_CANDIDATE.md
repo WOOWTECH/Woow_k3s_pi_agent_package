@@ -1,21 +1,24 @@
-# Agent Connect release candidate — 2026-11-21
+# Agent Connect release candidate — 2026-11-26
 
-This is coordinated source preparation, not a published release or deployment.
+Agent Connect 0.1.25 and Omnigent 0.3.40 are published GitHub releases; their
+anonymous release archives match the recorded SHAs below. This remains a root
+image candidate, not a published image or deployment.
 The earlier images failed live shared-skill authority or isolated extension-boundary checks and are superseded.
-The package archives below were produced locally with `npm pack`; the public
-release URLs do not exist yet. Their SHA-256 values are the actual local bytes,
-not placeholders. This image build consumes the reviewed archives committed
-under `candidate-packages/`, verifying their digests before installation. Other
-installers still need publication and anonymous download verification before
-they can consume the candidate release URLs. Repacking changed source requires
-updating every consumer pin together.
+Agent Connect 0.1.25 is the formal release from source commit
+`43cc7b0623c47afdbad6e35e0df7bd03dd5c72d3`; its anonymous release archive was
+verified byte-for-byte against the candidate archive below. Omnigent 0.3.40 is the formal release from merged main commit
+`a36f260d680d8334206e4b794a7c4bcd8dd2e99f`; both anonymous release assets
+match the candidate archive SHA shown below. This image consumes the reviewed archives committed
+under `candidate-packages/`, verifying their digests before installation.
+Repacking changed source requires updating every consumer pin together.
 
 | Input | Candidate version | SHA-256 |
 | --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.24 | `a8ffeda600318f3c42e5e0f86d87b860f69c15b5f915286df64f7ba05a51f831` |
-| `@woowtech/pi-omnigent-plugin` | 0.3.39 | `a5eb78fedabb3671cc4d70cc88e5826e1bf6d60075eba444288f3c4478a1ff58` |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.25 | `9717988c00a4c830a3fa458ab1ae778515c90257faaac0e68e695fefbf7cd8d1` |
+| `@woowtech/pi-omnigent-plugin` | 0.3.40 | `4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846` |
 | `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
-| Combined Pi Web 0.10 adapter | 0.3.39 | `5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5` |
+| Combined Pi Web 0.10 adapter | 0.3.40 | `5e2c36b43f56e9ca8c3c2873d94102a86c75b74973cc23b278c34a2556e678a5` |
+| Product-managed Better Paseo builtin | 1.7.0 | `a915ed83caacda0bb8da8ac9153521d15d72c99dd074cc290c54b1aa86316494` |
 
 The table is the current snapshot; `candidate-packages/manifest.json` is the checked record (see `tests/test_publication_packages.py`). The sections below keep the history of how the candidate was prepared, so they name the versions of their day.
 

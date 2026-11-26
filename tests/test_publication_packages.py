@@ -56,7 +56,12 @@ class CandidateArchiveTests(unittest.TestCase):
                 self.assertEqual(sha256((PACKAGES / package['file']).read_bytes()), package['sha256'])
                 self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
                 self.assertRegex(package['sourceCommit'], r'^[0-9a-f]{40}$')
-                self.assertIs(package['published'], False)
+                self.assertIsInstance(package['published'], bool)
+                self.assertIs(package['published'], package['name'] in ('@woowtech/pi-paseo', '@woowtech/pi-omnigent-plugin'))
+                if package['published']:
+                    self.assertTrue(package['releaseURL'].startswith('https://github.com/WOOWTECH/'))
+                else:
+                    self.assertNotIn('releaseURL', package)
                 identity = archive_json(package, 'package.json')
                 self.assertEqual((identity['name'], identity['version']), (package['name'], package['version']))
                 with tarfile.open(PACKAGES / package['file']) as tar:
@@ -138,6 +143,27 @@ class AgentConnectPairingTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), AGENT_CONNECT['runtimeRevision'])
         # The Dockerfile and tests/image-paseo.mjs read the Paseo release from the runtime manifest, so it must lead the revision.
         self.assertRegex(AGENT_CONNECT['runtimeRevision'], '^' + re.escape(manifest['dependencies']['@getpaseo/cli']) + r'-r[0-9]+-[0-9a-f]{12}$')
+
+    def test_product_managed_better_paseo_builtin_matches_the_reviewed_provenance(self):
+        expected = AGENT_CONNECT['betterPaseo']
+        package = archive_json(AGENT_CONNECT, 'runtime/better-paseo/package.json')
+        build = archive_json(AGENT_CONNECT, 'runtime/better-paseo/builtin-build.json')
+        provenance = archive_json(AGENT_CONNECT, 'runtime/better-paseo/provenance.json')
+        builtin = archive_member(AGENT_CONNECT, 'runtime/better-paseo/server/builtin.js')
+        self.assertEqual(package['version'], expected['version'])
+        self.assertEqual(build['version'], expected['version'])
+        self.assertEqual(provenance['version'], expected['version'])
+        self.assertEqual(build['commit'], expected['upstreamCommit'])
+        self.assertEqual(provenance['upstreamCommit'], expected['upstreamCommit'])
+        self.assertEqual(provenance['smartCommit'], expected['smartCommit'])
+        self.assertEqual(sha256(builtin), expected['builtinSha256'])
+        self.assertEqual(build['outputs']['server/builtin.js'], expected['builtinSha256'])
+        self.assertEqual(provenance['files']['server/builtin.js'], expected['builtinSha256'])
+        self.assertEqual(build['tasksChunkId'], expected['tasksChunkId'])
+        self.assertEqual(provenance['defaults'], {
+            'tasksEnabled': True, 'chatEnabled': False,
+            'selfUpdateEnabled': False, 'autoUpdateCheck': False,
+        })
 
 
 if __name__ == '__main__':

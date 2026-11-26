@@ -15,6 +15,18 @@ const bundle = '/opt/woow/pi-paseo-plugin';
 const omnigent = '/opt/woow/pi-omnigent-plugin';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = (...parts) => JSON.parse(fs.readFileSync(path.join(...parts)));
+const betterPaseo = path.join(bundle, 'runtime/better-paseo');
+const betterPackage = readJson(betterPaseo, 'package.json');
+const betterBuild = readJson(betterPaseo, 'builtin-build.json');
+const betterProvenance = readJson(betterPaseo, 'provenance.json');
+const betterBuiltinSha = sha256(fs.readFileSync(path.join(betterPaseo, 'server/builtin.js')));
+assert.equal(betterPackage.version, '1.7.0');
+assert.equal(betterBuild.version, betterPackage.version);
+assert.equal(betterProvenance.version, betterPackage.version);
+assert.equal(betterBuild.outputs['server/builtin.js'], betterBuiltinSha);
+assert.equal(betterProvenance.files['server/builtin.js'], betterBuiltinSha);
+assert.deepEqual(betterProvenance.defaults, {tasksEnabled: true, chatEnabled: false, selfUpdateEnabled: false, autoUpdateCheck: false});
+console.log('[build] product-managed Better Paseo 1.7.0 builtin provenance and defaults OK');
 // The runtime manifest names the Paseo release its lockfile installs. The Dockerfile pins each
 // archive's version and digest and candidate-packages/manifest.json records the runtime revision
 // (checked against the archive by tests/test_publication_packages.py), so nothing here repeats them.

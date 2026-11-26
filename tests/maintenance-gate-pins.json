@@ -3,12 +3,12 @@
   "beforeSha256": "2a80d492f6f844a8da0e7dbb3e8aaec396a2bbd525f6d042ddc3cf2eed6bccc6",
   "canonicalPublicationSha256": "93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8",
   "coreVersion": "0.16.0",
-  "pluginArchiveSha256": "a5eb78fedabb3671cc4d70cc88e5826e1bf6d60075eba444288f3c4478a1ff58",
+  "pluginArchiveSha256": "4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846",
   "pluginFiles": {
     "CHANGELOG.md": {
-      "bytes": 6108,
+      "bytes": 6530,
       "mode": 420,
-      "sha256": "cafd64144b9b7723f5d1701fadb723d8bac28b1e11539f5ba8afc144065ff207"
+      "sha256": "69e2b9807e79e76641b8b0288667a8b153b1ed62211af5c128ff6b57d4e1d461"
     },
     "LICENSE": {
       "bytes": 1065,
@@ -16,9 +16,9 @@
       "sha256": "f6980fa254a9734d6bac74df136fa8a931f3dae4dd11bfc7e5f50454a021a218"
     },
     "README.md": {
-      "bytes": 31813,
+      "bytes": 31817,
       "mode": 420,
-      "sha256": "d15c59d8034b5c47c1398140b21b9bdb8f507d28ce6ff5346c791a2ddf0b8a14"
+      "sha256": "f219f07a03c1a5faa31411d0464ffa7913a187af6f589a2dd631fe727e9a6803"
     },
     "bin/check.mjs": {
       "bytes": 1109,
@@ -83,7 +83,7 @@
     "integrations/pi-web/combined.adapter-meta.json": {
       "bytes": 784,
       "mode": 420,
-      "sha256": "f77e70671fb13c05a2675443fcf21295eb699415a579b523a38160ddfb54fbcd"
+      "sha256": "beb5d08cec1fcccd15158adbe3b9b24e9da2976909d5e12ca2a7e4cf6ec99f88"
     },
     "integrations/pi-web/combined.adapter.patch": {
       "bytes": 423583,
@@ -93,7 +93,7 @@
     "package.json": {
       "bytes": 1722,
       "mode": 420,
-      "sha256": "5f64d78c2e98f8925c03bde608a6906f9c28e5920eb49b94b8df76bcb9225b87"
+      "sha256": "ad74d0ffb04f56dd5fddb3e931df87af7bc9578cf7d479e4848c8b86e012b7b8"
     },
     "src/acceptance.mjs": {
       "bytes": 2609,
@@ -191,6 +191,6 @@
       "sha256": "68438fc856b3742246d720ab29f250f8c3bfb612cb7f33bc63674a7d99b8debb"
     }
   },
-  "pluginVersion": "0.3.39",
+  "pluginVersion": "0.3.40",
   "schema": "standalone-k3s-maintenance-gate-pins/v1"
 }

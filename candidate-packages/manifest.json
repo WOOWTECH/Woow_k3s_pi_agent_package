@@ -1,22 +1,31 @@
 {
-  "status": "local-source-candidates-not-published",
+  "status": "root-image-candidate-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.39.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.40.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.39",
-      "sha256": "a5eb78fedabb3671cc4d70cc88e5826e1bf6d60075eba444288f3c4478a1ff58",
-      "published": false,
-      "sourceCommit": "b2c6d12c171013cb7575fb4161afe17d92d76d87"
+      "version": "0.3.40",
+      "sha256": "4763b1bc98eb64a7f8cba890a9c7fdf8907a3cab001eb5ccaa246cd45642a846",
+      "published": true,
+      "sourceCommit": "a36f260d680d8334206e4b794a7c4bcd8dd2e99f",
+      "releaseURL": "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.40/woowtech-pi-omnigent-plugin-0.3.40.tgz"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.24.tgz",
+      "file": "woowtech-pi-paseo-0.1.25.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.24",
-      "sha256": "a8ffeda600318f3c42e5e0f86d87b860f69c15b5f915286df64f7ba05a51f831",
-      "published": false,
-      "sourceCommit": "ee8f9b437dc8e7e4041dc0c9ef73755951cd5bbb",
-      "runtimeRevision": "0.17.4-r1-a651f42711da"
+      "version": "0.1.25",
+      "sha256": "9717988c00a4c830a3fa458ab1ae778515c90257faaac0e68e695fefbf7cd8d1",
+      "published": true,
+      "sourceCommit": "43cc7b0623c47afdbad6e35e0df7bd03dd5c72d3",
+      "runtimeRevision": "0.17.4-r2-a651f42711da",
+      "betterPaseo": {
+        "version": "1.7.0",
+        "upstreamCommit": "e9ac5216185988ce99574b3e2f04f178020204f1",
+        "smartCommit": "d00161a34470aee6ff853651d6176c96f760fe33",
+        "builtinSha256": "a915ed83caacda0bb8da8ac9153521d15d72c99dd074cc290c54b1aa86316494",
+        "tasksChunkId": "09f2925ed07d663f"
+      },
+      "releaseURL": "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.25/woowtech-pi-paseo-0.1.25.tgz"
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.6.tgz",

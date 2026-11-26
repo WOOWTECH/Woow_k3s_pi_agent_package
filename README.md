@@ -637,9 +637,9 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
-## Agent Connect 0.1.24 — official Paseo app and daemon 0.17.4
+## Agent Connect 0.1.25 — official Paseo app, Smart Tasks builtin and daemon 0.17.4
 
-The image pins [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.24 and Omnigent plugin 0.3.39 as an exact pair, with Paseo 0.17.4 (runtime `0.17.4-r1-a651f42711da`). These are frozen candidate inputs, not an image release. Root version tags come from `v*` candidates accepted by `publish-accepted-image`; PaaS consumes the accepted root `tag@sha256` and builds its own derivative. See [image publication](docs/IMAGE_PUBLICATION.md).
+The image pins [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.25 (source `43cc7b0623c47afdbad6e35e0df7bd03dd5c72d3`) and Omnigent plugin 0.3.40 (source `a36f260d680d8334206e4b794a7c4bcd8dd2e99f`) as an exact pair, with official Paseo 0.17.4 (runtime `0.17.4-r2-a651f42711da`) and the product-managed Better Paseo 1.7.0 builtin. Its reviewed builtin defaults enable Tasks and disable chat enhancements and self-update. These are frozen candidate inputs, not an image release. Root version tags come from `v*` candidates accepted by `publish-accepted-image`; PaaS consumes the accepted root `tag@sha256` and builds its own derivative. See [image publication](docs/IMAGE_PUBLICATION.md).
 
 - **The Paseo option opens the official app.** With the Paseo target selected, Settings → Agent Connect opens and pairs at <https://app.paseo.sh/#offer=…>, the way the Woowtech Smart and Apporo Smart targets open their own sites. Pairing no longer waits for a web client, and the bundled `/paseo-web` route is gone from Pi Web.
 - **Browsers paired through the old `/paseo-web` must pair once more.** Create a new pairing link in Settings → Agent Connect and open it. The host identity, the provider logins and existing agents are unchanged.
