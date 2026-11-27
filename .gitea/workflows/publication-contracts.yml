@@ -10,6 +10,9 @@ on:
       - 'tests/test_publication_*.py'
       - 'tests/image-browser.py'
       - 'Dockerfile'
+      - 'rootfs/**'
+      - 'tests/*.test.mjs'
+      - 'tests/image-paseo.mjs'
       - 'candidate-packages/**'
       - 'scripts/image-maintenance-gate.py'
       - 'tests/image-managed-maintenance-check.py'
@@ -27,6 +30,9 @@ on:
       - 'tests/test_publication_*.py'
       - 'tests/image-browser.py'
       - 'Dockerfile'
+      - 'rootfs/**'
+      - 'tests/*.test.mjs'
+      - 'tests/image-paseo.mjs'
       - 'candidate-packages/**'
       - 'scripts/image-maintenance-gate.py'
       - 'tests/image-managed-maintenance-check.py'
@@ -53,6 +59,8 @@ jobs:
           /tmp/pi-publication-contracts/bin/python -m pip install 'PyYAML==6.0.2'
           /tmp/pi-publication-contracts/bin/python -m unittest discover -s tests -p 'test_publication_*.py'
           /tmp/pi-publication-contracts/bin/python -I -B tests/test_image_maintenance_gate.py
+          node --test tests/*seed*.test.mjs tests/plugin-pin-migration.test.mjs
+          node --check tests/image-paseo.mjs
           node --check tests/image-managed-maintenance.mjs
           bash -n scripts/accept-image.sh
           python3 -m py_compile scripts/image-candidate.py scripts/image-publication.py tests/image-browser.py scripts/image-maintenance-gate.py tests/image-managed-maintenance-check.py tests/test_image_maintenance_gate.py

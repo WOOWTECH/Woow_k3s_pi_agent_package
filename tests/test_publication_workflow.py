@@ -1,5 +1,6 @@
 """The build boundary must not publish user-facing tags before image acceptance."""
 from pathlib import Path
+from fnmatch import fnmatch
 import unittest
 import yaml
 
@@ -7,6 +8,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PublicationWorkflow(unittest.TestCase):
+    def test_gitea_runs_seed_contracts_when_their_inputs_change(self):
+        workflow = yaml.load((ROOT / '.gitea/workflows/publication-contracts.yml').read_text(), Loader=yaml.BaseLoader)
+        for event in ('pull_request', 'push'):
+            paths = workflow['on'][event]['paths']
+            for file in ('rootfs/usr/local/bin/pi-paseo-seed.mjs', 'rootfs/usr/local/bin/pi-plugin-pin-migration.mjs',
+                         'tests/paseo-seed.test.mjs', 'tests/omnigent-seed.test.mjs',
+                         'tests/plugin-pin-migration.test.mjs', 'tests/image-paseo.mjs'):
+                self.assertTrue(any(fnmatch(file, pattern) for pattern in paths), (event, file))
+        steps = workflow['jobs']['publication-contracts']['steps']
+        self.assertTrue(any(step.get('uses', '').startswith('actions/setup-node@')
+                            and step['with']['node-version'] == '22' for step in steps))
+        checks = next(step for step in steps if 'node --test' in step.get('run', ''))
+        self.assertIn('node --test tests/*seed*.test.mjs tests/plugin-pin-migration.test.mjs', checks['run'])
+        self.assertIn('set -euo pipefail', checks['run'])
+        self.assertNotIn('continue-on-error', checks)
+
     def test_build_pushes_only_the_unique_candidate(self):
         workflow = yaml.load((ROOT / '.github/workflows/build.yml').read_text(), Loader=yaml.BaseLoader)
         pushes = [step for job in workflow['jobs'].values() for step in job.get('steps', [])

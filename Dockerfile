@@ -126,11 +126,12 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.35
-ARG PI_OMNIGENT_SHA256=9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b
-ARG PI_OMNIGENT_UI_SHA256=f5c909b3fe6f544e11a4eed46c7e217a490f89c5e4ec356c9906e3908d9f6c30
-# Immutable plugin payload; lifecycle scripts never run during image build.
-COPY candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz /tmp/omnigent-plugin.tgz
+ARG PI_OMNIGENT_VERSION=0.3.42
+ARG PI_OMNIGENT_SHA256=7ffa8983e3bb2d9790f3122fd53db3e7adca4e24aed33f37aa4cc86bbeea5bb5
+ARG PI_OMNIGENT_UI_SHA256=8d55d6824307023eed5ead7fa89080650d3981fae1746378db9a400fab8a9632
+# Immutable plugin payload; lifecycle scripts never run during image build. The
+# archive name follows PI_OMNIGENT_VERSION, so a version bump edits one pin here.
+COPY candidate-packages/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz /tmp/omnigent-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_OMNIGENT_SHA256}  /tmp/omnigent-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-omnigent-plugin; \
@@ -138,10 +139,12 @@ RUN set -euo pipefail; \
     node -e 'const p=require("/opt/woow/pi-omnigent-plugin/package.json"); if(p.name!=="@woowtech/pi-omnigent-plugin" || p.version!==process.argv[1]) throw Error("unexpected plugin release")' "${PI_OMNIGENT_VERSION}"; \
     rm /tmp/omnigent-plugin.tgz
 # Pin both plugin source and runtime lockfile. No package manager is needed to
-# install Paseo itself on a fresh tenant volume.
-ARG PI_PASEO_VERSION=0.1.20
-ARG PI_PASEO_SHA256=1574c1bd1d0023c7b536c9feb773e1cdded929104d79cfb05b1deda5846203f8
-COPY candidate-packages/woowtech-pi-paseo-0.1.20.tgz /tmp/paseo-plugin.tgz
+# install Paseo itself on a fresh tenant volume. Agent Connect and the Omnigent
+# plugin's combined Pi Web adapter must move together: the adapter pins exactly
+# one Agent Connect version (tests/image-paseo.mjs re-checks the pair in the image).
+ARG PI_PASEO_VERSION=0.1.27
+ARG PI_PASEO_SHA256=aecf3bdff1505d3745ddc694f1e50fead50a0fc19b3fa2c82205174917143b6f
+COPY candidate-packages/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \
     mkdir -p /opt/woow/pi-paseo-plugin; \
@@ -159,15 +162,13 @@ RUN set -euo pipefail; \
     test -f "$CLAUDE_SDK/claude"; \
     rm -rf "$CLAUDE_SDK-musl"; \
     test -z "$(find "$PASEO_RUNTIME/node_modules/@anthropic-ai" -mindepth 1 -maxdepth 1 -name '*-musl' -print -quit)"; \
-    test "$(node "$PASEO_RUNTIME/node_modules/@getpaseo/cli/bin/paseo" --version)" = 0.11.2; \
+    # The runtime manifest names the exact Paseo release its lockfile installs, so
+    # moving the locked Paseo runtime needs no edit of this check.
+    PASEO_WANT="$(node -p 'require("/opt/woow/pi-paseo-plugin/runtime/package.json").dependencies["@getpaseo/cli"]')"; \
+    test "$(node "$PASEO_RUNTIME/node_modules/@getpaseo/cli/bin/paseo" --version)" = "$PASEO_WANT"; \
     node --input-type=module -e 'import {markRuntimeReady} from "/opt/woow/pi-paseo-plugin/src/runtime-layout.mjs"; markRuntimeReady({runtimeDir:"/opt/woow/pi-paseo-runtime"})'; \
+    chmod -R a+rX /opt/woow/pi-paseo-runtime; \
     rm /tmp/paseo-plugin.tgz
-# Ship the fixed Web client as a verified, compressed image asset. The same
-# plugin installer validates/extracts it offline into the tenant state directory
-# before Pi Web starts; no credentials or host identity are baked into the image.
-COPY rootfs/usr/local/bin/pi-paseo-web-seed.mjs /opt/woow/rootfs/usr/local/bin/pi-paseo-web-seed.mjs
-COPY scripts/prepare-paseo-web.mjs /opt/woow/scripts/prepare-paseo-web.mjs
-RUN node /opt/woow/scripts/prepare-paseo-web.mjs
 # Build the reviewed native settings adapter into the image. Tenants never need
 # a compiler, npm install, or a second Pi Web tree to see the Omnigent tab.
 RUN set -euo pipefail; \
@@ -184,14 +185,15 @@ RUN set -euo pipefail; \
     cd "$WEB"; \
     NODE_ENV=development npm_config_build_from_source=true npm ci --include=dev --no-audit --no-fund; \
     npm audit --audit-level=high --no-fund; \
-    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs 'app/paseo-web/[[...path]]/route.test.mjs' lib/paseo-*.test.mjs; \
+    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin node --experimental-strip-types --test app/api/omnigent/route.test.mjs lib/omnigent-runtime.test.mjs lib/omnigent-reload.test.mjs lib/settings-navigation.test.mjs app/api/plugin-paseo/route.test.mjs lib/paseo-*.test.mjs components/PaseoPluginPanel.behavior.test.mjs; \
     NEXT_TELEMETRY_DISABLED=1 CIRCLE_NODE_TOTAL=3 npm run build; \
     test -s .next/BUILD_ID; \
     test -f .next/server/app/api/omnigent/route.js; \
     test -f .next/server/app/omnigent/page.js; \
     test -f .next/server/app/api/plugin-paseo/route.js; \
     test -f .next/server/app/paseo/setup/page.js; \
-    test -f '.next/server/app/paseo-web/[[...path]]/route.js'; \
+    # The bundled /paseo-web client is retired: the Paseo target opens the official app.
+    test ! -e .next/server/app/paseo-web; \
     npm prune --omit=dev --ignore-scripts; \
     ln -s ../lib/node_modules/@agegr/pi-web/bin/pi-web.js /opt/piweb/bin/pi-web; \
     rm -rf .git .next/cache /tmp/npm-cache; \
@@ -342,8 +344,9 @@ COPY --from=piweb-builder /opt/piweb/lib/node_modules /usr/local/lib/node_module
 COPY --from=piweb-builder /opt/piweb/bin              /usr/local/bin
 COPY --from=piweb-builder /opt/woow/pi-omnigent-plugin /opt/woow/pi-omnigent-plugin
 COPY --from=piweb-builder /opt/woow/pi-paseo-plugin /opt/woow/pi-paseo-plugin
-COPY --from=piweb-builder /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
-COPY --from=piweb-builder /opt/woow/pi-paseo-web /opt/woow/pi-paseo-web
+# Set ownership on arrival: a later recursive chown can copy the entire runtime
+# into another image layer. Modes are prepared in the builder before this COPY.
+COPY --from=piweb-builder --chown=1000:1000 /opt/woow/pi-paseo-runtime /opt/woow/pi-paseo-runtime
 # Claude Code and Codex (see the builder stage): one layer each, linked into the
 # system PATH. The shared runtime finds them here and wraps them per tenant. The
 # Claude tree must hold exactly one native binary: no musl copy, and at most
@@ -365,14 +368,11 @@ RUN set -euo pipefail; \
 RUN ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-omnigent-plugin/node_modules \
     && ln -s /opt/woow/pi-omnigent-plugin/bin/cli.mjs /usr/local/bin/pi-omnigent \
     && ln -s /usr/local/lib/node_modules/@agegr/pi-web/node_modules /opt/woow/pi-paseo-plugin/node_modules \
-    && ln -s /opt/woow/pi-paseo-plugin/bin/cli.mjs /usr/local/bin/pi-paseo \
-    && chmod -R a+rX /opt/woow/pi-paseo-runtime \
-    && chown -R 1000:1000 /opt/woow/pi-paseo-runtime
+    && ln -s /opt/woow/pi-paseo-plugin/bin/cli.mjs /usr/local/bin/pi-paseo
 ENV PI_OMNIGENT_PLUGIN_ROOT=/opt/woow/pi-omnigent-plugin \
     PI_OMNIGENT_SDK_ROOT=/usr/local/lib/node_modules/@agegr/pi-web \
     PI_PASEO_RUNTIME_DIR=/opt/woow/pi-paseo-runtime \
-    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin \
-    PI_PASEO_WEB_ARCHIVE=/opt/woow/pi-paseo-web/client.tar.gz
+    PI_PASEO_PLUGIN_ROOT=/opt/woow/pi-paseo-plugin
 
 # Shared skills/MCP runtime. The reviewed source revision is recorded below; the
 # candidate payload is pinned by archive digest and package identity. Its
@@ -400,13 +400,12 @@ RUN set -euo pipefail; \
 
 COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
+COPY tests/image-sessions-json.mjs /opt/woow/tests/image-sessions-json.mjs
+COPY tests/sessions-http-json-acceptance.mjs /opt/woow/tests/sessions-http-json-acceptance.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
 COPY tests/image-shared-sync-boundary.mjs /opt/woow/tests/image-shared-sync-boundary.mjs
 COPY tests/image-shared-mcp-adapter.mjs /opt/woow/tests/image-shared-mcp-adapter.mjs
-# Preserve repository-relative imports for the same real offline suite in local QA and image builds.
-COPY tests/paseo-web-offline.mjs /opt/woow/tests/paseo-web-offline.mjs
-COPY rootfs/usr/local/bin/pi-paseo-seed.mjs rootfs/usr/local/bin/pi-paseo-web-seed.mjs rootfs/usr/local/bin/pi-plugin-pin-migration.mjs /opt/woow/rootfs/usr/local/bin/
 
 RUN chmod +x /usr/local/bin/pi \
              /usr/local/bin/pi-web-start.sh \
@@ -421,7 +420,6 @@ RUN chmod +x /usr/local/bin/pi \
     && tmux -V \
     && node /opt/woow/tests/image-startup.mjs \
     && node /opt/woow/tests/image-paseo.mjs \
-    && node --test /opt/woow/tests/paseo-web-offline.mjs \
     # Cross-stage ABI assertion: stage 1 compiled pty.node against ITS nodejs,
     # and this is the first moment the module is asked to load under the
     # nodejs that will actually run it.

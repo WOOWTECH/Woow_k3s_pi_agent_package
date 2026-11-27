@@ -1,22 +1,47 @@
 {
-  "status": "local-source-candidates-not-published",
+  "status": "root-image-candidate-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.35.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.42.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.35",
-      "sha256": "9ac751b3e0cf0b8f7c253e50c258321ce577191d0e07524d1d0621caa6d4db2b",
-      "published": false,
-      "sourceFreezeSha256": "095d8b1ab67f5d0dc66325b475790ba8fae695db8f835629a8e1dded343d8f87",
-      "releaseHandoffSha256": "cae362ce8904d655bd654b77994d0e0b2a1c406f47628d5e595dd6866b262dfb"
+      "version": "0.3.42",
+      "sha256": "7ffa8983e3bb2d9790f3122fd53db3e7adca4e24aed33f37aa4cc86bbeea5bb5",
+      "published": true,
+      "sourceCommit": "7b56ad586711e6a707c6c3f36ff5dc5fef2790a4",
+      "combinedPatchSha256": "8d55d6824307023eed5ead7fa89080650d3981fae1746378db9a400fab8a9632",
+      "piWebVersion": "0.10.0",
+      "piWebBaseCommit": "6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068",
+      "paseo": {
+        "packageVersion": "0.1.27",
+        "adapterPatchSha256": "22d3a604d0c3ddc9305afe07f9f68524bec906fddb16636c08ac2783b4442a6c"
+      },
+      "releaseURL": "https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.42/woowtech-pi-omnigent-plugin-0.3.42.tgz"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.20.tgz",
+      "file": "woowtech-pi-paseo-0.1.27.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.20",
-      "sha256": "1574c1bd1d0023c7b536c9feb773e1cdded929104d79cfb05b1deda5846203f8",
-      "published": false,
-      "sourceCommit": "aea2da4a83dbd220d8e9aa532ff91f9ac4e2c206"
+      "version": "0.1.27",
+      "sha256": "aecf3bdff1505d3745ddc694f1e50fead50a0fc19b3fa2c82205174917143b6f",
+      "published": true,
+      "sourceCommit": "053a39a7b72e83787a419b97206adc34f45e35bb",
+      "runtimeRevision": "0.17.5-r4-8664f2c3f8f5",
+      "adapterSha256": "22d3a604d0c3ddc9305afe07f9f68524bec906fddb16636c08ac2783b4442a6c",
+      "betterPaseo": {
+        "version": "1.7.0",
+        "upstreamCommit": "e9ac5216185988ce99574b3e2f04f178020204f1",
+        "smartCommit": "a7bfd65a3f39076cf664e28687818c24952e261c",
+        "builtinSha256": "7baa01803bcf477181169db05e537ecdc3075b295655ba5b2eee5e9a4db98109",
+        "tasksChunkId": "f9f9101d9d59ec1a",
+        "files": {
+          "index.client.ts": "68f27211b8fc364ae7b3e58e4b7c6026bdca989cfd2251f27e830d450ad4c922",
+          "index.server.ts": "e2dcac63d3a3c2816b9e3c639e6abb2f71a5a50872af989dd6b83a7299bdcccd",
+          "server/builtin.js": "7baa01803bcf477181169db05e537ecdc3075b295655ba5b2eee5e9a4db98109",
+          "builtin-build.json": "da1f9e36773dae2c69024e6dd337ce23835b00c11044a703dd8e632e83be5fc6",
+          "THIRD_PARTY_NOTICES.txt": "1d89a0c7fddb8b83545bb727b9c1bb9bac35f1bbc173bc01081bb591ffc2f1e6"
+        }
+      },
+      "archiveBuildCommit": "053a39a7b72e83787a419b97206adc34f45e35bb",
+      "releaseURL": "https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.27/woowtech-pi-paseo-0.1.27.tgz"
     },
     {
       "file": "woowtech-pi-agent-shared-runtime-0.1.6.tgz",

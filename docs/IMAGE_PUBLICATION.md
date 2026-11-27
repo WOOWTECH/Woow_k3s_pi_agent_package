@@ -83,3 +83,29 @@ tags, alter registry permissions, or retroactively certify their images.
 PaaS candidate promotion remains a separate sealed approval process requiring
 the authorised human's exact `/approve` comment. Root image publication neither
 creates that signature nor bypasses that gate, and deploys no running service.
+
+## Runtime layer size
+
+The 0.17.4 amd64 runtime is approximately 0.7 GB installed and about 236 MiB
+as a gzip-compressed tar in local preparation. This is a payload estimate,
+not a built OCI layer measurement; exporter metadata, compression and architecture
+can change the result. The final multiarch candidate must report actual layer
+sizes and pass acceptance before publication. Two retained runtime releases can
+require about 1.3 GB, separate from compressed registry storage and pull/unpack
+headroom on the node.
+
+This root workflow publishes directly to GHCR. GitHub documents a 10 GB limit
+per layer and a 10-minute upload timeout, so the measured runtime does not
+require a split for that destination. See [GHCR limits](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#troubleshooting).
+The HA sibling's `tests/assert-image-layer-sizes.mjs` enforces its own 256 MiB
+compressed-layer budget and splits this payload; that policy is not a k3s/GHCR
+limit. No split is introduced here. Modes are set in the builder and ownership
+is set with `COPY --chown=1000:1000`, avoiding a later recursive ownership
+change that can copy the runtime into another image layer.
+
+A registry behind an additional upload proxy needs its own limit check before
+reuse. For example, Cloudflare documents request-body limits of 100 MB on
+Free/Pro and 200 MB on Business; a roughly 236 MiB monolithic upload exceeds
+those limits. Chunking, proxy configuration and the actual registry route
+determine applicability; the application ingress is not GHCR's upload route.
+See [Cloudflare upload limits](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/4xx-client-error/error-413/).

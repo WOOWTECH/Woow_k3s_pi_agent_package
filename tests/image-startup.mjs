@@ -6,6 +6,9 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 const bundle = '/opt/woow/pi-omnigent-plugin', nativeWeb = '/usr/local/bin/pi-web';
+const piWebRoot = '/usr/local/lib/node_modules/@agegr/pi-web';
+assert.equal(JSON.parse(fs.readFileSync(path.join(piWebRoot, 'node_modules/next/package.json'), 'utf8')).version, '16.4.6',
+  'the final image must match the Next version locked by the RC6 Pi Web combined adapter');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'omnigent-image-'));
 try {
   const env = { ...process.env, HOME: temporary, PI_AGENT_DATA_DIR: temporary, PI_CODING_AGENT_DIR: temporary };

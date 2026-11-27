@@ -637,6 +637,21 @@ Bundled software keeps its own licence: `@agegr/pi-web`, `@earendil-works/pi-cod
   <sub>Built by <a href="https://github.com/WOOWTECH">WOOWTECH</a> &bull; Powered by k3s</sub>
 </p>
 
+## Agent Connect 0.1.27-rc.3 — official Paseo app, whole Better Paseo builtin and daemon 0.17.5-r3
+
+The coordinated candidate pairs [Agent Connect](https://github.com/WOOWTECH/pi-paseo-plugin) 0.1.27-rc.3 (source `88857bd86a4bf982aef6d85122f16b7d4a03d009`) with Omnigent plugin 0.3.42-rc.3 (source `828d136eca97f9f985250b14be3e43715ec2bf4d`), and carries official Paseo 0.17.5 (runtime `0.17.5-r3-8664f2c3f8f5`). The product-managed Better Paseo 1.7.0 is the exact whole builtin from smart commit `2b012f9f91377908c75b076c40a5917c712b66aa` (builtin SHA-256 `ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d`); Tasks are enabled and chat enhancements/self-update are disabled. The RC archives are unpublished candidate inputs and this is not a built or published root image. PaaS BASE remains unchanged until an accepted root image has a real index digest; PaaS then consumes that exact `tag@sha256` in its separate derivative. See [image publication](docs/IMAGE_PUBLICATION.md).
+
+- **The Paseo option opens the official app.** With the Paseo target selected, Settings → Agent Connect opens and pairs at <https://app.paseo.sh/#offer=…>, the way the Woowtech Smart and Apporo Smart targets open their own sites. Pairing no longer waits for a web client, and the bundled `/paseo-web` route is gone from Pi Web.
+- **Browsers paired through the old `/paseo-web` must pair once more.** Create a new pairing link in Settings → Agent Connect and open it. The host identity, the provider logins and existing agents are unchanged.
+- **Tenants need the image restarted.** A running pod keeps its old behaviour until it restarts on the new image. Agent Connect then removes the old client copy from its state directory (`pi-paseo/web-client`, about 28 MiB) the first time it activates; the startup seed neither needs nor recreates that directory.
+- **Build.** The image no longer downloads, bundles or seeds the patched Paseo Web build (`scripts/prepare-paseo-web.mjs`, `pi-paseo-web-seed.mjs`, `PI_PASEO_WEB_ARCHIVE` and `tests/paseo-web-offline.mjs` are removed).
+- **PID file compatibility (0.1.21).** A group-writable PID file is accepted inside the owner's private `0700` daemon directory (upstream can create it under umask `002`). Ownership, regular-file, single-link and private proof checks remain; world-writable PID files are rejected.
+- **Allow agents to collaborate (0.1.22) is off by default.** Enabling `daemon.mcp.injectIntoAgents` lets agents create and drive other agents, terminals and schedules, change permission modes and approve permission requests. Terminals can execute commands without confirmation. Changes affect new conversations; disabling it does not remove tools from existing agents or cancel schedules. Stop/start Agent Connect and review schedules for an immediate reset. This switch is not a sandbox.
+- **Omnigent maintenance refusals (0.3.36–0.3.37).** `MAINTENANCE_PRESERVATION_REQUIRED` now includes a bounded `reason`. `unsafe-source-file` can identify a hard-linked SDK source; the recovery hint is `repair --update`, which reinstalls the managed SDK using copy mode before verifying preservation.
+- **Paseo 0.17.5 and first start.** A live 0.11.2 daemon continues serving with `RESTART_REQUIRED` until stopped and started. Config loading uses 0.17.5's migration rules (including voice/OpenAI settings); `CONFIG_INCOMPATIBLE` or `CONFIG_CORRUPT` needs correction before stopping a live old daemon. The same daemon home, identity, logins and conversation data are retained. Container replacement ends the old process before startup.
+- **Smart relay compatibility.** Each start sets `daemon.relay.requireProtectedSecurity=false` for Woowtech Smart and Apporo Smart. If enabled again while running, pairing is refused with `PAIRING_SECURITY_UNSUPPORTED`. The Paseo target leaves this setting to its clients. Live branded relay pairing still needs acceptance.
+- **Terminal cleanup and disk.** The image includes procps `ps` for 0.17.5's detached terminal workers; incompatible `ps` can leave background jobs behind. The prebuilt runtime is selected at `/opt/woow/pi-paseo-runtime`, including when HOME retains 0.11.2, so this migration does not require runtime `npm ci`. A runtime is about 0.7 GB installed; old and new releases together need about 1.3 GB. Explicit runtime-directory overrides can still require installation. See [upgrade defaults, rollback and storage limits](docs/AGENT_CONNECT_CANDIDATE.md#2026-11-25--paseo-0174-and-the-complete-upgrade).
+
 ## Claude Code and Codex preinstalled (0.3.24)
 
 The image now ships the official **Claude Code 2.1.296** and **Codex 0.162.1** CLIs for amd64 and arm64, so every Pi Agent built from it can run `claude` and `codex` in the Pi Web terminal.
@@ -700,7 +715,7 @@ The image pins Paseo 0.1.12 and Omnigent 0.3.25. Installation and restart prepar
 
 ## Paseo pairing update (0.3.15)
 
-The 0.3.15 image and matching Helm chart pin [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) and Omnigent 0.3.22. The paired Pi Web client opens the host confirmation at `/paseo-web/welcome`, which preserves the private offer fragment across navigation. The combined Omnigent adapter also redirects older managed Paseo pairing links to that route. An empty Pi `auth.json` is reported as missing credentials; each tenant still signs in to its own Claude Code, Codex, and Pi providers before model conversations can be verified. The PaaS image and Chart are versioned separately from this base image.
+The 0.3.15 image and matching Helm chart pin [Paseo 0.1.11](https://github.com/WOOWTECH/pi-paseo-plugin/releases/tag/v0.1.11) and Omnigent 0.3.22. The paired Pi Web client opens the host confirmation at `/paseo-web/welcome`, which preserves the private offer fragment across navigation. The combined Omnigent adapter also redirects older managed Paseo pairing links to that route. An empty Pi `auth.json` is reported as missing credentials; each tenant still signs in to its own Claude Code, Codex, and Pi providers before model conversations can be verified. The PaaS image and Chart are versioned separately from this base image. (The bundled `/paseo-web` client was removed later; see "Agent Connect opens the official Paseo app".)
 
 ## Omnigent deployment package (0.3.13)
 
@@ -749,6 +764,8 @@ an explicit operator action (`PI_SHARED_INSTALL_MISSING_CLI=1` opts into the
 sharing runtime installer). The 0.3.0 tag was superseded during deployment QA.
 
 ## Bundled Paseo integration
+
+*The bundled `/paseo-web` client described in this section was removed; the Paseo option now opens the official app (see "Agent Connect opens the official Paseo app" above).*
 
 The 0.3.13 image bundles Paseo plugin **0.1.10**, Omnigent plugin **0.3.21**, and the locked Paseo **0.11.2** runtime with revision r3. Pi Web keeps its reviewed 0.10.0 base with settings sections ordered MCP → Omnigent → Paseo. Open `/paseo/setup` to pair with the bundled `/paseo-web/` client on the same authenticated Pi Web origin. The client fixes duplicated replies and partial replies after reconnect/refresh; it uses the existing encrypted relay. This does not change the separately deployed official `app.paseo.sh` client.
 

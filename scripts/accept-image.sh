@@ -114,6 +114,13 @@ expected_version=$(sed -n 's/^ARG PI_OMNIGENT_VERSION=//p' Dockerfile)
 [[ $plugin_version == "$expected_version" ]]
 base=$(python3 scripts/image-qa-network.py "$id" "$network" "$owner")
 timeout 240 python3 tests/image-browser.py "$base" "$plugin_version" first image-browser-first.json
+# Exercise a large real sessions response over HTTP with explicit gzip. The
+# helper creates and removes only its unique synthetic fixture directory.
+timeout 90 docker exec --user 1000:1000 \
+  -e PI_CODING_AGENT_DIR=/data/pi-agent \
+  -e PI_WEB_ROOT=/usr/local/lib/node_modules/@agegr/pi-web \
+  -e SESSIONS_HTTP_BASE_URL=http://127.0.0.1:30141 \
+  "$id" node /opt/woow/tests/image-sessions-json.mjs
 timeout 60 docker restart --time 15 "$id" >/dev/null
 base=$(python3 scripts/image-qa-network.py "$id" "$network" "$owner")
 timeout 240 python3 tests/image-browser.py "$base" "$plugin_version" restart image-browser-restart.json

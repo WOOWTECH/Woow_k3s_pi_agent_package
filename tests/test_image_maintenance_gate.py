@@ -17,6 +17,8 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# The pins file names the Omnigent archive version; the gate pins that file and the archive digest.
+ARCHIVE = 'candidate-packages/woowtech-pi-omnigent-plugin-' + json.loads((ROOT / 'tests/maintenance-gate-pins.json').read_text())['pluginVersion'] + '.tgz'
 
 
 def load(name, relative):
@@ -220,8 +222,7 @@ class SourceAndReceiptTests(unittest.TestCase):
     def test_narrowed_pins_and_archive_drift_fail_closed(self):
         with tempfile.TemporaryDirectory(prefix='owned-pins-refusal-') as owned:
             root = Path(owned)
-            names = ['tests/maintenance-gate-pins.json', 'scripts/image-publication.py',
-                     'candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz']
+            names = ['tests/maintenance-gate-pins.json', 'scripts/image-publication.py', ARCHIVE]
             for name in names:
                 (root / name).parent.mkdir(parents=True, exist_ok=True)
                 (root / name).write_bytes((ROOT / name).read_bytes())
@@ -234,10 +235,10 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_root_plugin_files_and_every_packaged_pin_are_exact(self):
         pins, _, _ = gate.validated_payload()
-        expected = {'Dockerfile': '555227066dfd029f21538b92cd626fe29a810e303332dd2f4dca790b432d6aeb',
-                    'candidate-packages/manifest.json': 'dff9cb94eaa205a90af231c63cf0a4aa1861ea9999e7e0b06d2d01c2e796b112'}
+        expected = {'Dockerfile': '8059ed34b3f89f419e4ea63e176e1760e990b36c6a21aa075a5fa9b70069c8ba',
+                    'candidate-packages/manifest.json': '47ff0153f67b18ce3d098d8cbc142ec97a2a515c79f2d36b18d1528178070904'}
         for name, digest in expected.items(): self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest)
-        with tarfile.open(ROOT / 'candidate-packages/woowtech-pi-omnigent-plugin-0.3.35.tgz') as archive:
+        with tarfile.open(ROOT / ARCHIVE) as archive:
             files = {m.name.removeprefix('package/'): m for m in archive if m.isfile()}
             self.assertEqual(set(files), set(pins['pluginFiles']))
             for name, item in files.items():
@@ -290,13 +291,23 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_node_protocol_validation_is_pure_and_rejects_fake_guard_success(self):
         positive = proof()['installs'][0]
-        negative = {'ok': False, 'changed': False, 'maintenancePreservation': {'code': 'MAINTENANCE_PRESERVATION_REQUIRED'},
+        negative = {'ok': False, 'changed': False, 'maintenancePreservation': {'code': 'MAINTENANCE_PRESERVATION_REQUIRED', 'reason': 'unsafe-source-file'},
                     'steps': [{'dependency': 'omnigent', 'action': 'maintenance-preservation', 'status': 'blocked'}]}
         script = "import assert from 'node:assert/strict';import {validateInstall,validateRefusal} from './tests/image-managed-maintenance.mjs';\n"
         script += 'const positive=' + json.dumps(positive) + ';\n'
         script += "validateInstall(positive.result,positive.calls,'fresh');positive.calls[0].copyMode='hardlink';assert.throws(()=>validateInstall(positive.result,positive.calls,'fresh'));\n"
         script += 'const negative=' + json.dumps(negative) + ';\n'
-        script += "const calls=[{kind:'guard',code:1,value:{ok:false,code:'MAINTENANCE_PRESERVATION_REQUIRED'},guardInputUnchanged:true}];validateRefusal(negative,calls);calls[0].code=0;assert.throws(()=>validateRefusal(negative,calls));console.log('PASS pure protocol fixture');"
+        script += """
+const calls=[{kind:'guard',code:1,value:{ok:false,code:'MAINTENANCE_PRESERVATION_REQUIRED',reason:'unsafe-source-file'},guardInputUnchanged:true}];
+const validate=()=>validateRefusal(negative,calls,'unsafe-source-file');
+validate();
+for (const target of [negative.maintenancePreservation,calls[0].value]) {
+  delete target.reason; assert.throws(validate);
+  target.reason='unexpected-error'; assert.throws(validate);
+  target.reason='unsafe-source-file';
+}
+calls[0].code=0;assert.throws(validate);console.log('PASS pure protocol fixture');
+"""
         r = subprocess.run(['node', '--input-type=module', '-'], input=script, cwd=ROOT, text=True, capture_output=True, timeout=10)
         self.assertEqual(r.returncode, 0, r.stderr)
 
