@@ -116,7 +116,11 @@ base=$(python3 scripts/image-qa-network.py "$id" "$network" "$owner")
 timeout 240 python3 tests/image-browser.py "$base" "$plugin_version" first image-browser-first.json
 # Exercise a large real sessions response over HTTP with explicit gzip. The
 # helper creates and removes only its unique synthetic fixture directory.
-timeout 90 docker exec --user 1000:1000 \
+# It runs as the owner of the sessions tree that the image's own start script
+# created (root here), so the fixture is written exactly as Pi Web writes it.
+sessions_owner=$(docker exec "$id" stat -c %u:%g /data/pi-agent/sessions)
+[[ $sessions_owner =~ ^[0-9]+:[0-9]+$ ]]
+timeout 90 docker exec --user "$sessions_owner" \
   -e PI_CODING_AGENT_DIR=/data/pi-agent \
   -e PI_WEB_ROOT=/usr/local/lib/node_modules/@agegr/pi-web \
   -e SESSIONS_HTTP_BASE_URL=http://127.0.0.1:30141 \

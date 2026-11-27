@@ -233,6 +233,12 @@ class AgentConnectPairingTests(unittest.TestCase):
         self.assertIn('COPY tests/image-sessions-json.mjs /opt/woow/tests/image-sessions-json.mjs', dockerfile)
         self.assertIn('COPY tests/sessions-http-json-acceptance.mjs /opt/woow/tests/sessions-http-json-acceptance.mjs', dockerfile)
         self.assertIn('node /opt/woow/tests/image-sessions-json.mjs', runner)
+        # The image starts as root and its start script creates the sessions tree; the helper must
+        # write its fixture as that owner, not as an assumed uid (root CI 45980620219 failed on EACCES).
+        call = runner[runner.index('sessions_owner=$(docker exec'):runner.index('node /opt/woow/tests/image-sessions-json.mjs')]
+        self.assertIn('stat -c %u:%g /data/pi-agent/sessions', call)
+        self.assertIn('docker exec --user "$sessions_owner"', call)
+        self.assertNotIn('--user 1000:1000', call)
         self.assertIn("'accept-encoding': 'gzip'", helper)
         self.assertIn('gunzipSync(response.body, { maxOutputLength: MAX_JSON_BYTES })', helper)
         self.assertIn("JSON.parse(decoded.toString('utf8'))", helper)
