@@ -62,6 +62,22 @@ def dockerfile_arg(name):
 
 
 class CandidateArchiveTests(unittest.TestCase):
+    def test_rc6_agent_connect_archive_is_staged_without_selecting_an_unpaired_image_tuple(self):
+        staged_path = PACKAGES / 'pending/agent-connect-rc6.json'
+        staged = json.loads(staged_path.read_text())
+        archive_path = ROOT / staged['file']
+        self.assertEqual(staged['status'], 'staged-unpaired-do-not-select-for-image')
+        self.assertEqual(staged['version'], '0.1.27-rc.6')
+        self.assertEqual(sha256(archive_path.read_bytes()), staged['sha256'])
+        with tarfile.open(archive_path) as tar:
+            package = json.load(tar.extractfile('package/package.json'))
+            adapter = tar.extractfile('package/host/adapter.patch').read()
+        self.assertEqual((package['name'], package['version']), ('@woowtech/pi-paseo', staged['version']))
+        self.assertEqual(sha256(adapter), staged['adapterSha256'])
+        self.assertEqual(staged['runtimeRevision'], '0.17.5-r4-8664f2c3f8f5')
+        self.assertEqual(staged['pairedOmnigentVersionExpected'], '0.3.42-rc.6')
+        self.assertEqual(AGENT_CONNECT['version'], '0.1.27-rc.5', 'never select an unpaired RC6 image tuple')
+
     def test_semver_prerelease_detection_covers_identifiers_and_build_metadata(self):
         for version in ('1.2.3-rc.3', '1.2.3-rc', '1.2.3-beta.1', '1.2.3-alpha.beta', '1.2.3-0'):
             with self.subTest(version=version):
