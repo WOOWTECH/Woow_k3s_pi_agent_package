@@ -136,6 +136,10 @@ class AgentConnectPairingTests(unittest.TestCase):
 
     def test_combined_adapter_pins_exactly_this_agent_connect_and_this_pi_web(self):
         meta = archive_json(OMNIGENT, 'integrations/pi-web/combined.adapter-meta.json')
+        self.assertEqual(OMNIGENT['sourceCommit'], 'f6c20d5150a41d76627f2684e5f338c457f80d09')
+        self.assertEqual(AGENT_CONNECT['sourceCommit'], '867d9065f609aa5e32d88f2d55cf07c5d3fadc3e')
+        self.assertEqual(OMNIGENT['version'], '0.3.42-rc.5')
+        self.assertEqual(AGENT_CONNECT['version'], '0.1.27-rc.5')
         self.assertEqual((meta['paseo']['packageName'], meta['paseo']['packageVersion']), (AGENT_CONNECT['name'], AGENT_CONNECT['version']))
         self.assertEqual(meta['paseo']['adapterPatchSha256'], sha256(archive_member(AGENT_CONNECT, 'host/adapter.patch')))
         self.assertEqual((meta['omnigent']['packageName'], meta['omnigent']['packageVersion']), (OMNIGENT['name'], OMNIGENT['version']))
@@ -176,21 +180,33 @@ class AgentConnectPairingTests(unittest.TestCase):
         package = archive_json(AGENT_CONNECT, 'runtime/better-paseo/package.json')
         build = archive_json(AGENT_CONNECT, 'runtime/better-paseo/builtin-build.json')
         provenance = archive_json(AGENT_CONNECT, 'runtime/better-paseo/provenance.json')
-        builtin = archive_member(AGENT_CONNECT, 'runtime/better-paseo/server/builtin.js')
+        self.assertEqual(AGENT_CONNECT['runtimeRevision'], '0.17.5-r4-8664f2c3f8f5')
         self.assertEqual(package['version'], expected['version'])
         self.assertEqual(build['version'], expected['version'])
         self.assertEqual(provenance['version'], expected['version'])
         self.assertEqual(build['commit'], expected['upstreamCommit'])
         self.assertEqual(provenance['upstreamCommit'], expected['upstreamCommit'])
         self.assertEqual(provenance['smartCommit'], expected['smartCommit'])
-        self.assertEqual(sha256(builtin), expected['builtinSha256'])
+        self.assertEqual(expected['smartCommit'], 'a7bfd65a3f39076cf664e28687818c24952e261c')
+        self.assertEqual(set(expected['files']), {'index.client.ts', 'index.server.ts', 'server/builtin.js', 'builtin-build.json', 'THIRD_PARTY_NOTICES.txt'})
+        for name, digest in expected['files'].items():
+            raw = archive_member(AGENT_CONNECT, f'runtime/better-paseo/{name}')
+            self.assertEqual(sha256(raw), digest, name)
+            self.assertEqual(provenance['files'][name], digest, f'provenance {name}')
+        self.assertEqual(expected['builtinSha256'], expected['files']['server/builtin.js'])
         self.assertEqual(build['outputs']['server/builtin.js'], expected['builtinSha256'])
-        self.assertEqual(provenance['files']['server/builtin.js'], expected['builtinSha256'])
+        self.assertEqual(build['outputs']['index.client.ts'], expected['files']['index.client.ts'])
+        self.assertEqual(build['outputs']['THIRD_PARTY_NOTICES.txt'], expected['files']['THIRD_PARTY_NOTICES.txt'])
         self.assertEqual(build['tasksChunkId'], expected['tasksChunkId'])
         self.assertEqual(provenance['defaults'], {
             'tasksEnabled': True, 'chatEnabled': False,
             'selfUpdateEnabled': False, 'autoUpdateCheck': False,
         })
+
+    def test_image_startup_reads_the_installed_next_package_version(self):
+        smoke = (ROOT / 'tests/image-startup.mjs').read_text()
+        self.assertIn('node_modules/next/package.json', smoke)
+        self.assertIn("version, '16.3.6'", smoke)
 
 
 if __name__ == '__main__':

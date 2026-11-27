@@ -6,19 +6,25 @@ built or published, and no PaaS BASE digest is available or changed.
 
 | Input | Candidate | Source head | Archive SHA-256 |
 | --- | --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.27-rc.3 | `88857bd86a4bf982aef6d85122f16b7d4a03d009` | `ee3a2f8b35bb42f87b85d4811362d134dcbcb9ae8e8845af69cc6d75d27248f4` |
-| `@woowtech/pi-omnigent-plugin` | 0.3.42-rc.3 | `828d136eca97f9f985250b14be3e43715ec2bf4d` | `fe9eb04b44da3e509723889de77c00d1da44daff44c81b5cba6df43b117ab80e` |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.27-rc.5 | `867d9065f609aa5e32d88f2d55cf07c5d3fadc3e` | `581d5468020344dc93728da862118a4f8258a1a9a610ca16336e865345dceaa5` |
+| `@woowtech/pi-omnigent-plugin` | 0.3.42-rc.5 | `f6c20d5150a41d76627f2684e5f338c457f80d09` | `07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f` |
 | `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `e51849dfa340a2f91bcc7041092749d1b4859c70` | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
-| Combined Pi Web 0.10 adapter | 0.3.42-rc.3 | bound to both heads above | `13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb` |
+| Combined Pi Web 0.10 adapter | 0.3.42-rc.5 | bound to both heads above | `5bbbd15bf9b0734bb4964c79dd620ecbc3e0ccda26af3cec2cb6a488d8eba7aa` |
 
 Agent Connect includes official Paseo `0.17.5`, computed runtime revision
-`0.17.5-r3-8664f2c3f8f5`, and the complete product-managed Better Paseo 1.7.0
-builtin from smart commit `2b012f9f91377908c75b076c40a5917c712b66aa`.
-The builtin SHA-256 is
-`ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d`, with
-Tasks enabled and chat enhancements and self-update disabled. The package
-manifest and source-only tests verify the archives, exact pair, runtime revision
-and builtin provenance.
+`0.17.5-r4-8664f2c3f8f5`, and the complete product-managed Better Paseo 1.7.0
+payload from smart commit `a7bfd65a3f39076cf664e28687818c24952e261c`. The
+manifest and source-only tests hash all five payload files, including
+`THIRD_PARTY_NOTICES.txt` (`1d89a0c7fddb8b83545bb727b9c1bb9bac35f1bbc173bc01081bb591ffc2f1e6`).
+Tasks remain enabled; chat enhancements and self-update remain disabled.
+
+The RC5 combined adapter remains bound to Pi Web 0.10.0 at source
+`6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068`. That source declares and locks
+Next 16.3.6. The image startup smoke reads the actual
+`node_modules/next/package.json` and checks it against that pinned source. The
+separate Next 16.4.6 upgrade is not included in this C5 tuple: real-image testing
+found it conflicts with the sessions handler's manual gzip response, so it is
+held for a new compression-adapter tuple. No local image was built here.
 
 C3 records successful exact-head CI for Agent Connect, Omnigent, and native PR25 `82d004fbd358439fc38f3c38c1de875cf278313f`. The owner also reports native artifact/owned-acceptance checks, Gauss local validation, installed Aicoder, and Start 6/6 passing. These checks do not stand in for building and accepting this root image. After the image publication gate produces a real multiarch index digest, hand that exact accepted `tag@sha256` to the separate PaaS derivative workflow; keep the PaaS BASE unchanged until then.
 

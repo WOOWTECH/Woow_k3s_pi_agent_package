@@ -126,9 +126,9 @@ RUN apt-get update \
 # against this build's nodejs, and the build/Release assertion below holds.
 ARG PI_WEB_VERSION=0.10.0
 ARG PI_WEB_REF=6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068
-ARG PI_OMNIGENT_VERSION=0.3.42-rc.3
-ARG PI_OMNIGENT_SHA256=fe9eb04b44da3e509723889de77c00d1da44daff44c81b5cba6df43b117ab80e
-ARG PI_OMNIGENT_UI_SHA256=13775483ce327a544b2604f4205db11ec0eec516e0765c44bebf72a133503dbb
+ARG PI_OMNIGENT_VERSION=0.3.42-rc.5
+ARG PI_OMNIGENT_SHA256=07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f
+ARG PI_OMNIGENT_UI_SHA256=5bbbd15bf9b0734bb4964c79dd620ecbc3e0ccda26af3cec2cb6a488d8eba7aa
 # Immutable plugin payload; lifecycle scripts never run during image build. The
 # archive name follows PI_OMNIGENT_VERSION, so a version bump edits one pin here.
 COPY candidate-packages/woowtech-pi-omnigent-plugin-${PI_OMNIGENT_VERSION}.tgz /tmp/omnigent-plugin.tgz
@@ -142,8 +142,8 @@ RUN set -euo pipefail; \
 # install Paseo itself on a fresh tenant volume. Agent Connect and the Omnigent
 # plugin's combined Pi Web adapter must move together: the adapter pins exactly
 # one Agent Connect version (tests/image-paseo.mjs re-checks the pair in the image).
-ARG PI_PASEO_VERSION=0.1.27-rc.3
-ARG PI_PASEO_SHA256=ee3a2f8b35bb42f87b85d4811362d134dcbcb9ae8e8845af69cc6d75d27248f4
+ARG PI_PASEO_VERSION=0.1.27-rc.5
+ARG PI_PASEO_SHA256=581d5468020344dc93728da862118a4f8258a1a9a610ca16336e865345dceaa5
 COPY candidate-packages/woowtech-pi-paseo-${PI_PASEO_VERSION}.tgz /tmp/paseo-plugin.tgz
 RUN set -euo pipefail; \
     echo "${PI_PASEO_SHA256}  /tmp/paseo-plugin.tgz" | sha256sum -c -; \

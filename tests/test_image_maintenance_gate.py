@@ -235,8 +235,8 @@ class SourceAndReceiptTests(unittest.TestCase):
 
     def test_root_plugin_files_and_every_packaged_pin_are_exact(self):
         pins, _, _ = gate.validated_payload()
-        expected = {'Dockerfile': 'ec322a9c6a48d6c0127c68d24baa2a3481269e1e8f4c8de6d618c3d113d2452e',
-                    'candidate-packages/manifest.json': 'dc64ef1e1bcd5065f2ffa1391a8b5868bc8b29e9225342be0dbe6ad8b2d29d43'}
+        expected = {'Dockerfile': 'cd6a7b497b192ff4c92f75814333386350c6388dc06372aebcdd7c18cab52ad7',
+                    'candidate-packages/manifest.json': '1096ac7fa02e29faf52445a3b84aefc03216c541e417bad79eadeb6dbbb2317c'}
         for name, digest in expected.items(): self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), digest)
         with tarfile.open(ROOT / ARCHIVE) as archive:
             files = {m.name.removeprefix('package/'): m for m in archive if m.isfile()}

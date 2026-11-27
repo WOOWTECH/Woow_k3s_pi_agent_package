@@ -2,27 +2,38 @@
   "status": "root-image-candidate-not-published",
   "packages": [
     {
-      "file": "woowtech-pi-omnigent-plugin-0.3.42-rc.3.tgz",
+      "file": "woowtech-pi-omnigent-plugin-0.3.42-rc.5.tgz",
       "name": "@woowtech/pi-omnigent-plugin",
-      "version": "0.3.42-rc.3",
-      "sha256": "fe9eb04b44da3e509723889de77c00d1da44daff44c81b5cba6df43b117ab80e",
+      "version": "0.3.42-rc.5",
+      "sha256": "07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f",
       "published": false,
-      "sourceCommit": "828d136eca97f9f985250b14be3e43715ec2bf4d"
+      "sourceCommit": "f6c20d5150a41d76627f2684e5f338c457f80d09",
+      "combinedPatchSha256": "5bbbd15bf9b0734bb4964c79dd620ecbc3e0ccda26af3cec2cb6a488d8eba7aa",
+      "piWebVersion": "0.10.0",
+      "piWebBaseCommit": "6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068"
     },
     {
-      "file": "woowtech-pi-paseo-0.1.27-rc.3.tgz",
+      "file": "woowtech-pi-paseo-0.1.27-rc.5.tgz",
       "name": "@woowtech/pi-paseo",
-      "version": "0.1.27-rc.3",
-      "sha256": "ee3a2f8b35bb42f87b85d4811362d134dcbcb9ae8e8845af69cc6d75d27248f4",
+      "version": "0.1.27-rc.5",
+      "sha256": "581d5468020344dc93728da862118a4f8258a1a9a610ca16336e865345dceaa5",
       "published": false,
-      "sourceCommit": "88857bd86a4bf982aef6d85122f16b7d4a03d009",
-      "runtimeRevision": "0.17.5-r3-8664f2c3f8f5",
+      "sourceCommit": "867d9065f609aa5e32d88f2d55cf07c5d3fadc3e",
+      "runtimeRevision": "0.17.5-r4-8664f2c3f8f5",
+      "adapterSha256": "aefb39dd6c378571ea8146bfa27fa153609da7460bc7198c3cfeb471ce02bcd6",
       "betterPaseo": {
         "version": "1.7.0",
         "upstreamCommit": "e9ac5216185988ce99574b3e2f04f178020204f1",
-        "smartCommit": "2b012f9f91377908c75b076c40a5917c712b66aa",
-        "builtinSha256": "ecfd6599fead8aab92a06c12123230c2df76c70ae211b24e5dd0f301e8e4fa2d",
-        "tasksChunkId": "1821b057ad824d0d"
+        "smartCommit": "a7bfd65a3f39076cf664e28687818c24952e261c",
+        "builtinSha256": "7baa01803bcf477181169db05e537ecdc3075b295655ba5b2eee5e9a4db98109",
+        "tasksChunkId": "f9f9101d9d59ec1a",
+        "files": {
+          "index.client.ts": "68f27211b8fc364ae7b3e58e4b7c6026bdca989cfd2251f27e830d450ad4c922",
+          "index.server.ts": "e2dcac63d3a3c2816b9e3c639e6abb2f71a5a50872af989dd6b83a7299bdcccd",
+          "server/builtin.js": "7baa01803bcf477181169db05e537ecdc3075b295655ba5b2eee5e9a4db98109",
+          "builtin-build.json": "da1f9e36773dae2c69024e6dd337ce23835b00c11044a703dd8e632e83be5fc6",
+          "THIRD_PARTY_NOTICES.txt": "1d89a0c7fddb8b83545bb727b9c1bb9bac35f1bbc173bc01081bb591ffc2f1e6"
+        }
       }
     },
     {
