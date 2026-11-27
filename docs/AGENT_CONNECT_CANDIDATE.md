@@ -26,6 +26,13 @@ separate Next 16.4.6 upgrade is not included in this C5 tuple: real-image testin
 found it conflicts with the sessions handler's manual gzip response, so it is
 held for a new compression-adapter tuple. No local image was built here.
 
+The isolated C6 test-prep branches add a real `GET /api/sessions` HTTP check:
+24 owned synthetic sessions force a large gzip response, which is decoded once
+and parsed as JSON, then the fixture directory is removed. HA runs it against
+its live image-smoke Pi Web process; k3s runs it in the owned candidate-image
+acceptance container before restart. This is test preparation only; the RC6
+package tuple is still pending.
+
 C3 records successful exact-head CI for Agent Connect, Omnigent, and native PR25 `82d004fbd358439fc38f3c38c1de875cf278313f`. The owner also reports native artifact/owned-acceptance checks, Gauss local validation, installed Aicoder, and Start 6/6 passing. These checks do not stand in for building and accepting this root image. After the image publication gate produces a real multiarch index digest, hand that exact accepted `tag@sha256` to the separate PaaS derivative workflow; keep the PaaS BASE unchanged until then.
 
 The table is the current snapshot; `candidate-packages/manifest.json` is the

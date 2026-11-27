@@ -400,6 +400,8 @@ RUN set -euo pipefail; \
 
 COPY rootfs/ /
 COPY tests/image-startup.mjs /opt/woow/tests/image-startup.mjs
+COPY tests/image-sessions-json.mjs /opt/woow/tests/image-sessions-json.mjs
+COPY tests/sessions-http-json-acceptance.mjs /opt/woow/tests/sessions-http-json-acceptance.mjs
 COPY tests/image-paseo.mjs /opt/woow/tests/image-paseo.mjs
 COPY tests/image-cli-sharing.mjs /opt/woow/tests/image-cli-sharing.mjs
 COPY tests/image-shared-sync-boundary.mjs /opt/woow/tests/image-shared-sync-boundary.mjs

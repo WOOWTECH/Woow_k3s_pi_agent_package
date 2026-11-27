@@ -208,6 +208,18 @@ class AgentConnectPairingTests(unittest.TestCase):
         self.assertIn('node_modules/next/package.json', smoke)
         self.assertIn("version, '16.3.6'", smoke)
 
+    def test_full_image_acceptance_runs_real_sessions_json_gzip_http_check(self):
+        dockerfile = (ROOT / 'Dockerfile').read_text()
+        runner = (ROOT / 'scripts/accept-image.sh').read_text()
+        helper = (ROOT / 'tests/sessions-http-json-acceptance.mjs').read_text()
+        self.assertIn('COPY tests/image-sessions-json.mjs /opt/woow/tests/image-sessions-json.mjs', dockerfile)
+        self.assertIn('COPY tests/sessions-http-json-acceptance.mjs /opt/woow/tests/sessions-http-json-acceptance.mjs', dockerfile)
+        self.assertIn('node /opt/woow/tests/image-sessions-json.mjs', runner)
+        self.assertIn("'accept-encoding': 'gzip'", helper)
+        self.assertIn('gunzipSync(response.body)', helper)
+        self.assertIn("JSON.parse(decoded.toString('utf8'))", helper)
+        self.assertIn('minimumSessions = 24', helper)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
