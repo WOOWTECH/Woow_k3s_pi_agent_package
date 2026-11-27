@@ -216,8 +216,13 @@ class AgentConnectPairingTests(unittest.TestCase):
         self.assertIn('COPY tests/sessions-http-json-acceptance.mjs /opt/woow/tests/sessions-http-json-acceptance.mjs', dockerfile)
         self.assertIn('node /opt/woow/tests/image-sessions-json.mjs', runner)
         self.assertIn("'accept-encoding': 'gzip'", helper)
-        self.assertIn('gunzipSync(response.body)', helper)
+        self.assertIn('gunzipSync(response.body, { maxOutputLength: MAX_JSON_BYTES })', helper)
         self.assertIn("JSON.parse(decoded.toString('utf8'))", helper)
+        self.assertIn('await fetchResponse.json()', helper)
+        self.assertIn('MAX_WIRE_BYTES = 1024 * 1024', helper)
+        self.assertIn("assert.equal(target.hostname, '127.0.0.1'", helper)
+        self.assertIn("result.on('aborted'", helper)
+        self.assertIn("result.on('error'", helper)
         self.assertIn('minimumSessions = 24', helper)
 
 
