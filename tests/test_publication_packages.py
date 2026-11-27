@@ -146,7 +146,7 @@ class AgentConnectPairingTests(unittest.TestCase):
     def test_combined_adapter_pins_exactly_this_agent_connect_and_this_pi_web(self):
         meta = archive_json(OMNIGENT, 'integrations/pi-web/combined.adapter-meta.json')
         self.assertEqual(OMNIGENT['sourceCommit'], 'd4640bac3fd48b338c1f81230cb3d31fb75f79b2')
-        self.assertEqual(AGENT_CONNECT['sourceCommit'], '867d9065f609aa5e32d88f2d55cf07c5d3fadc3e')
+        self.assertEqual(AGENT_CONNECT['sourceCommit'], 'ba9f1c408a61193efc47c2914c6edd67c6f681b7')
         self.assertEqual(OMNIGENT['version'], '0.3.42-rc.6')
         self.assertEqual(AGENT_CONNECT['version'], '0.1.27-rc.6')
         self.assertEqual((meta['paseo']['packageName'], meta['paseo']['packageVersion']), (AGENT_CONNECT['name'], AGENT_CONNECT['version']))
@@ -157,6 +157,10 @@ class AgentConnectPairingTests(unittest.TestCase):
         self.assertEqual(meta['patchSha256'], combined)
         self.assertEqual(dockerfile_arg('PI_OMNIGENT_UI_SHA256'), combined)
         self.assertEqual((meta['baseCommit'], meta['piWebVersion']), (dockerfile_arg('PI_WEB_REF'), dockerfile_arg('PI_WEB_VERSION')))
+        self.assertIn('"next": "16.4.6"', archive_member(OMNIGENT, 'integrations/pi-web/combined.adapter.patch').decode())
+        self.assertIn('"eslint-config-next": "16.4.6"', archive_member(OMNIGENT, 'integrations/pi-web/combined.adapter.patch').decode())
+        self.assertIn('npm ci --include=dev', DOCKERFILE)
+        self.assertIn('npm audit --audit-level=high', DOCKERFILE)
 
     def test_the_bundled_paseo_web_client_is_gone_from_both_archives(self):
         with tarfile.open(PACKAGES / AGENT_CONNECT['file']) as tar:
@@ -215,7 +219,7 @@ class AgentConnectPairingTests(unittest.TestCase):
     def test_image_startup_reads_the_installed_next_package_version(self):
         smoke = (ROOT / 'tests/image-startup.mjs').read_text()
         self.assertIn('node_modules/next/package.json', smoke)
-        self.assertIn("version, '16.3.6'", smoke)
+        self.assertIn("version, '16.4.6'", smoke)
 
     def test_full_image_acceptance_runs_real_sessions_json_gzip_http_check(self):
         dockerfile = (ROOT / 'Dockerfile').read_text()

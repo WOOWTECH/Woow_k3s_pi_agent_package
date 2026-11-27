@@ -4,7 +4,7 @@ This k3s worktree selects the complete paired candidate:
 
 | Package | Source commit | Archive SHA-256 |
 | --- | --- | --- |
-| Agent Connect 0.1.27-rc.6 | `867d9065f609aa5e32d88f2d55cf07c5d3fadc3e` (archive commit `ba9f1c408a61193efc47c2914c6edd67c6f681b7`) | `224c819fc14876c86f5febe0996a26e73ce618682faf611bac1b340b08b71335` |
+| Agent Connect 0.1.27-rc.6 | `ba9f1c408a61193efc47c2914c6edd67c6f681b7` (source/archive commit) | `224c819fc14876c86f5febe0996a26e73ce618682faf611bac1b340b08b71335` |
 | Omnigent 0.3.42-rc.6 | `d4640bac3fd48b338c1f81230cb3d31fb75f79b2` | `91321ee0af4a8500317b726113e0c24332026f26142c4400b283cd55883f12e0` |
 
 The Agent Connect adapter SHA-256 is
@@ -18,10 +18,12 @@ The C6 sessions acceptance checks bounded raw gzip bytes and normal
 `fetch().json()` parsing on the owned image loopback server. The local helper
 receipt at
 [`logs/sessions-http-json-live-piweb-receipt.json`](../logs/sessions-http-json-live-piweb-receipt.json)
-records Pi Web 0.12.0 / Next 16.3.8 and the exact installed package/lock hashes.
+records Pi Web 0.12.0 / Next 16.3.8 and the exact installed package/lock hashes;
+this is isolated helper evidence, not the k3s image version.
 Canonical Agent Connect RC6 production HTTP evidence separately records Next
 16.4.6 and valid single-layer gzip JSON. The k3s image source still pins Pi Web
-0.10.0 / Next 16.3.6 and checks the installed Next package version at startup.
+0.10.0. The RC6 combined adapter changes its package and lock to Next 16.4.6,
+which startup checks against the installed `next/package.json`.
 
 The source acceptance suites pass, but no k3s image was built locally. Fresh
 RC6 multi-architecture image acceptance and the publication gate remain
