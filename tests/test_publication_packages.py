@@ -62,13 +62,18 @@ def dockerfile_arg(name):
 
 
 class CandidateArchiveTests(unittest.TestCase):
-    def test_active_rc6_archives_match_the_exact_peer_pair(self):
-        self.assertEqual(AGENT_CONNECT['version'], '0.1.27-rc.6')
-        self.assertEqual(AGENT_CONNECT['sha256'], '224c819fc14876c86f5febe0996a26e73ce618682faf611bac1b340b08b71335')
+    def test_active_release_archives_match_the_exact_peer_pair(self):
+        self.assertEqual(AGENT_CONNECT['version'], '0.1.27')
+        self.assertEqual(AGENT_CONNECT['sha256'], 'aecf3bdff1505d3745ddc694f1e50fead50a0fc19b3fa2c82205174917143b6f')
+        self.assertEqual(AGENT_CONNECT['sourceCommit'], '053a39a7b72e83787a419b97206adc34f45e35bb')
+        self.assertEqual(AGENT_CONNECT['releaseURL'], 'https://github.com/WOOWTECH/pi-paseo-plugin/releases/download/v0.1.27/woowtech-pi-paseo-0.1.27.tgz')
+        self.assertIs(AGENT_CONNECT['published'], True)
         self.assertEqual(AGENT_CONNECT['adapterSha256'], '22d3a604d0c3ddc9305afe07f9f68524bec906fddb16636c08ac2783b4442a6c')
-        self.assertEqual(OMNIGENT['version'], '0.3.42-rc.6')
-        self.assertEqual(OMNIGENT['sourceCommit'], 'd4640bac3fd48b338c1f81230cb3d31fb75f79b2')
-        self.assertEqual(OMNIGENT['sha256'], '91321ee0af4a8500317b726113e0c24332026f26142c4400b283cd55883f12e0')
+        self.assertEqual(OMNIGENT['version'], '0.3.42')
+        self.assertEqual(OMNIGENT['sourceCommit'], '7b56ad586711e6a707c6c3f36ff5dc5fef2790a4')
+        self.assertEqual(OMNIGENT['sha256'], '7ffa8983e3bb2d9790f3122fd53db3e7adca4e24aed33f37aa4cc86bbeea5bb5')
+        self.assertEqual(OMNIGENT['releaseURL'], 'https://github.com/WOOWTECH/pi-omnigent-plugin/releases/download/v0.3.42/woowtech-pi-omnigent-plugin-0.3.42.tgz')
+        self.assertIs(OMNIGENT['published'], True)
         self.assertEqual(OMNIGENT['combinedPatchSha256'], '8d55d6824307023eed5ead7fa89080650d3981fae1746378db9a400fab8a9632')
 
     def test_semver_prerelease_detection_covers_identifiers_and_build_metadata(self):
@@ -145,10 +150,10 @@ class AgentConnectPairingTests(unittest.TestCase):
 
     def test_combined_adapter_pins_exactly_this_agent_connect_and_this_pi_web(self):
         meta = archive_json(OMNIGENT, 'integrations/pi-web/combined.adapter-meta.json')
-        self.assertEqual(OMNIGENT['sourceCommit'], 'd4640bac3fd48b338c1f81230cb3d31fb75f79b2')
-        self.assertEqual(AGENT_CONNECT['sourceCommit'], 'ba9f1c408a61193efc47c2914c6edd67c6f681b7')
-        self.assertEqual(OMNIGENT['version'], '0.3.42-rc.6')
-        self.assertEqual(AGENT_CONNECT['version'], '0.1.27-rc.6')
+        self.assertEqual(OMNIGENT['sourceCommit'], '7b56ad586711e6a707c6c3f36ff5dc5fef2790a4')
+        self.assertEqual(AGENT_CONNECT['sourceCommit'], '053a39a7b72e83787a419b97206adc34f45e35bb')
+        self.assertEqual(OMNIGENT['version'], '0.3.42')
+        self.assertEqual(AGENT_CONNECT['version'], '0.1.27')
         self.assertEqual((meta['paseo']['packageName'], meta['paseo']['packageVersion']), (AGENT_CONNECT['name'], AGENT_CONNECT['version']))
         self.assertEqual(meta['paseo']['adapterPatchSha256'], sha256(archive_member(AGENT_CONNECT, 'host/adapter.patch')))
         self.assertEqual((meta['omnigent']['packageName'], meta['omnigent']['packageVersion']), (OMNIGENT['name'], OMNIGENT['version']))
