@@ -1,39 +1,32 @@
-# Agent Connect coordinated release candidate — 2026-11-26
+# Agent Connect coordinated release candidate — 2026-11-27
 
-This isolated root-image companion pins unpublished RC archives from the exact
-reviewed source heads. It is a candidate input set only: no OCI image has been
-built or published, and no PaaS BASE digest is available or changed.
+This isolated root-image companion pins the exact peer-matched RC6 archives.
+It remains unpublished: no OCI image was built or published, and no PaaS
+BASE digest or mirror was changed.
 
 | Input | Candidate | Source head | Archive SHA-256 |
 | --- | --- | --- | --- |
-| `@woowtech/pi-paseo` (Agent Connect) | 0.1.27-rc.5 | `867d9065f609aa5e32d88f2d55cf07c5d3fadc3e` | `581d5468020344dc93728da862118a4f8258a1a9a610ca16336e865345dceaa5` |
-| `@woowtech/pi-omnigent-plugin` | 0.3.42-rc.5 | `f6c20d5150a41d76627f2684e5f338c457f80d09` | `07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f` |
-| `@woowtech/pi-agent-shared-runtime` | 0.1.6 | `e51849dfa340a2f91bcc7041092749d1b4859c70` | `0914069fb0cf83f258cf81034bb16573f6e4242e8779cea47b4a5e841f98a937` |
-| Combined Pi Web 0.10 adapter | 0.3.42-rc.5 | bound to both heads above | `5bbbd15bf9b0734bb4964c79dd620ecbc3e0ccda26af3cec2cb6a488d8eba7aa` |
+| `@woowtech/pi-paseo` (Agent Connect) | 0.1.27-rc.6 | `867d9065f609aa5e32d88f2d55cf07c5d3fadc3e` (archive commit `ba9f1c408a61193efc47c2914c6edd67c6f681b7`) | `224c819fc14876c86f5febe0996a26e73ce618682faf611bac1b340b08b71335` |
+| `@woowtech/pi-omnigent-plugin` | 0.3.42-rc.6 | `d4640bac3fd48b338c1f81230cb3d31fb75f79b2` | `91321ee0af4a8500317b726113e0c24332026f26142c4400b283cd55883f12e0` |
+| Combined Pi Web 0.10 adapter | 0.3.42-rc.6 | bound to both heads above | `8d55d6824307023eed5ead7fa89080650d3981fae1746378db9a400fab8a9632` |
 
-Agent Connect includes official Paseo `0.17.5`, computed runtime revision
-`0.17.5-r4-8664f2c3f8f5`, and the complete product-managed Better Paseo 1.7.0
-payload from smart commit `a7bfd65a3f39076cf664e28687818c24952e261c`. The
-manifest and source-only tests hash all five payload files, including
-`THIRD_PARTY_NOTICES.txt` (`1d89a0c7fddb8b83545bb727b9c1bb9bac35f1bbc173bc01081bb591ffc2f1e6`).
-Tasks remain enabled; chat enhancements and self-update remain disabled.
+Agent Connect includes official Paseo `0.17.5`, runtime
+`0.17.5-r4-8664f2c3f8f5`, and the complete peer-matched a7 payload. Its adapter
+SHA-256 is `22d3a604d0c3ddc9305afe07f9f68524bec906fddb16636c08ac2783b4442a6c`.
+The combined adapter metadata binds those exact versions and adapter digests.
 
-The RC5 combined adapter remains bound to Pi Web 0.10.0 at source
-`6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068`. That source declares and locks
-Next 16.3.6. The image startup smoke reads the actual
-`node_modules/next/package.json` and checks it against that pinned source. The
-separate Next 16.4.6 upgrade is not included in this C5 tuple: real-image testing
-found it conflicts with the sessions handler's manual gzip response, so it is
-held for a new compression-adapter tuple. No local image was built here.
+The C6 image acceptance runs the bounded real HTTP sessions JSON check against
+the owned loopback Pi Web process and also exercises the normal
+`fetch().json()` client path. Its helper receipt records an actual Pi Web
+0.12.0 / Next 16.3.8 run; canonical Agent Connect RC6 production HTTP logs
+record a separate Next 16.4.6 check. The k3s source remains pinned to Pi Web
+0.10.0 at `6fcd7d44981ab51a21d6cd6eb06d361d0e3d3068`, whose locked Next is
+16.3.6; image startup verifies the installed version. No local image build is
+claimed.
 
-The isolated C6 test-prep branches add a real `GET /api/sessions` HTTP check:
-24 owned synthetic sessions force a large gzip response, which is decoded once
-and parsed as JSON, then the fixture directory is removed. HA runs it against
-its live image-smoke Pi Web process; k3s runs it in the owned candidate-image
-acceptance container before restart. This is test preparation only; the RC6
-package tuple is still pending.
-
-C3 records successful exact-head CI for Agent Connect, Omnigent, and native PR25 `82d004fbd358439fc38f3c38c1de875cf278313f`. The owner also reports native artifact/owned-acceptance checks, Gauss local validation, installed Aicoder, and Start 6/6 passing. These checks do not stand in for building and accepting this root image. After the image publication gate produces a real multiarch index digest, hand that exact accepted `tag@sha256` to the separate PaaS derivative workflow; keep the PaaS BASE unchanged until then.
+Fresh RC6 image acceptance on both architectures, publication gate, and any
+separate PaaS derivative remain outstanding. The existing PaaS BASE is
+unchanged.
 
 The table is the current snapshot; `candidate-packages/manifest.json` is the
 checked record (`tests/test_publication_packages.py`). Older sections below

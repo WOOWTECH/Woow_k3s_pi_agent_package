@@ -18,9 +18,9 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PINS_SHA = 'bae9b43c1ff42667fe31a8f26e44d2534172d048eb9f911258fdcd53accdbc6d'
+PINS_SHA = '15fe32d64d274d5b019ee2a2cd85bf4755f772e1dbad6cc92d604903abd40dae'
 PUBLICATION_SHA = '93ac8618fe64329872681f1eb6a94146c249e101458ed8e8af72dc0bca19abd8'
-ARCHIVE_SHA = '07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f'
+ARCHIVE_SHA = '91321ee0af4a8500317b726113e0c24332026f26142c4400b283cd55883f12e0'
 NEGATIVES = {'source-drift', 'shared-source-inode', 'console-script-drift', 'unchecked-pyc'}
 AFTER = '68f4c2a3c0a3aa75436a15828e325bd279995435d83931d93b12516cca303962'
 IMAGE_INFO = '{"Id":{{json .Id}},"Os":{{json .Os}},"Architecture":{{json .Architecture}},"revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}'

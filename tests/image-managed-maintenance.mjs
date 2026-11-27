@@ -56,7 +56,7 @@ export function validateRefusal(result, calls, reason) {
 }
 
 function pinnedPlugin(pins) {
-  assert.equal(pins.pluginArchiveSha256, '07a4c4fb0399a04d79bb73f518a088504147fbc5e02b115ef6cca77e80b1b63f');
+  assert.equal(pins.pluginArchiveSha256, '91321ee0af4a8500317b726113e0c24332026f26142c4400b283cd55883f12e0');
   for (const [relative, pin] of Object.entries(pins.pluginFiles)) {
     const file = path.join(ROOT, relative);
     for (let parent = path.dirname(file); parent !== '/'; parent = path.dirname(parent)) {
